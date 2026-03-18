@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type CurrentPlan struct {
@@ -24,6 +25,7 @@ type ReviewRound struct {
 	RoundID    string `json:"round_id"`
 	Kind       string `json:"kind"`
 	Aggregated bool   `json:"aggregated"`
+	Decision   string `json:"decision,omitempty"`
 }
 
 type CIState struct {
@@ -39,6 +41,10 @@ type SyncState struct {
 type Publish struct {
 	AttemptID string `json:"attempt_id"`
 	PRURL     string `json:"pr_url"`
+}
+
+type reviewAggregate struct {
+	Decision string `json:"decision"`
 }
 
 func LoadCurrentPlan(workdir string) (*CurrentPlan, error) {
@@ -101,4 +107,34 @@ func SaveState(workdir, planStem string, state *State) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+func EffectiveReviewDecision(workdir, planStem string, round *ReviewRound) (string, bool, error) {
+	if round == nil {
+		return "", false, nil
+	}
+	if decision := strings.TrimSpace(round.Decision); decision != "" {
+		return decision, true, nil
+	}
+	if !round.Aggregated || strings.TrimSpace(round.RoundID) == "" {
+		return "", false, nil
+	}
+
+	path := filepath.Join(workdir, ".local", "harness", "plans", planStem, "reviews", round.RoundID, "aggregate.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("read aggregate.json for %s: %w", round.RoundID, err)
+	}
+
+	var aggregate reviewAggregate
+	if err := json.Unmarshal(data, &aggregate); err != nil {
+		return "", false, fmt.Errorf("parse aggregate.json for %s: %w", round.RoundID, err)
+	}
+	if decision := strings.TrimSpace(aggregate.Decision); decision != "" {
+		return decision, true, nil
+	}
+	return "", false, nil
 }

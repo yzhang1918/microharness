@@ -38,6 +38,11 @@ the agent, owns most step-state and artifact bookkeeping:
   - the latest local snapshot for the current plan
   - points to the latest relevant review round, CI snapshot, and publish
     attempt IDs
+  - retains the latest review kind and decision so archive can apply
+    revision-aware review gating
+  - when older local state predates the stored review decision, commands may
+    fall back to the review round's `aggregate.json` artifact instead of
+    forcing a fresh review immediately
 - `events.jsonl`
   - append-only local trajectory
   - useful for debugging and UI later, but not required for durable history

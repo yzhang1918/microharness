@@ -100,11 +100,25 @@ func (s Service) Read() Result {
 		},
 	}
 
+	reviewDecision, reviewDecisionKnown := "", false
+	if state != nil && state.ActiveReviewRound != nil {
+		decision, known, err := runstate.EffectiveReviewDecision(s.Workdir, planStem, state.ActiveReviewRound)
+		if err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Unable to read the aggregate artifact for %s; review status may be stale.", state.ActiveReviewRound.RoundID))
+		} else {
+			reviewDecision = decision
+			reviewDecisionKnown = known
+		}
+		if state.ActiveReviewRound.Aggregated && !reviewDecisionKnown {
+			result.Warnings = append(result.Warnings, "The latest aggregated review outcome could not be recovered from local state; rerun or recover the review before archive-sensitive work.")
+		}
+	}
+
 	if current := doc.CurrentStep(); current != nil {
 		result.State.Step = current.Title
 	}
 	if doc.Frontmatter.Lifecycle == "executing" {
-		result.State.StepState = inferStepState(doc, state)
+		result.State.StepState = inferStepState(doc, state, reviewDecisionKnown, reviewDecision)
 	}
 	if state != nil {
 		if state.ActiveReviewRound != nil {
@@ -115,20 +129,23 @@ func (s Service) Read() Result {
 		}
 	}
 
-	result.Warnings = buildWarnings(state)
-	result.NextAction = buildNextActions(doc, state, result.State.StepState)
-	result.Summary = buildSummary(doc, result.State.StepState)
+	result.Warnings = append(result.Warnings, buildWarnings(state)...)
+	result.NextAction = buildNextActions(doc, state, result.State.StepState, reviewDecisionKnown)
+	result.Summary = buildSummary(doc, state, result.State.StepState, reviewDecisionKnown)
 
 	return result
 }
 
-func inferStepState(doc *plan.Document, state *runstate.State) string {
+func inferStepState(doc *plan.Document, state *runstate.State, reviewDecisionKnown bool, reviewDecision string) string {
 	if state != nil {
 		if state.Sync != nil && state.Sync.Conflicts {
 			return "resolving_conflicts"
 		}
 		if state.ActiveReviewRound != nil && !state.ActiveReviewRound.Aggregated {
 			return "reviewing"
+		}
+		if state.ActiveReviewRound != nil && state.ActiveReviewRound.Aggregated && (!reviewDecisionKnown || reviewDecision != "pass") {
+			return "fix_required"
 		}
 		if state.LatestCI != nil && state.LatestCI.Status == "pending" {
 			return "waiting_ci"
@@ -154,7 +171,7 @@ func buildWarnings(state *runstate.State) []string {
 	}
 }
 
-func buildNextActions(doc *plan.Document, state *runstate.State, stepState string) []NextAction {
+func buildNextActions(doc *plan.Document, state *runstate.State, stepState string, reviewDecisionKnown bool) []NextAction {
 	next := make([]NextAction, 0)
 	if state != nil && state.Sync != nil && (state.Sync.Freshness == "stale" || state.Sync.Freshness == "unknown") {
 		next = append(next, NextAction{
@@ -174,6 +191,20 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 			NextAction{Command: strPtr("harness reopen"), Description: "Reopen the plan if new feedback or remote changes mean the archived candidate is no longer ready."},
 		)
 	default:
+		if stepState == "fix_required" {
+			description := "Address the findings from the latest aggregated review, update step-local notes, rerun focused validation, and start a fresh review round once the slice is ready."
+			if state != nil && state.ActiveReviewRound != nil && state.ActiveReviewRound.RoundID != "" {
+				description = fmt.Sprintf("Address the findings from %s, update step-local notes, rerun focused validation, and start a fresh review round once the slice is ready.", state.ActiveReviewRound.RoundID)
+				if !reviewDecisionKnown {
+					description = fmt.Sprintf("Recover or rerun %s before continuing. The latest aggregated review outcome could not be recovered from local state, so archive-sensitive guidance is intentionally blocked.", state.ActiveReviewRound.RoundID)
+				}
+			}
+			next = append(next,
+				NextAction{Command: nil, Description: description},
+				NextAction{Command: strPtr("harness review start --spec <path>"), Description: "Start a fresh delta or full review after the fixes are in place."},
+			)
+			break
+		}
 		if stepState == "ready_for_archive" {
 			next = append(next,
 				NextAction{Command: nil, Description: "Archive-ready closeout is complete; archive the plan and then commit and push the tracked move."},
@@ -203,7 +234,7 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 	return next
 }
 
-func buildSummary(doc *plan.Document, stepState string) string {
+func buildSummary(doc *plan.Document, state *runstate.State, stepState string, reviewDecisionKnown bool) string {
 	switch doc.Frontmatter.Lifecycle {
 	case "awaiting_plan_approval":
 		return "Plan is awaiting approval before execution begins."
@@ -215,6 +246,15 @@ func buildSummary(doc *plan.Document, stepState string) string {
 
 	if stepState == "ready_for_archive" {
 		return "Plan has completed all tracked steps and is ready to archive."
+	}
+	if stepState == "fix_required" && state != nil && state.ActiveReviewRound != nil {
+		if !reviewDecisionKnown {
+			return fmt.Sprintf("Plan still needs review follow-up because the latest aggregated review (%s) could not be recovered from local state.", state.ActiveReviewRound.RoundID)
+		}
+		if step := doc.CurrentStep(); step != nil {
+			return fmt.Sprintf("Plan is executing %s and the latest aggregated review (%s) requested changes.", step.Title, state.ActiveReviewRound.RoundID)
+		}
+		return fmt.Sprintf("Plan still needs follow-up because the latest aggregated review (%s) requested changes.", state.ActiveReviewRound.RoundID)
 	}
 
 	if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {

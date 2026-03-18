@@ -1,6 +1,7 @@
 package lifecycle_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,12 @@ func TestArchiveMovesPlanAndUpdatesPointers(t *testing.T) {
 	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
 		PlanPath: activeRelPath,
 		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Aggregated: true,
+			Decision:   "pass",
+		},
 	}); err != nil {
 		t.Fatalf("save state: %v", err)
 	}
@@ -66,6 +73,18 @@ func TestArchiveRejectsMissingArchiveSummaryFields(t *testing.T) {
 	content := buildActiveArchiveCandidate(t)
 	content = strings.Replace(content, "- PR: NONE\n", "", 1)
 	writeFile(t, path, content)
+	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
+		PlanPath: "docs/plans/active/2026-03-18-archive-smoke.md",
+		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Aggregated: true,
+			Decision:   "pass",
+		},
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
 
 	svc := lifecycle.Service{Workdir: root}
 	result := svc.Archive()
@@ -123,6 +142,14 @@ func TestArchiveRejectsUnresolvedLocalState(t *testing.T) {
 			writeActiveArchiveCandidate(t, root, activeRelPath)
 			tc.state.PlanPath = activeRelPath
 			tc.state.PlanStem = "2026-03-18-archive-smoke"
+			if tc.state.ActiveReviewRound == nil && tc.errorPath != "state.active_review_round" {
+				tc.state.ActiveReviewRound = &runstate.ReviewRound{
+					RoundID:    "review-001-full",
+					Kind:       "full",
+					Aggregated: true,
+					Decision:   "pass",
+				}
+			}
 			if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", tc.state); err != nil {
 				t.Fatalf("save state: %v", err)
 			}
@@ -137,9 +164,144 @@ func TestArchiveRejectsUnresolvedLocalState(t *testing.T) {
 	}
 }
 
+func TestArchiveRequiresPassingReviewForRevisionOne(t *testing.T) {
+	testCases := []struct {
+		name       string
+		state      *runstate.State
+		errorMatch string
+	}{
+		{
+			name:       "missing review",
+			state:      &runstate.State{},
+			errorMatch: "passing full review",
+		},
+		{
+			name: "passing delta is not enough",
+			state: &runstate.State{
+				ActiveReviewRound: &runstate.ReviewRound{
+					RoundID:    "review-001-delta",
+					Kind:       "delta",
+					Aggregated: true,
+					Decision:   "pass",
+				},
+			},
+			errorMatch: "passing full review",
+		},
+		{
+			name: "failed full review still blocks",
+			state: &runstate.State{
+				ActiveReviewRound: &runstate.ReviewRound{
+					RoundID:    "review-001-full",
+					Kind:       "full",
+					Aggregated: true,
+					Decision:   "changes_requested",
+				},
+			},
+			errorMatch: "not archive-ready",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			activeRelPath := "docs/plans/active/2026-03-18-archive-smoke.md"
+			writeActiveArchiveCandidate(t, root, activeRelPath)
+			tc.state.PlanPath = activeRelPath
+			tc.state.PlanStem = "2026-03-18-archive-smoke"
+			if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", tc.state); err != nil {
+				t.Fatalf("save state: %v", err)
+			}
+
+			result := lifecycle.Service{Workdir: root}.Archive()
+			if result.OK {
+				t.Fatalf("expected archive failure, got %#v", result)
+			}
+			assertErrorPath(t, result.Errors, "state.active_review_round")
+			assertErrorContains(t, result.Errors, "state.active_review_round", tc.errorMatch)
+		})
+	}
+}
+
+func TestArchiveAllowsPassingDeltaReviewForReopenedRevision(t *testing.T) {
+	root := t.TempDir()
+	activeRelPath := "docs/plans/active/2026-03-18-archive-smoke.md"
+	activePath := writeActiveArchiveCandidate(t, root, activeRelPath)
+	data, err := os.ReadFile(activePath)
+	if err != nil {
+		t.Fatalf("read active plan: %v", err)
+	}
+	updated := strings.Replace(string(data), "revision: 1", "revision: 2", 1)
+	writeFile(t, activePath, updated)
+
+	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
+		PlanPath: activeRelPath,
+		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-002-delta",
+			Kind:       "delta",
+			Aggregated: true,
+			Decision:   "pass",
+		},
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	result := lifecycle.Service{
+		Workdir: root,
+		Now: func() time.Time {
+			return time.Date(2026, 3, 18, 4, 0, 0, 0, time.UTC)
+		},
+	}.Archive()
+	if !result.OK {
+		t.Fatalf("expected archive success for reopened revision, got %#v", result)
+	}
+}
+
+func TestArchiveUsesAggregateArtifactForLegacyReviewDecision(t *testing.T) {
+	root := t.TempDir()
+	activeRelPath := "docs/plans/active/2026-03-18-archive-smoke.md"
+	writeActiveArchiveCandidate(t, root, activeRelPath)
+	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
+		PlanPath: activeRelPath,
+		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Aggregated: true,
+		},
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+	writeAggregateArtifact(t, root, "2026-03-18-archive-smoke", "review-001-full", map[string]any{
+		"decision": "pass",
+	})
+
+	result := lifecycle.Service{
+		Workdir: root,
+		Now: func() time.Time {
+			return time.Date(2026, 3, 18, 4, 30, 0, 0, time.UTC)
+		},
+	}.Archive()
+	if !result.OK {
+		t.Fatalf("expected archive success for legacy review decision, got %#v", result)
+	}
+}
+
 func TestReopenMovesArchivedPlanBackToActiveAndResetsSummaries(t *testing.T) {
 	root := t.TempDir()
 	writeActiveArchiveCandidate(t, root, "docs/plans/active/2026-03-18-archive-smoke.md")
+	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
+		PlanPath: "docs/plans/active/2026-03-18-archive-smoke.md",
+		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Aggregated: true,
+			Decision:   "pass",
+		},
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
 
 	svc := lifecycle.Service{
 		Workdir: root,
@@ -190,6 +352,12 @@ func TestReopenClearsStaleCIAndSyncSignals(t *testing.T) {
 	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
 		PlanPath: activeRelPath,
 		PlanStem: "2026-03-18-archive-smoke",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Aggregated: true,
+			Decision:   "pass",
+		},
 		LatestCI: &runstate.CIState{SnapshotID: "ci-1", Status: "success"},
 		Sync:     &runstate.SyncState{Freshness: "fresh", Conflicts: false},
 	}); err != nil {
@@ -210,7 +378,7 @@ func TestReopenClearsStaleCIAndSyncSignals(t *testing.T) {
 	if _, err := runstate.SaveState(root, "2026-03-18-archive-smoke", &runstate.State{
 		PlanPath:          "docs/plans/archived/2026-03-18-archive-smoke.md",
 		PlanStem:          "2026-03-18-archive-smoke",
-		ActiveReviewRound: &runstate.ReviewRound{RoundID: "review-001-full", Kind: "full", Aggregated: true},
+		ActiveReviewRound: &runstate.ReviewRound{RoundID: "review-001-full", Kind: "full", Aggregated: true, Decision: "pass"},
 		LatestCI:          &runstate.CIState{SnapshotID: "ci-2", Status: "failed"},
 		Sync:              &runstate.SyncState{Freshness: "stale", Conflicts: true},
 	}); err != nil {
@@ -274,6 +442,21 @@ func writeFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
+	}
+}
+
+func writeAggregateArtifact(t *testing.T, root, planStem, roundID string, payload map[string]any) {
+	t.Helper()
+	dir := filepath.Join(root, ".local", "harness", "plans", planStem, "reviews", roundID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir aggregate dir: %v", err)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal aggregate payload: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "aggregate.json"), data, 0o644); err != nil {
+		t.Fatalf("write aggregate: %v", err)
 	}
 }
 

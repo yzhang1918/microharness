@@ -171,6 +171,10 @@ v0.1 should keep `step_state` deliberately small:
 
 - `reviewing`
   - an active review round exists and is not yet aggregated
+- `fix_required`
+  - the latest aggregated review requested changes, or its outcome could not be
+    recovered safely, so the current step should repair or rerun review before
+    continuing
 - `waiting_ci`
   - the latest CI snapshot is still pending
 - `resolving_conflicts`
@@ -269,6 +273,11 @@ Contract:
 - infer `step` from plan step status
 - infer a minimal `step_state` from local review/CI/publish/sync state when
   `lifecycle: executing`
+- surface aggregated review failures as a concrete repair signal rather than
+  falling back to a generic "implementing" state
+- if legacy aggregated review outcome cannot be recovered, degrade
+  conservatively to review-follow-up guidance instead of closeout or archive
+  guidance
 - surface stale or unknown remote freshness as warnings and next actions rather
   than as a long-lived `step_state`
 - return recommended next actions for both "continue work" and "wait/observe"
@@ -418,7 +427,10 @@ Contract:
 - compute blocking and non-blocking findings
 - stop with an error when expected reviewer slots are missing or invalid
 - write an aggregate artifact that captures the review decision surface
-- update local `state.json` with the aggregate result
+- update local `state.json` with the aggregate result, including whether the
+  round passed or requested changes
+- allow later commands to recover that decision from the round aggregate
+  artifact when older local state predates the stored `decision` field
 - return next actions that depend on the review kind
 
 Recommended next action:
@@ -443,7 +455,9 @@ The CLI contract should assume this review cadence:
 
 Archive readiness requires:
 
-- a clean `full` review for the current candidate
+- a clean `full` review for the initial archive candidate (`revision: 1`)
+- a clean review result for later reopened revisions, where a narrow fix may
+  use `delta` review instead of forcing another `full` review
 - required CI green for the pushed archived candidate
 - no unresolved active review round
 - no unresolved conflict-repair work
@@ -464,6 +478,10 @@ Contract:
   issue references before allowing archive to succeed
 - reject archive when plan-local state still shows unresolved review, CI, or
   sync work for the current candidate
+- require plan-local review state to retain the latest review decision, or
+  recover it from the latest review round's aggregate artifact for older local
+  state, so archive can distinguish a failed aggregated review from a passing
+  one
 - require the pre-archive `Archive Summary` to include structured `PR`,
   `Ready`, and `Merge Handoff` lines
 - move the plan from `docs/plans/active/` to `docs/plans/archived/`

@@ -81,6 +81,139 @@ func TestStatusWaitingCI(t *testing.T) {
 	}
 }
 
+func TestStatusFixRequiredAfterAggregatedReviewFailure(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		content = replaceOnce(t, content, "lifecycle: awaiting_plan_approval", "lifecycle: executing")
+		content = replaceOnce(t, content, "- Status: pending", "- Status: in_progress")
+		return content
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"active_review_round": map[string]any{
+			"round_id":   "review-005-delta",
+			"kind":       "delta",
+			"aggregated": true,
+			"decision":   "changes_requested",
+		},
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.StepState != "fix_required" {
+		t.Fatalf("unexpected step state: %#v", result.State)
+	}
+	if !strings.Contains(result.Summary, "requested changes") {
+		t.Fatalf("unexpected summary: %q", result.Summary)
+	}
+	if len(result.NextAction) < 2 {
+		t.Fatalf("expected multiple next actions, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "review-005-delta") {
+		t.Fatalf("expected round-specific guidance, got %#v", result.NextAction)
+	}
+	if result.NextAction[1].Command == nil || *result.NextAction[1].Command != "harness review start --spec <path>" {
+		t.Fatalf("unexpected second next action: %#v", result.NextAction)
+	}
+}
+
+func TestStatusUsesAggregateArtifactForLegacyReviewDecision(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		content = replaceOnce(t, content, "lifecycle: awaiting_plan_approval", "lifecycle: executing")
+		content = replaceOnce(t, content, "- Status: pending", "- Status: in_progress")
+		return content
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"active_review_round": map[string]any{
+			"round_id":   "review-004-full",
+			"kind":       "full",
+			"aggregated": true,
+		},
+	})
+	writeAggregate(t, root, "2026-03-18-status-plan", "review-004-full", map[string]any{
+		"decision": "changes_requested",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.StepState != "fix_required" {
+		t.Fatalf("unexpected step state: %#v", result.State)
+	}
+	if !strings.Contains(result.Summary, "review-004-full") {
+		t.Fatalf("unexpected summary: %q", result.Summary)
+	}
+}
+
+func TestStatusFixRequiredBeatsCloseoutGuidance(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		content = replaceOnce(t, content, "lifecycle: awaiting_plan_approval", "lifecycle: executing")
+		content = stringsReplaceAll(content, "- Status: pending", "- Status: completed")
+		content = stringsReplaceAll(content, "- [ ]", "- [x]")
+		content = stringsReplaceAll(content, "PENDING_STEP_EXECUTION", "Done.")
+		content = stringsReplaceAll(content, "PENDING_STEP_REVIEW", "Reviewed.")
+		content = stringsReplaceAll(content, "PENDING_UNTIL_ARCHIVE", "Ready.")
+		return content
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"active_review_round": map[string]any{
+			"round_id":   "review-007-delta",
+			"kind":       "delta",
+			"aggregated": true,
+			"decision":   "changes_requested",
+		},
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.StepState != "fix_required" {
+		t.Fatalf("unexpected step state: %#v", result.State)
+	}
+	if len(result.NextAction) < 2 {
+		t.Fatalf("expected fix-required next actions, got %#v", result.NextAction)
+	}
+	if strings.Contains(result.NextAction[0].Description, "Validation, Review, Archive, and Outcome summaries") {
+		t.Fatalf("expected fix guidance to win over closeout guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "review-007-delta") {
+		t.Fatalf("expected round-specific fix guidance, got %#v", result.NextAction)
+	}
+}
+
+func TestStatusUnknownAggregatedReviewDecisionBlocksCloseoutGuidance(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		content = replaceOnce(t, content, "lifecycle: awaiting_plan_approval", "lifecycle: executing")
+		content = stringsReplaceAll(content, "- Status: pending", "- Status: completed")
+		content = stringsReplaceAll(content, "- [ ]", "- [x]")
+		content = stringsReplaceAll(content, "PENDING_STEP_EXECUTION", "Done.")
+		content = stringsReplaceAll(content, "PENDING_STEP_REVIEW", "Reviewed.")
+		content = stringsReplaceAll(content, "PENDING_UNTIL_ARCHIVE", "Ready.")
+		return content
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"active_review_round": map[string]any{
+			"round_id":   "review-008-delta",
+			"kind":       "delta",
+			"aggregated": true,
+		},
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.StepState != "fix_required" {
+		t.Fatalf("unexpected step state: %#v", result.State)
+	}
+	if !strings.Contains(result.Summary, "could not be recovered") {
+		t.Fatalf("unexpected summary: %q", result.Summary)
+	}
+	if len(result.NextAction) < 2 {
+		t.Fatalf("expected conservative next actions, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "Recover or rerun review-008-delta") {
+		t.Fatalf("unexpected first next action: %#v", result.NextAction)
+	}
+	if len(result.Warnings) == 0 || !strings.Contains(result.Warnings[0], "could not be recovered") {
+		t.Fatalf("expected recovery warning, got %#v", result.Warnings)
+	}
+}
+
 func TestStatusResolvingConflicts(t *testing.T) {
 	root := t.TempDir()
 	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
@@ -224,6 +357,21 @@ func writeState(t *testing.T, root, planStem string, payload map[string]any) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "state.json"), data, 0o644); err != nil {
 		t.Fatalf("write state: %v", err)
+	}
+}
+
+func writeAggregate(t *testing.T, root, planStem, roundID string, payload map[string]any) {
+	t.Helper()
+	dir := filepath.Join(root, ".local", "harness", "plans", planStem, "reviews", roundID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir aggregate dir: %v", err)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal aggregate: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "aggregate.json"), data, 0o644); err != nil {
+		t.Fatalf("write aggregate: %v", err)
 	}
 }
 

@@ -52,6 +52,9 @@ func TestStartCreatesRoundAndUpdatesState(t *testing.T) {
 	if state == nil || state.ActiveReviewRound == nil || state.ActiveReviewRound.Aggregated {
 		t.Fatalf("unexpected state: %#v", state)
 	}
+	if state.ActiveReviewRound.Decision != "" {
+		t.Fatalf("expected empty decision before aggregate, got %#v", state.ActiveReviewRound)
+	}
 }
 
 func TestStartUsesNextPlanLocalReviewSequence(t *testing.T) {
@@ -244,6 +247,9 @@ func TestAggregateDeltaPassUpdatesState(t *testing.T) {
 	if state == nil || state.ActiveReviewRound == nil || !state.ActiveReviewRound.Aggregated {
 		t.Fatalf("expected aggregated state, got %#v", state)
 	}
+	if state.ActiveReviewRound.Decision != "pass" {
+		t.Fatalf("expected passing decision in state, got %#v", state.ActiveReviewRound)
+	}
 }
 
 func TestAggregateFullWithBlockingFindings(t *testing.T) {
@@ -290,6 +296,13 @@ func TestAggregateFullWithBlockingFindings(t *testing.T) {
 	}
 	if len(result.Review.BlockingFindings) != 1 {
 		t.Fatalf("expected one blocking finding, got %#v", result.Review)
+	}
+	state, _, err := runstate.LoadState(root, "2026-03-18-review-contract")
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if state == nil || state.ActiveReviewRound == nil || state.ActiveReviewRound.Decision != "changes_requested" {
+		t.Fatalf("expected failing decision in state, got %#v", state)
 	}
 	if len(result.NextAction) == 0 || !strings.Contains(result.NextAction[0].Description, "Fix the blocking findings before archive") {
 		t.Fatalf("unexpected next actions: %#v", result.NextAction)

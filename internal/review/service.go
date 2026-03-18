@@ -279,6 +279,7 @@ func (s Service) Start(specBytes []byte) StartResult {
 		RoundID:    roundID,
 		Kind:       spec.Kind,
 		Aggregated: false,
+		Decision:   "",
 	}
 	statePath, err = runstate.SaveState(s.Workdir, planStem, state)
 	if err != nil {
@@ -524,6 +525,7 @@ func (s Service) Aggregate(roundID string) AggregateResult {
 		RoundID:    manifest.RoundID,
 		Kind:       manifest.Kind,
 		Aggregated: true,
+		Decision:   decision,
 	}
 	statePath, err = runstate.SaveState(s.Workdir, planStem, state)
 	if err != nil {

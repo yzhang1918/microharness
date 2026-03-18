@@ -80,7 +80,7 @@ func (s Service) Archive() Result {
 	if doc.CompletedStepsHavePendingPlaceholders() {
 		return errorResult("archive", "Current plan still contains completed-step placeholders.", []CommandError{{Path: "steps", Message: "replace every PENDING_STEP_EXECUTION and PENDING_STEP_REVIEW token before archive"}})
 	}
-	if issues := archiveStateIssues(state); len(issues) > 0 {
+	if issues := archiveStateIssues(s.Workdir, planStem, doc.Frontmatter.Revision, state); len(issues) > 0 {
 		return errorResult("archive", "Current plan is not archive-ready.", issues)
 	}
 
@@ -449,16 +449,46 @@ func strPtr(value string) *string {
 	return &value
 }
 
-func archiveStateIssues(state *runstate.State) []CommandError {
-	if state == nil {
-		return nil
+func archiveStateIssues(workdir, planStem string, revision int, state *runstate.State) []CommandError {
+	issues := make([]CommandError, 0)
+	if state == nil || state.ActiveReviewRound == nil {
+		issues = append(issues, CommandError{
+			Path:    "state.active_review_round",
+			Message: requiredReviewMessage(revision),
+		})
+		return issues
 	}
 
-	issues := make([]CommandError, 0)
-	if state.ActiveReviewRound != nil && !state.ActiveReviewRound.Aggregated {
+	if !state.ActiveReviewRound.Aggregated {
 		issues = append(issues, CommandError{
 			Path:    "state.active_review_round",
 			Message: "aggregate or clear the active review round before archive",
+		})
+	}
+	decision, known, err := runstate.EffectiveReviewDecision(workdir, planStem, state.ActiveReviewRound)
+	if err != nil {
+		issues = append(issues, CommandError{
+			Path:    "state.active_review_round",
+			Message: fmt.Sprintf("unable to read the latest aggregate artifact for %s: %v", state.ActiveReviewRound.RoundID, err),
+		})
+		return issues
+	}
+	if !known {
+		issues = append(issues, CommandError{
+			Path:    "state.active_review_round",
+			Message: "latest review decision is unknown; rerun or re-aggregate the latest review before archive",
+		})
+	}
+	if known && decision != "pass" {
+		issues = append(issues, CommandError{
+			Path:    "state.active_review_round",
+			Message: fmt.Sprintf("latest review decision %q is not archive-ready; fix findings or rerun review", decision),
+		})
+	}
+	if revision <= 1 && state.ActiveReviewRound.Kind != "full" {
+		issues = append(issues, CommandError{
+			Path:    "state.active_review_round",
+			Message: "revision 1 requires a passing full review before archive",
 		})
 	}
 	if state.LatestCI != nil && !ciStatusAllowsArchive(state.LatestCI.Status) {
@@ -500,4 +530,11 @@ func freshnessBlocksArchive(freshness string) bool {
 	default:
 		return true
 	}
+}
+
+func requiredReviewMessage(revision int) string {
+	if revision <= 1 {
+		return "revision 1 requires a passing full review before archive"
+	}
+	return "archive requires a passing aggregated review before archive"
 }
