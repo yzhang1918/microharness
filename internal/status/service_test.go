@@ -120,6 +120,15 @@ func TestStatusReadyForArchive(t *testing.T) {
 	if result.State.StepState != "ready_for_archive" {
 		t.Fatalf("unexpected step state: %#v", result.State)
 	}
+	if len(result.NextAction) == 0 || result.NextAction[0].Command != nil {
+		t.Fatalf("expected archive-ready guidance, got %#v", result.NextAction)
+	}
+	if len(result.NextAction) < 2 || result.NextAction[1].Command == nil || *result.NextAction[1].Command != "harness archive" {
+		t.Fatalf("expected archive command guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.Summary, "ready to archive") {
+		t.Fatalf("unexpected summary: %q", result.Summary)
+	}
 }
 
 func TestStatusCloseoutBeforeArchive(t *testing.T) {

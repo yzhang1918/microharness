@@ -174,6 +174,13 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 			NextAction{Command: strPtr("harness reopen"), Description: "Reopen the plan if new feedback or remote changes mean the archived candidate is no longer ready."},
 		)
 	default:
+		if stepState == "ready_for_archive" {
+			next = append(next,
+				NextAction{Command: nil, Description: "Archive-ready closeout is complete; archive the plan and then commit and push the tracked move."},
+				NextAction{Command: strPtr("harness archive"), Description: "Archive the current plan now that the closeout notes and follow-up links are ready."},
+			)
+			break
+		}
 		if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {
 			next = append(next, NextAction{
 				Command:     nil,
@@ -188,11 +195,6 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 			next = append(next, NextAction{Command: nil, Description: "Wait for required CI to finish, then address any failures before continuing."})
 		case "resolving_conflicts":
 			next = append(next, NextAction{Command: nil, Description: "Finish conflict resolution, rerun focused validation, and consider a delta review before continuing."})
-		case "ready_for_archive":
-			next = append(next,
-				NextAction{Command: nil, Description: "Ensure deferred items have follow-up issue references and write final archive summaries."},
-				NextAction{Command: strPtr("harness archive"), Description: "Archive the current plan once the closeout notes and follow-up links are ready."},
-			)
 		default:
 			next = append(next, NextAction{Command: nil, Description: "Continue the current step and keep step-local Execution Notes and Review Notes up to date."})
 		}
@@ -209,6 +211,10 @@ func buildSummary(doc *plan.Document, stepState string) string {
 		return "Plan is currently blocked and needs external input before continuing."
 	case "awaiting_merge_approval":
 		return "Plan is archived and waiting for merge approval."
+	}
+
+	if stepState == "ready_for_archive" {
+		return "Plan has completed all tracked steps and is ready to archive."
 	}
 
 	if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {
