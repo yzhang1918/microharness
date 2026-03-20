@@ -24,12 +24,22 @@ merge.
 6. Add any final PR comment or remote update that belongs on the permanent
    record.
 7. Close or update linked issues when the merge resolves them.
-8. Sync local `main`, delete the feature branch if appropriate, and leave the
+8. Run:
+
+   ```bash
+   harness land record
+   ```
+
+   This clears the current candidate pointer and records the last landed
+   archived plan so `harness status` reports an idle-after-land worktree.
+9. Sync local `main`, delete the feature branch if appropriate, and leave the
    worktree clean.
 
 ## Do Not
 
 - Do not merge without explicit human approval.
 - Do not edit the archived plan after merge just to record merge metadata.
+- Do not leave the worktree pointing at the archived candidate after land; run
+  `harness land record` so status stops reporting `awaiting_merge_approval`.
 - Do not keep using `land` if the candidate is no longer valid; switch back to
   `harness-execute` via `harness reopen`.

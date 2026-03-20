@@ -207,11 +207,15 @@ The tracked plan stores only the coarse lifecycle:
 - `blocked`
   - Work cannot proceed without human input or an external dependency.
 - `awaiting_merge_approval`
-  - The plan is archived and frozen; merge approval happens outside the plan.
+  - The plan is archived and frozen; merge approval happens outside the plan,
+    and CLI output may add a separate local handoff hint before the candidate
+    is truly ready to wait for approval.
 
 Step state such as "testing", "waiting for CI", or "resolving conflicts" must
 be inferred from step context plus `.local` review/CI/publish/sync artifacts
 and shown in CLI output rather than hand-maintained in the tracked markdown.
+The same rule applies to archived-plan handoff details such as "pending
+publish" or "waiting on post-archive CI".
 
 ## Required Sections
 
@@ -233,7 +237,7 @@ Every plan must contain these sections in order:
 `## Deferred Items` is the single place for consciously deferred slice items,
 whether they look more like postponed tasks or accepted-but-tracked risks.
 It is different from `Outcome Summary > Follow-Up Issues`, which records the
-actual tracker entries created to own those deferred items after archive.
+durable handoff note recorded at archive time for those deferred items.
 
 ### Scope Structure
 
@@ -349,14 +353,19 @@ Use these two surfaces deliberately:
 - `## Deferred Items`
   - work or risk deliberately deferred from the current slice
 - `## Outcome Summary > Follow-Up Issues`
-  - actual tracker items created to own deferred items or post-archive follow-up
+  - the durable handoff note recorded at archive time for deferred items that
+    are still intentionally left out of the current slice
 
 Archive readiness should enforce this distinction:
 
 - if `## Deferred Items` contains real items at archive time, the archived plan
   must not leave `### Follow-Up Issues` as `NONE`
-- archived follow-up entries should include concrete tracker references such as
-  issue numbers or URLs
+- archived follow-up entries should contain enough durable detail for the next
+  human or agent to continue the work; concrete issue or PR-comment references
+  are recommended but not required
+- follow-up discovered only after land belongs in issues, PR comments, or the
+  next plan's intake metadata rather than retroactive edits to the archived
+  plan
 - if there are no deferred items and no post-archive follow-up, `### Follow-Up
   Issues` may remain `NONE`
 
@@ -450,7 +459,7 @@ implementation.
 - active plans stored under `archived/` or archived plans stored under
   `active/`
 - archived plans with unchecked step-local acceptance criteria
-- archived plans with deferred items but no follow-up issue references
+- archived plans with deferred items but `Follow-Up Issues: NONE`
 - archived plans with completed steps that still contain
   `PENDING_STEP_EXECUTION` or `PENDING_STEP_REVIEW`
 - archived plans that still contain `PENDING_UNTIL_ARCHIVE`

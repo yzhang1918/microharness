@@ -31,6 +31,11 @@ type DocumentCheckbox struct {
 	Checked bool
 }
 
+type DocumentIssue struct {
+	Path    string
+	Message string
+}
+
 func LoadFile(path string) (*Document, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -160,10 +165,86 @@ func (d *Document) CompletedStepsHavePendingPlaceholders() bool {
 	return false
 }
 
+func (d *Document) ArchiveReadinessIssues() []DocumentIssue {
+	issues := make([]DocumentIssue, 0)
+	if !d.AllAcceptanceChecked() {
+		issues = append(issues, DocumentIssue{
+			Path:    "section.Acceptance Criteria",
+			Message: "all acceptance criteria must be checked before archive",
+		})
+	}
+	if !d.AllStepsCompleted() {
+		issues = append(issues, DocumentIssue{
+			Path:    "section.Work Breakdown",
+			Message: "all steps must be completed before archive",
+		})
+	}
+
+	for _, sectionName := range []string{"Validation Summary", "Review Summary", "Archive Summary", "Outcome Summary"} {
+		section := d.Sections[sectionName]
+		if section != nil && strings.Contains(strings.Join(section.lines, "\n"), "PENDING_UNTIL_ARCHIVE") {
+			issues = append(issues, DocumentIssue{
+				Path:    "section." + sectionName,
+				Message: "replace PENDING_UNTIL_ARCHIVE before archive",
+			})
+		}
+	}
+
+	for _, step := range d.Steps {
+		if step.Status != "completed" {
+			continue
+		}
+		if step.Sections["Execution Notes"] == "PENDING_STEP_EXECUTION" {
+			issues = append(issues, DocumentIssue{
+				Path:    "step." + step.Title + ".Execution Notes",
+				Message: "replace PENDING_STEP_EXECUTION before archive",
+			})
+		}
+		if step.Sections["Review Notes"] == "PENDING_STEP_REVIEW" {
+			issues = append(issues, DocumentIssue{
+				Path:    "step." + step.Title + ".Review Notes",
+				Message: "replace PENDING_STEP_REVIEW before archive",
+			})
+		}
+	}
+
+	archiveSummary := d.SectionText("Archive Summary")
+	for _, label := range []string{"PR", "Ready", "Merge Handoff"} {
+		if !strings.Contains(archiveSummary, "- "+label+":") {
+			issues = append(issues, DocumentIssue{
+				Path:    "section.Archive Summary",
+				Message: fmt.Sprintf("add archive summary line for: %s", label),
+			})
+		}
+	}
+
+	if d.DeferredItems && d.followUpIssuesUnset() {
+		issues = append(issues, DocumentIssue{
+			Path:    "section.Outcome Summary.Follow-Up Issues",
+			Message: "replace NONE with follow-up information before archive when deferred items remain",
+		})
+	}
+
+	return issues
+}
+
 func (d *Document) SectionText(name string) string {
 	section := d.Sections[name]
 	if section == nil {
 		return ""
 	}
 	return strings.TrimSpace(strings.Join(section.lines, "\n"))
+}
+
+func (d *Document) followUpIssuesUnset() bool {
+	section := d.Sections["Outcome Summary"]
+	if section == nil {
+		return true
+	}
+	subsections, _ := parseLevelThreeSections(section.lines)
+	followUp := subsections["Follow-Up Issues"]
+	if followUp == nil {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(strings.Join(followUp.lines, "\n")), "NONE")
 }

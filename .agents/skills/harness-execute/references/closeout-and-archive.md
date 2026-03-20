@@ -5,6 +5,8 @@ Archive is a freeze-and-summarize step, not just a file move.
 ## Before Archive
 
 1. Run `harness status` and confirm the plan is actually archive-ready.
+   - If `status` returns `blockers`, fix those first instead of learning them
+     from a failing `harness archive`.
 2. Make sure acceptance criteria are checked and steps are completed.
 3. Read the latest review, CI, sync, and publish artifacts under `.local`.
 4. Update the tracked plan's durable summaries from those artifacts:
@@ -12,7 +14,9 @@ Archive is a freeze-and-summarize step, not just a file move.
    - `Review Summary`
    - `Archive Summary`
    - `Outcome Summary`
-5. Make sure deferred items that still matter have follow-up GitHub issues.
+5. If `## Deferred Items` still contains real items, replace `Follow-Up Issues`
+   with durable handoff details before archive. Issue links are fine, but the
+   main rule is that it must not stay `NONE`.
 6. Run:
 
    ```bash
@@ -31,9 +35,12 @@ Archive changes tracked files, so it still needs the normal git flow:
 
 1. Commit the archive move and summary updates.
 2. Push the branch.
-3. Run `harness status` again so the next agent sees `awaiting_merge_approval`.
-4. Let CI re-run if the repository requires it.
-5. Wait for human merge approval or switch to `harness-land` only when asked.
+3. Open or update the PR.
+4. Run `harness status` again to confirm the archived candidate now reports the
+   expected `handoff_state` for this worktree.
+5. Let CI re-run if the repository requires it.
+6. Wait for human merge approval or switch to `harness-land` only when asked
+   once status says the archived candidate is truly ready.
 
 If new feedback or remote changes invalidate the archived candidate, use:
 

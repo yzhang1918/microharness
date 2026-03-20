@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -60,6 +61,16 @@ func TestDetectCurrentPathErrorsWhenArchivedPointerCannotDisambiguateMultipleAct
 
 	if _, err := DetectCurrentPath(root); err == nil {
 		t.Fatal("expected error when archived pointer cannot disambiguate multiple active plans")
+	}
+}
+
+func TestDetectCurrentPathDoesNotFallBackToArchivedPlanWithoutPointer(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "docs", "plans", "archived", "2026-03-17-old-work.md"))
+
+	_, err := DetectCurrentPath(root)
+	if !errors.Is(err, ErrNoCurrentPlan) {
+		t.Fatalf("expected ErrNoCurrentPlan, got %v", err)
 	}
 }
 

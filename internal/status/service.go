@@ -1,10 +1,12 @@
 package status
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/yzhang1918/superharness/internal/lifecycle"
 	"github.com/yzhang1918/superharness/internal/plan"
 	"github.com/yzhang1918/superharness/internal/runstate"
 )
@@ -20,22 +22,28 @@ type Result struct {
 	State      State         `json:"state"`
 	Artifacts  *Artifacts    `json:"artifacts,omitempty"`
 	NextAction []NextAction  `json:"next_actions"`
+	Blockers   []StatusError `json:"blockers,omitempty"`
 	Warnings   []string      `json:"warnings,omitempty"`
 	Errors     []StatusError `json:"errors,omitempty"`
 }
 
 type State struct {
-	PlanStatus string `json:"plan_status"`
-	Lifecycle  string `json:"lifecycle"`
-	Step       string `json:"step,omitempty"`
-	StepState  string `json:"step_state,omitempty"`
+	PlanStatus    string `json:"plan_status"`
+	Lifecycle     string `json:"lifecycle"`
+	Step          string `json:"step,omitempty"`
+	StepState     string `json:"step_state,omitempty"`
+	HandoffState  string `json:"handoff_state,omitempty"`
+	WorktreeState string `json:"worktree_state,omitempty"`
 }
 
 type Artifacts struct {
-	PlanPath       string `json:"plan_path"`
-	LocalStatePath string `json:"local_state_path,omitempty"`
-	ReviewRoundID  string `json:"review_round_id,omitempty"`
-	CISnapshotID   string `json:"ci_snapshot_id,omitempty"`
+	PlanPath           string `json:"plan_path,omitempty"`
+	LocalStatePath     string `json:"local_state_path,omitempty"`
+	ReviewRoundID      string `json:"review_round_id,omitempty"`
+	CISnapshotID       string `json:"ci_snapshot_id,omitempty"`
+	PRURL              string `json:"pr_url,omitempty"`
+	LastLandedPlanPath string `json:"last_landed_plan_path,omitempty"`
+	LastLandedAt       string `json:"last_landed_at,omitempty"`
 }
 
 type NextAction struct {
@@ -49,8 +57,21 @@ type StatusError struct {
 }
 
 func (s Service) Read() Result {
+	currentPlan, err := runstate.LoadCurrentPlan(s.Workdir)
+	if err != nil {
+		return Result{
+			OK:      false,
+			Command: "status",
+			Summary: "Unable to read current worktree state.",
+			Errors:  []StatusError{{Path: "state", Message: err.Error()}},
+		}
+	}
+
 	planPath, err := plan.DetectCurrentPath(s.Workdir)
 	if err != nil {
+		if errors.Is(err, plan.ErrNoCurrentPlan) && currentPlan != nil && strings.TrimSpace(currentPlan.LastLandedPlanPath) != "" {
+			return idleAfterLandResult(currentPlan)
+		}
 		return Result{
 			OK:      false,
 			Command: "status",
@@ -114,11 +135,22 @@ func (s Service) Read() Result {
 		}
 	}
 
+	archiveBlockers := make([]lifecycle.CommandError, 0)
+	if doc.Frontmatter.Lifecycle == "executing" && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {
+		archiveBlockers = lifecycle.EvaluateArchiveReadiness(s.Workdir, planStem, doc, state)
+		for _, blocker := range archiveBlockers {
+			result.Blockers = append(result.Blockers, StatusError{Path: blocker.Path, Message: blocker.Message})
+		}
+	}
+	if doc.Frontmatter.Lifecycle == "awaiting_merge_approval" {
+		result.State.HandoffState = inferHandoffState(state)
+	}
+
 	if current := doc.CurrentStep(); current != nil {
 		result.State.Step = current.Title
 	}
 	if doc.Frontmatter.Lifecycle == "executing" {
-		result.State.StepState = inferStepState(doc, state, reviewDecisionKnown, reviewDecision)
+		result.State.StepState = inferStepState(doc, state, reviewDecisionKnown, reviewDecision, archiveBlockers)
 	}
 	if state != nil {
 		if state.ActiveReviewRound != nil {
@@ -127,16 +159,19 @@ func (s Service) Read() Result {
 		if state.LatestCI != nil {
 			result.Artifacts.CISnapshotID = state.LatestCI.SnapshotID
 		}
+		if state.LatestPublish != nil {
+			result.Artifacts.PRURL = state.LatestPublish.PRURL
+		}
 	}
 
 	result.Warnings = append(result.Warnings, buildWarnings(state)...)
-	result.NextAction = buildNextActions(doc, state, result.State.StepState, reviewDecisionKnown)
-	result.Summary = buildSummary(doc, state, result.State.StepState, reviewDecisionKnown)
+	result.NextAction = buildNextActions(doc, state, result.State.StepState, result.State.HandoffState, reviewDecisionKnown, result.Blockers)
+	result.Summary = buildSummary(doc, state, result.State.StepState, result.State.HandoffState, reviewDecisionKnown, result.Blockers)
 
 	return result
 }
 
-func inferStepState(doc *plan.Document, state *runstate.State, reviewDecisionKnown bool, reviewDecision string) string {
+func inferStepState(doc *plan.Document, state *runstate.State, reviewDecisionKnown bool, reviewDecision string, archiveBlockers []lifecycle.CommandError) string {
 	if state != nil {
 		if state.Sync != nil && state.Sync.Conflicts {
 			return "resolving_conflicts"
@@ -151,7 +186,7 @@ func inferStepState(doc *plan.Document, state *runstate.State, reviewDecisionKno
 			return "waiting_ci"
 		}
 	}
-	if doc.AllStepsCompleted() && doc.AllAcceptanceChecked() && !doc.HasPendingArchivePlaceholders() && !doc.CompletedStepsHavePendingPlaceholders() {
+	if doc.AllStepsCompleted() && doc.AllAcceptanceChecked() && len(archiveBlockers) == 0 {
 		return "ready_for_archive"
 	}
 	return "implementing"
@@ -171,7 +206,35 @@ func buildWarnings(state *runstate.State) []string {
 	}
 }
 
-func buildNextActions(doc *plan.Document, state *runstate.State, stepState string, reviewDecisionKnown bool) []NextAction {
+func inferHandoffState(state *runstate.State) string {
+	if state == nil || state.LatestPublish == nil || strings.TrimSpace(state.LatestPublish.PRURL) == "" {
+		return "pending_publish"
+	}
+	if state.Sync == nil {
+		return "followup_required"
+	}
+	if state.Sync.Conflicts {
+		return "followup_required"
+	}
+	switch strings.ToLower(strings.TrimSpace(state.Sync.Freshness)) {
+	case "fresh":
+	default:
+		return "followup_required"
+	}
+	if state.LatestCI != nil {
+		switch strings.ToLower(strings.TrimSpace(state.LatestCI.Status)) {
+		case "pending":
+			return "waiting_post_archive_ci"
+		case "success", "passed", "green", "succeeded":
+			return "ready_for_merge_approval"
+		default:
+			return "followup_required"
+		}
+	}
+	return "waiting_post_archive_ci"
+}
+
+func buildNextActions(doc *plan.Document, state *runstate.State, stepState string, handoffState string, reviewDecisionKnown bool, blockers []StatusError) []NextAction {
 	next := make([]NextAction, 0)
 	if state != nil && state.Sync != nil && (state.Sync.Freshness == "stale" || state.Sync.Freshness == "unknown") {
 		next = append(next, NextAction{
@@ -186,10 +249,17 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 	case "blocked":
 		next = append(next, NextAction{Command: nil, Description: "Resolve the blocking dependency or get human input before continuing."})
 	case "awaiting_merge_approval":
-		next = append(next,
-			NextAction{Command: nil, Description: "Wait for merge approval or merge manually from the PR once checks are green."},
-			NextAction{Command: strPtr("harness reopen"), Description: "Reopen the plan if new feedback or remote changes mean the archived candidate is no longer ready."},
-		)
+		switch handoffState {
+		case "pending_publish":
+			next = append(next, NextAction{Command: nil, Description: "Commit the archive move, push the branch, and open or update the PR before treating this candidate as ready for merge approval."})
+		case "waiting_post_archive_ci":
+			next = append(next, NextAction{Command: nil, Description: "Wait for required post-archive CI to finish, then address any failures before merge approval."})
+		case "followup_required":
+			next = append(next, NextAction{Command: nil, Description: "Refresh or repair the archived candidate's publish, CI, or sync handoff before merge approval."})
+		default:
+			next = append(next, NextAction{Command: nil, Description: "Wait for merge approval or merge manually from the PR once checks are green."})
+		}
+		next = append(next, NextAction{Command: strPtr("harness reopen"), Description: "Reopen the plan if new feedback or remote changes mean the archived candidate is no longer ready."})
 	default:
 		if stepState == "fix_required" {
 			description := "Address the findings from the latest aggregated review, update step-local notes, rerun focused validation, and start a fresh review round once the slice is ready."
@@ -212,10 +282,17 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 			)
 			break
 		}
+		if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() && len(blockers) > 0 {
+			next = append(next, NextAction{
+				Command:     nil,
+				Description: "Fix the archive blockers surfaced below, update the durable summaries or local state, and rerun harness status before archive.",
+			})
+			break
+		}
 		if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {
 			next = append(next, NextAction{
 				Command:     nil,
-				Description: "Write the final Validation, Review, Archive, and Outcome summaries, then verify deferred items have follow-up issue references before archive.",
+				Description: "Write the final Validation, Review, Archive, and Outcome summaries, then verify deferred items have follow-up details before archive.",
 			})
 			break
 		}
@@ -234,14 +311,23 @@ func buildNextActions(doc *plan.Document, state *runstate.State, stepState strin
 	return next
 }
 
-func buildSummary(doc *plan.Document, state *runstate.State, stepState string, reviewDecisionKnown bool) string {
+func buildSummary(doc *plan.Document, state *runstate.State, stepState string, handoffState string, reviewDecisionKnown bool, blockers []StatusError) string {
 	switch doc.Frontmatter.Lifecycle {
 	case "awaiting_plan_approval":
 		return "Plan is awaiting approval before execution begins."
 	case "blocked":
 		return "Plan is currently blocked and needs external input before continuing."
 	case "awaiting_merge_approval":
-		return "Plan is archived and waiting for merge approval."
+		switch handoffState {
+		case "pending_publish":
+			return "Plan is archived locally but still needs publish handoff before merge approval."
+		case "waiting_post_archive_ci":
+			return "Plan is archived and published, and post-archive CI is still in flight before merge approval."
+		case "followup_required":
+			return "Plan is archived, but local handoff evidence still needs follow-up before merge approval."
+		default:
+			return "Plan is archived, published, and ready to wait for merge approval."
+		}
 	}
 
 	if stepState == "ready_for_archive" {
@@ -257,8 +343,8 @@ func buildSummary(doc *plan.Document, state *runstate.State, stepState string, r
 		return fmt.Sprintf("Plan still needs follow-up because the latest aggregated review (%s) requested changes.", state.ActiveReviewRound.RoundID)
 	}
 
-	if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() {
-		return "Plan has completed all tracked steps and now needs archive-ready summaries before it can be archived."
+	if doc.CurrentStep() == nil && doc.AllStepsCompleted() && doc.AllAcceptanceChecked() && len(blockers) > 0 {
+		return fmt.Sprintf("Plan has completed all tracked steps but still has %d archive blocker(s) to fix before archive.", len(blockers))
 	}
 
 	if step := doc.CurrentStep(); step != nil {
@@ -268,6 +354,25 @@ func buildSummary(doc *plan.Document, state *runstate.State, stepState string, r
 		return fmt.Sprintf("Plan is %s %s.", doc.Frontmatter.Lifecycle, step.Title)
 	}
 	return fmt.Sprintf("Plan is %s.", doc.Frontmatter.Lifecycle)
+}
+
+func idleAfterLandResult(currentPlan *runstate.CurrentPlan) Result {
+	return Result{
+		OK:      true,
+		Command: "status",
+		Summary: "No current plan is active in this worktree. The most recent landed candidate is recorded for handoff context.",
+		State: State{
+			WorktreeState: "idle_after_land",
+		},
+		Artifacts: &Artifacts{
+			LastLandedPlanPath: currentPlan.LastLandedPlanPath,
+			LastLandedAt:       currentPlan.LastLandedAt,
+		},
+		NextAction: []NextAction{
+			{Command: nil, Description: "Start discovery or create a new plan for the next slice when new work is ready."},
+			{Command: nil, Description: "Record any post-land retrospective follow-up in issues or PR comments instead of editing the archived plan."},
+		},
+	}
 }
 
 func strPtr(value string) *string {

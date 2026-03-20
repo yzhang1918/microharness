@@ -5,8 +5,12 @@ The inner loop is how you finish one plan step cleanly.
 ## Inner Loop
 
 1. Confirm the current step from `harness status` and the tracked plan.
-2. Implement the smallest reviewable slice that advances that step.
-3. Add or update tests for behavior changes.
+2. For behavior changes, run Red/Green/Refactor:
+   - Red: write or update a test that fails for the intended behavior.
+   - Green: implement the smallest change that makes the test pass.
+   - Refactor: improve structure without changing the behavior you just proved.
+3. If TDD is genuinely impractical for this slice, record the reason in
+   `Execution Notes` before continuing.
 4. Run focused validation for the slice.
 5. Update the step's `Execution Notes` with a concise summary.
 6. If the slice is green and meaningfully reviewable, make a small commit.

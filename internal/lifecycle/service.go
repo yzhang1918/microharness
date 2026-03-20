@@ -68,31 +68,11 @@ func (s Service) Archive() Result {
 			Message: fmt.Sprintf("archive requires status=active and lifecycle=executing, got status=%q lifecycle=%q", doc.Frontmatter.Status, doc.Frontmatter.Lifecycle),
 		}})
 	}
-	if !doc.AllAcceptanceChecked() {
-		return errorResult("archive", "Current plan is not archive-ready.", []CommandError{{Path: "section.Acceptance Criteria", Message: "all acceptance criteria must be checked before archive"}})
-	}
-	if !doc.AllStepsCompleted() {
-		return errorResult("archive", "Current plan is not archive-ready.", []CommandError{{Path: "section.Work Breakdown", Message: "all steps must be completed before archive"}})
-	}
-	if doc.HasPendingArchivePlaceholders() {
-		return errorResult("archive", "Current plan still contains archive placeholders.", []CommandError{{Path: "sections", Message: "replace every PENDING_UNTIL_ARCHIVE token before archive"}})
-	}
-	if doc.CompletedStepsHavePendingPlaceholders() {
-		return errorResult("archive", "Current plan still contains completed-step placeholders.", []CommandError{{Path: "steps", Message: "replace every PENDING_STEP_EXECUTION and PENDING_STEP_REVIEW token before archive"}})
-	}
-	if issues := archiveStateIssues(s.Workdir, planStem, doc.Frontmatter.Revision, state); len(issues) > 0 {
+	if issues := EvaluateArchiveReadiness(s.Workdir, planStem, doc, state); len(issues) > 0 {
 		return errorResult("archive", "Current plan is not archive-ready.", issues)
 	}
 
 	archiveSummary := doc.SectionText("Archive Summary")
-	missingLabels := missingArchiveSummaryLabels(archiveSummary, []string{"PR", "Ready", "Merge Handoff"})
-	if len(missingLabels) > 0 {
-		return errorResult("archive", "Archive Summary is missing required fields.", []CommandError{{
-			Path:    "section.Archive Summary",
-			Message: fmt.Sprintf("add archive summary lines for: %s", strings.Join(missingLabels, ", ")),
-		}})
-	}
-
 	archiveSummary = stripArchiveSummaryLines(archiveSummary, []string{"Archived At", "Revision"})
 	archiveSummary = strings.TrimSpace(strings.Join([]string{
 		fmt.Sprintf("- Archived At: %s", now.Format(time.RFC3339)),
@@ -128,28 +108,39 @@ func (s Service) Archive() Result {
 		_ = os.Remove(targetPath)
 		return errorResult("archive", "Archived plan did not pass validation.", lintErrorsToCommandErrors(lint.Errors))
 	}
-	if err := os.Remove(currentPath); err != nil {
-		_ = os.Remove(targetPath)
-		return errorResult("archive", "Unable to remove the active plan after archiving.", []CommandError{{Path: "path", Message: err.Error()}})
-	}
 
 	relTargetPath, err := filepath.Rel(s.Workdir, targetPath)
 	if err != nil {
+		_ = os.Remove(targetPath)
 		return errorResult("archive", "Unable to relativize archived plan path.", []CommandError{{Path: "path", Message: err.Error()}})
 	}
 	relTargetPath = filepath.ToSlash(relTargetPath)
 
-	currentPlanPath, err := runstate.SaveCurrentPlan(s.Workdir, relTargetPath)
-	if err != nil {
-		return errorResult("archive", "Unable to update current-plan pointer.", []CommandError{{Path: "state", Message: err.Error()}})
-	}
-	if state != nil {
-		state.PlanPath = relTargetPath
-		state.PlanStem = planStem
-		statePath, err = runstate.SaveState(s.Workdir, planStem, state)
+	originalState := cloneState(state)
+	nextState := cloneState(state)
+	if nextState != nil {
+		nextState.PlanPath = relTargetPath
+		nextState.PlanStem = planStem
+		statePath, err = runstate.SaveState(s.Workdir, planStem, nextState)
 		if err != nil {
+			_ = os.Remove(targetPath)
 			return errorResult("archive", "Unable to update local state after archiving.", []CommandError{{Path: "state", Message: err.Error()}})
 		}
+	}
+
+	currentPlanPath, err := runstate.SaveCurrentPlan(s.Workdir, relTargetPath)
+	if err != nil {
+		if originalState != nil {
+			_, _ = runstate.SaveState(s.Workdir, planStem, originalState)
+		}
+		_ = os.Remove(targetPath)
+		return errorResult("archive", "Unable to update current-plan pointer.", []CommandError{{Path: "state", Message: err.Error()}})
+	}
+
+	if err := os.Remove(currentPath); err != nil {
+		rollbackErrors := rollbackTransition(s.Workdir, relCurrentPath, planStem, originalState, targetPath)
+		rollbackErrors = append([]CommandError{{Path: "path", Message: err.Error()}}, rollbackErrors...)
+		return errorResult("archive", "Unable to remove the active plan after archiving.", rollbackErrors)
 	}
 
 	return Result{
@@ -242,31 +233,42 @@ func (s Service) Reopen() Result {
 		_ = os.Remove(targetPath)
 		return errorResult("reopen", "Reopened plan did not pass validation.", lintErrorsToCommandErrors(lint.Errors))
 	}
-	if err := os.Remove(currentPath); err != nil {
-		_ = os.Remove(targetPath)
-		return errorResult("reopen", "Unable to remove the archived plan after reopening.", []CommandError{{Path: "path", Message: err.Error()}})
-	}
 
 	relTargetPath, err := filepath.Rel(s.Workdir, targetPath)
 	if err != nil {
+		_ = os.Remove(targetPath)
 		return errorResult("reopen", "Unable to relativize active plan path.", []CommandError{{Path: "path", Message: err.Error()}})
 	}
 	relTargetPath = filepath.ToSlash(relTargetPath)
 
-	currentPlanPath, err := runstate.SaveCurrentPlan(s.Workdir, relTargetPath)
-	if err != nil {
-		return errorResult("reopen", "Unable to update current-plan pointer.", []CommandError{{Path: "state", Message: err.Error()}})
-	}
-	if state != nil {
-		state.PlanPath = relTargetPath
-		state.PlanStem = planStem
-		state.ActiveReviewRound = nil
-		state.LatestCI = nil
-		state.Sync = nil
-		statePath, err = runstate.SaveState(s.Workdir, planStem, state)
+	originalState := cloneState(state)
+	nextState := cloneState(state)
+	if nextState != nil {
+		nextState.PlanPath = relTargetPath
+		nextState.PlanStem = planStem
+		nextState.ActiveReviewRound = nil
+		nextState.LatestCI = nil
+		nextState.Sync = nil
+		statePath, err = runstate.SaveState(s.Workdir, planStem, nextState)
 		if err != nil {
+			_ = os.Remove(targetPath)
 			return errorResult("reopen", "Unable to update local state after reopen.", []CommandError{{Path: "state", Message: err.Error()}})
 		}
+	}
+
+	currentPlanPath, err := runstate.SaveCurrentPlan(s.Workdir, relTargetPath)
+	if err != nil {
+		if originalState != nil {
+			_, _ = runstate.SaveState(s.Workdir, planStem, originalState)
+		}
+		_ = os.Remove(targetPath)
+		return errorResult("reopen", "Unable to update current-plan pointer.", []CommandError{{Path: "state", Message: err.Error()}})
+	}
+
+	if err := os.Remove(currentPath); err != nil {
+		rollbackErrors := rollbackTransition(s.Workdir, relCurrentPath, planStem, originalState, targetPath)
+		rollbackErrors = append([]CommandError{{Path: "path", Message: err.Error()}}, rollbackErrors...)
+		return errorResult("reopen", "Unable to remove the archived plan after reopening.", rollbackErrors)
 	}
 
 	return Result{
@@ -288,6 +290,40 @@ func (s Service) Reopen() Result {
 			{Command: nil, Description: "Review the feedback or remote change that caused reopen."},
 			{Command: nil, Description: "Update the plan content if scope or acceptance criteria changed."},
 			{Command: nil, Description: "Continue the inferred current step, or set awaiting_plan_approval if the plan contract needs fresh approval."},
+		},
+	}
+}
+
+func (s Service) RecordLanded() Result {
+	now := s.now()
+	currentPath, doc, _, _, relCurrentPath, _, _, result := s.loadCurrentPlan()
+	if result != nil {
+		result.Command = "land record"
+		return *result
+	}
+	if doc.Frontmatter.Status != "archived" || doc.Frontmatter.Lifecycle != "awaiting_merge_approval" {
+		return errorResult("land record", "Current plan is not archived.", []CommandError{{
+			Path:    "plan.lifecycle",
+			Message: fmt.Sprintf("land record requires status=archived and lifecycle=awaiting_merge_approval, got status=%q lifecycle=%q", doc.Frontmatter.Status, doc.Frontmatter.Lifecycle),
+		}})
+	}
+
+	currentPlanPath, err := runstate.SaveLandedPlan(s.Workdir, relCurrentPath, now.Format(time.RFC3339))
+	if err != nil {
+		return errorResult("land record", "Unable to record landed local state.", []CommandError{{Path: "state", Message: err.Error()}})
+	}
+
+	return Result{
+		OK:      true,
+		Command: "land record",
+		Summary: fmt.Sprintf("Recorded landed local state for %s.", filepath.Base(currentPath)),
+		Artifacts: &Artifacts{
+			FromPlanPath:    relCurrentPath,
+			CurrentPlanPath: currentPlanPath,
+		},
+		NextAction: []NextAction{
+			{Command: nil, Description: "Run harness status to confirm the worktree now reports idle-after-land state."},
+			{Command: nil, Description: "Start discovery or create a new plan when the next slice is ready."},
 		},
 	}
 }
@@ -447,6 +483,55 @@ func (s Service) now() time.Time {
 
 func strPtr(value string) *string {
 	return &value
+}
+
+func cloneState(state *runstate.State) *runstate.State {
+	if state == nil {
+		return nil
+	}
+	cloned := *state
+	if state.ActiveReviewRound != nil {
+		round := *state.ActiveReviewRound
+		cloned.ActiveReviewRound = &round
+	}
+	if state.LatestCI != nil {
+		ci := *state.LatestCI
+		cloned.LatestCI = &ci
+	}
+	if state.Sync != nil {
+		sync := *state.Sync
+		cloned.Sync = &sync
+	}
+	if state.LatestPublish != nil {
+		publish := *state.LatestPublish
+		cloned.LatestPublish = &publish
+	}
+	return &cloned
+}
+
+func rollbackTransition(workdir, relCurrentPath, planStem string, originalState *runstate.State, targetPath string) []CommandError {
+	issues := make([]CommandError, 0)
+	if _, err := runstate.SaveCurrentPlan(workdir, relCurrentPath); err != nil {
+		issues = append(issues, CommandError{Path: "state", Message: fmt.Sprintf("rollback current-plan pointer: %v", err)})
+	}
+	if originalState != nil {
+		if _, err := runstate.SaveState(workdir, planStem, originalState); err != nil {
+			issues = append(issues, CommandError{Path: "state", Message: fmt.Sprintf("rollback local state: %v", err)})
+		}
+	}
+	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+		issues = append(issues, CommandError{Path: "path", Message: fmt.Sprintf("rollback target path: %v", err)})
+	}
+	return issues
+}
+
+func EvaluateArchiveReadiness(workdir, planStem string, doc *plan.Document, state *runstate.State) []CommandError {
+	issues := make([]CommandError, 0)
+	for _, issue := range doc.ArchiveReadinessIssues() {
+		issues = append(issues, CommandError{Path: issue.Path, Message: issue.Message})
+	}
+	issues = append(issues, archiveStateIssues(workdir, planStem, doc.Frontmatter.Revision, state)...)
+	return issues
 }
 
 func archiveStateIssues(workdir, planStem string, revision int, state *runstate.State) []CommandError {

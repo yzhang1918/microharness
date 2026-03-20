@@ -46,6 +46,8 @@ func (a *App) Run(args []string) int {
 		return a.runPlan(args[1:])
 	case "review":
 		return a.runReview(args[1:])
+	case "land":
+		return a.runLand(args[1:])
 	case "archive":
 		return a.runArchive(args[1:])
 	case "reopen":
@@ -100,6 +102,24 @@ func (a *App) runPlan(args []string) int {
 	default:
 		fmt.Fprintf(a.Stderr, "unknown plan subcommand %q\n\n", args[0])
 		a.printPlanUsage()
+		return 2
+	}
+}
+
+func (a *App) runLand(args []string) int {
+	if len(args) == 0 {
+		a.printLandUsage()
+		return 2
+	}
+	switch args[0] {
+	case "record":
+		return a.runLandRecord(args[1:])
+	case "-h", "--help", "help":
+		a.printLandUsage()
+		return 0
+	default:
+		fmt.Fprintf(a.Stderr, "unknown land subcommand %q\n\n", args[0])
+		a.printLandUsage()
 		return 2
 	}
 }
@@ -334,6 +354,33 @@ func (a *App) runReviewAggregate(args []string) int {
 	return a.writeJSONResult(result)
 }
 
+func (a *App) runLandRecord(args []string) int {
+	fs := flag.NewFlagSet("harness land record", flag.ContinueOnError)
+	fs.SetOutput(a.Stderr)
+	fs.Usage = func() {
+		fmt.Fprintln(a.Stderr, "Usage: harness land record")
+		fmt.Fprintln(a.Stderr)
+		fmt.Fprintln(a.Stderr, "Record post-merge landed local state for the current archived plan.")
+	}
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fs.Usage()
+		return 2
+	}
+	workdir, err := a.Getwd()
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "resolve working directory: %v\n", err)
+		return 1
+	}
+	result := lifecycle.Service{Workdir: workdir, Now: a.Now}.RecordLanded()
+	return a.writeJSONResult(result)
+}
+
 func (a *App) runArchive(args []string) int {
 	fs := flag.NewFlagSet("harness archive", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
@@ -415,6 +462,7 @@ func (a *App) printRootUsage() {
 	fmt.Fprintln(a.Stderr, "  review start    Create a deterministic review round")
 	fmt.Fprintln(a.Stderr, "  review submit   Record one reviewer submission")
 	fmt.Fprintln(a.Stderr, "  review aggregate Aggregate reviewer submissions")
+	fmt.Fprintln(a.Stderr, "  land record     Record post-merge landed local state")
 	fmt.Fprintln(a.Stderr, "  archive         Freeze the current active plan")
 	fmt.Fprintln(a.Stderr, "  reopen          Restore the current archived plan")
 	fmt.Fprintln(a.Stderr, "  status          Summarize the current plan and local execution state")
@@ -435,6 +483,13 @@ func (a *App) printReviewUsage() {
 	fmt.Fprintln(a.Stderr, "  start      Create a deterministic review round")
 	fmt.Fprintln(a.Stderr, "  submit     Record one reviewer submission")
 	fmt.Fprintln(a.Stderr, "  aggregate  Aggregate reviewer submissions")
+}
+
+func (a *App) printLandUsage() {
+	fmt.Fprintln(a.Stderr, "Usage: harness land <subcommand> [flags]")
+	fmt.Fprintln(a.Stderr)
+	fmt.Fprintln(a.Stderr, "Subcommands:")
+	fmt.Fprintln(a.Stderr, "  record    Record post-merge landed local state")
 }
 
 type stringListFlag []string

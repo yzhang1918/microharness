@@ -9,7 +9,9 @@ import (
 )
 
 type CurrentPlan struct {
-	PlanPath string `json:"plan_path"`
+	PlanPath           string `json:"plan_path,omitempty"`
+	LastLandedPlanPath string `json:"last_landed_plan_path,omitempty"`
+	LastLandedAt       string `json:"last_landed_at,omitempty"`
 }
 
 type State struct {
@@ -64,11 +66,22 @@ func LoadCurrentPlan(workdir string) (*CurrentPlan, error) {
 }
 
 func SaveCurrentPlan(workdir, planPath string) (string, error) {
+	return saveCurrentPlan(workdir, CurrentPlan{PlanPath: planPath})
+}
+
+func SaveLandedPlan(workdir, planPath, landedAt string) (string, error) {
+	return saveCurrentPlan(workdir, CurrentPlan{
+		LastLandedPlanPath: planPath,
+		LastLandedAt:       landedAt,
+	})
+}
+
+func saveCurrentPlan(workdir string, current CurrentPlan) (string, error) {
 	path := filepath.Join(workdir, ".local", "harness", "current-plan.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
 	}
-	data, err := json.MarshalIndent(CurrentPlan{PlanPath: planPath}, "", "  ")
+	data, err := json.MarshalIndent(current, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("marshal current-plan.json: %w", err)
 	}
