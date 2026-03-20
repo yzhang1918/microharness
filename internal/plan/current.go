@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/yzhang1918/superharness/internal/runstate"
 )
+
+var ErrNoCurrentPlan = errors.New("no current plan found")
 
 func DetectCurrentPath(workdir string) (string, error) {
 	activeMatches, err := filepath.Glob(filepath.Join(workdir, "docs", "plans", "active", "*.md"))
@@ -50,16 +53,7 @@ func DetectCurrentPath(workdir string) (string, error) {
 		return "", fmt.Errorf("multiple active plans found; add .local/harness/current-plan.json to disambiguate")
 	}
 
-	archivedMatches, err := filepath.Glob(filepath.Join(workdir, "docs", "plans", "archived", "*.md"))
-	if err != nil {
-		return "", err
-	}
-	sort.Strings(archivedMatches)
-	if len(archivedMatches) == 1 {
-		return archivedMatches[0], nil
-	}
-
-	return "", fmt.Errorf("no current plan found")
+	return "", ErrNoCurrentPlan
 }
 
 func containsPath(paths []string, target string) bool {

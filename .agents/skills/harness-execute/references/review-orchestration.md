@@ -94,6 +94,9 @@ round to use the same set.
 
 2. Spawn multiple reviewer subagents in parallel: one reviewer per returned
    slot or review dimension.
+   Use clean reviewer subagents for these slots. Do not inherit the
+   controller's long chat context into reviewer threads. Use only the fixed
+   reviewer prompt template for reviewer spawning.
 3. Use a fixed reviewer prompt template so model or runtime changes do not
    silently change the reviewer contract.
 4. Keep track of every spawned reviewer agent ID.
@@ -139,6 +142,11 @@ Codex reviewer subagents are asynchronous.
   of them automatically.
 - A completed reviewer agent may still remain open in the background until you
   close it.
+- Use `spawn_agent(..., fork_context=false)` for reviewer slots so the reviewer
+  starts from a clean context and sees only the fixed reviewer prompt.
+- Do not append extra controller reasoning, artifact tours, or side
+  instructions to the fixed reviewer prompt when spawning Codex reviewer
+  subagents.
 
 Use this pattern:
 

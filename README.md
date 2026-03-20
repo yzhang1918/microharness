@@ -62,6 +62,7 @@ chosen install directory earlier in `PATH`.
 - `harness review start`
 - `harness review submit`
 - `harness review aggregate`
+- `harness land record`
 - `harness archive`
 - `harness reopen`
 
@@ -74,13 +75,16 @@ The repository currently uses this lifecycle:
 1. Discovery
 2. Plan
 3. Execute
-4. Archive / await merge approval
+4. Archive / publish handoff / await merge approval
 5. Land
 
 For medium or large work, create or update a tracked plan under
 `docs/plans/active/`, execute against that plan, archive it under
 `docs/plans/archived/` once the candidate is ready for merge, and only then
-land or wait for a human merge.
+finish commit/push/PR handoff plus any post-archive CI before treating it as
+truly waiting for merge approval. After land, the worktree should move back to
+an idle local state instead of continuing to present the archived candidate as
+the current plan.
 
 High-level guidance lives in [AGENTS.md](./AGENTS.md). The durable contracts
 for plans and CLI behavior live in [docs/specs/index.md](./docs/specs/index.md).
@@ -93,7 +97,8 @@ Execution detail for agents lives in `.agents/skills/`.
 - `docs/plans/`: tracked plans
 - `docs/specs/`: durable repo contracts
 - `.agents/skills/`: repo-local workflow skills
-- `.local/harness/`: disposable runtime state, review artifacts, and trajectory
+- `.local/harness/`: disposable runtime state, current-plan/last-landed
+  markers, review artifacts, and trajectory
 
 ## Current Constraints
 
