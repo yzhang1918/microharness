@@ -70,6 +70,20 @@ default and required path. The controller agent stays in `harness-execute`,
 reviewer work belongs to spawned `harness-reviewer` subagents, and the
 repo-local review skills must be followed strictly.
 
+Routine review progression is controller-owned once a tracked plan is approved.
+The controller must not stop to ask the human whether ordinary step-closeout or
+finalize review should begin.
+
+Use `harness status` at routine checkpoints:
+
+- when starting or resuming execution
+- before marking a step done
+- after each review aggregate
+- before relying on later-step or finalize progression after a warning or fix
+
+Human confirmation is still required for real blockers, scope changes, and
+merge approval, but not for ordinary review closeout.
+
 ## Start Points
 
 When entering the repo or resuming after compaction:

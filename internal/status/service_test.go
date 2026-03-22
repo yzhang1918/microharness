@@ -166,6 +166,115 @@ func TestStatusStepReviewMatchesTargetWithoutMarkdownPunctuation(t *testing.T) {
 	}
 }
 
+func TestStatusDoesNotWarnForEarlierCompletedStepWithCleanFullReview(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		return completeFirstStep(content)
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"execution_started_at": "2026-03-18T10:05:00+08:00",
+		"active_review_round": map[string]any{
+			"round_id":   "review-001-full",
+			"kind":       "full",
+			"trigger":    "step_closeout",
+			"aggregated": true,
+			"decision":   "pass",
+		},
+	})
+	writeReviewManifest(t, root, "2026-03-18-status-plan", "review-001-full", map[string]any{
+		"target":  stepOneTitle,
+		"trigger": "step_closeout",
+	})
+	writeReviewAggregate(t, root, "2026-03-18-status-plan", "review-001-full", map[string]any{
+		"decision": "pass",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/step-2/implement" {
+		t.Fatalf("expected clean full step-closeout review to allow step 2, got %#v", result.State)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("expected no warnings for a clean earlier full review, got %#v", result.Warnings)
+	}
+}
+
+func TestStatusWarnsWhenEarlierCompletedStepLacksReviewCompleteCloseout(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		return completeFirstStep(content)
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"execution_started_at": "2026-03-18T10:05:00+08:00",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/step-2/implement" {
+		t.Fatalf("expected later-step node to stay stable, got %#v", result.State)
+	}
+	if len(result.Warnings) == 0 || !strings.Contains(result.Warnings[0], stepOneTitle) {
+		t.Fatalf("expected warning for missing earlier step-closeout review, got %#v", result.Warnings)
+	}
+	if len(result.NextAction) < 2 || result.NextAction[0].Command != nil || !strings.Contains(result.NextAction[0].Description, stepOneTitle) {
+		t.Fatalf("expected earliest repair guidance first, got %#v", result.NextAction)
+	}
+	if result.NextAction[1].Command == nil || *result.NextAction[1].Command != "harness review start --spec <path>" {
+		t.Fatalf("expected review-start guidance after the warning action, got %#v", result.NextAction)
+	}
+}
+
+func TestStatusWarnsInFinalizeWhenCompletedStepStillLacksCloseout(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		return completeAllStepsWithoutCloseout(content, false)
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"execution_started_at": "2026-03-18T10:05:00+08:00",
+	})
+	writeReviewManifest(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"target":  stepTwoTitle,
+		"trigger": "step_closeout",
+	})
+	writeReviewAggregate(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"decision": "pass",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/finalize/review" {
+		t.Fatalf("expected finalize node to stay stable, got %#v", result.State)
+	}
+	if len(result.Warnings) != 1 {
+		t.Fatalf("expected exactly one finalize warning for the unresolved earlier step, got %#v", result.Warnings)
+	}
+	if len(result.Warnings) == 0 || !strings.Contains(result.Warnings[0], "Finalize progression is continuing") || !strings.Contains(result.Warnings[0], stepOneTitle) {
+		t.Fatalf("expected finalize warning for missing earlier closeout, got %#v", result.Warnings)
+	}
+	if strings.Contains(result.Warnings[0], stepTwoTitle) {
+		t.Fatalf("expected clean historical Step 2 closeout to stay out of finalize warnings, got %#v", result.Warnings)
+	}
+	if len(result.NextAction) < 2 || result.NextAction[0].Command != nil || !strings.Contains(result.NextAction[0].Description, stepOneTitle) {
+		t.Fatalf("expected finalize warning guidance to come first, got %#v", result.NextAction)
+	}
+}
+
+func TestStatusSuppressesMissingReviewWarningWithNoReviewNeededMarker(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
+		content = completeFirstStep(content)
+		return replaceOnce(content, "Reviewed.", "NO_STEP_REVIEW_NEEDED: Doc-only wording cleanup with no contract or behavior change.")
+	})
+	writeState(t, root, "2026-03-18-status-plan", map[string]any{
+		"execution_started_at": "2026-03-18T10:05:00+08:00",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/step-2/implement" {
+		t.Fatalf("expected step 2 node with suppressed warning, got %#v", result.State)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("expected NO_STEP_REVIEW_NEEDED to suppress reminder warnings, got %#v", result.Warnings)
+	}
+}
+
 func TestStatusFailedStepReviewUsesCachedStepWhenManifestIsMissing(t *testing.T) {
 	root := t.TempDir()
 	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {
@@ -526,6 +635,35 @@ func TestStatusArchivedPlanNeedsPublishEvidence(t *testing.T) {
 	}
 }
 
+func TestStatusWarnsInArchivedPublishWhenCompletedStepStillLacksCloseout(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/archived/2026-03-18-status-plan.md", func(content string) string {
+		return completeAllStepsWithoutCloseout(content, false)
+	})
+	writeCurrentPlan(t, root, "docs/plans/archived/2026-03-18-status-plan.md")
+	writeReviewManifest(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"target":  stepTwoTitle,
+		"trigger": "step_closeout",
+	})
+	writeReviewAggregate(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"decision": "pass",
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/finalize/publish" {
+		t.Fatalf("expected publish node to stay stable, got %#v", result.State)
+	}
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], stepOneTitle) {
+		t.Fatalf("expected archived publish warning for unresolved Step 1 closeout, got %#v", result.Warnings)
+	}
+	if strings.Contains(result.Warnings[0], stepTwoTitle) {
+		t.Fatalf("expected clean historical Step 2 closeout to stay out of archived publish warnings, got %#v", result.Warnings)
+	}
+	if len(result.NextAction) < 2 || result.NextAction[0].Command != nil || !strings.Contains(result.NextAction[0].Description, stepOneTitle) {
+		t.Fatalf("expected archived publish repair guidance first, got %#v", result.NextAction)
+	}
+}
+
 func TestStatusArchivedPlanReadyForAwaitMerge(t *testing.T) {
 	root := t.TempDir()
 	writePlan(t, root, "docs/plans/archived/2026-03-18-status-plan.md", func(content string) string {
@@ -558,6 +696,51 @@ func TestStatusArchivedPlanReadyForAwaitMerge(t *testing.T) {
 	}
 	if result.Artifacts == nil || result.Artifacts.PublishRecordID == "" || result.Artifacts.CIRecordID == "" || result.Artifacts.SyncRecordID == "" {
 		t.Fatalf("unexpected artifacts: %#v", result.Artifacts)
+	}
+}
+
+func TestStatusWarnsInAwaitMergeWhenCompletedStepStillLacksCloseout(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, "docs/plans/archived/2026-03-18-status-plan.md", func(content string) string {
+		return completeAllStepsWithoutCloseout(content, false)
+	})
+	writeCurrentPlan(t, root, "docs/plans/archived/2026-03-18-status-plan.md")
+	writeReviewManifest(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"target":  stepTwoTitle,
+		"trigger": "step_closeout",
+	})
+	writeReviewAggregate(t, root, "2026-03-18-status-plan", "review-002-delta", map[string]any{
+		"decision": "pass",
+	})
+
+	svc := evidence.Service{
+		Workdir: root,
+		Now: func() time.Time {
+			return time.Date(2026, 3, 18, 11, 0, 0, 0, time.UTC)
+		},
+	}
+	if result := svc.Submit("publish", []byte(`{"status":"recorded","pr_url":"https://github.com/yzhang1918/superharness/pull/13"}`)); !result.OK {
+		t.Fatalf("publish evidence: %#v", result)
+	}
+	if result := svc.Submit("ci", []byte(`{"status":"not_applied","reason":"repository has no hosted CI in this test"}`)); !result.OK {
+		t.Fatalf("ci evidence: %#v", result)
+	}
+	if result := svc.Submit("sync", []byte(`{"status":"fresh","base_ref":"main","head_ref":"codex/test"}`)); !result.OK {
+		t.Fatalf("sync evidence: %#v", result)
+	}
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/finalize/await_merge" {
+		t.Fatalf("expected await_merge node to stay stable, got %#v", result.State)
+	}
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], stepOneTitle) {
+		t.Fatalf("expected await_merge warning for unresolved Step 1 closeout, got %#v", result.Warnings)
+	}
+	if strings.Contains(result.Warnings[0], stepTwoTitle) {
+		t.Fatalf("expected clean historical Step 2 closeout to stay out of await_merge warnings, got %#v", result.Warnings)
+	}
+	if len(result.NextAction) < 2 || result.NextAction[0].Command != nil || !strings.Contains(result.NextAction[0].Description, stepOneTitle) {
+		t.Fatalf("expected await_merge repair guidance first, got %#v", result.NextAction)
 	}
 }
 
@@ -951,6 +1134,21 @@ func writeReviewManifest(t *testing.T, root, planStem, roundID string, payload m
 	}
 }
 
+func writeReviewAggregate(t *testing.T, root, planStem, roundID string, payload map[string]any) {
+	t.Helper()
+	dir := filepath.Join(root, ".local", "harness", "plans", planStem, "reviews", roundID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir aggregate dir: %v", err)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal aggregate: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "aggregate.json"), data, 0o644); err != nil {
+		t.Fatalf("write aggregate: %v", err)
+	}
+}
+
 func completeFirstStep(content string) string {
 	content = replaceOnce(content, "- Done: [ ]", "- Done: [x]")
 	content = replaceOnce(content, "PENDING_STEP_EXECUTION", "Done.")
@@ -959,6 +1157,11 @@ func completeFirstStep(content string) string {
 }
 
 func completeAllSteps(content string, archiveReady bool) string {
+	content = completeAllStepsWithoutCloseout(content, archiveReady)
+	return stringsReplaceAll(content, "Reviewed.", "NO_STEP_REVIEW_NEEDED: Test fixture uses explicit review-complete closeout.")
+}
+
+func completeAllStepsWithoutCloseout(content string, archiveReady bool) string {
 	content = stringsReplaceAll(content, "- Done: [ ]", "- Done: [x]")
 	content = stringsReplaceAll(content, "- [ ]", "- [x]")
 	content = stringsReplaceAll(content, "PENDING_STEP_EXECUTION", "Done.")

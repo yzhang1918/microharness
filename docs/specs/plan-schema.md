@@ -175,6 +175,8 @@ Rules:
 - if no extra detail is needed, write `NONE` in `Details`
 - `Execution Notes` and `Review Notes` carry durable closeout history as work
   progresses
+- `Review Notes` may record `NO_STEP_REVIEW_NEEDED: <reason>` when a completed
+  step is too small or low risk to justify a separate step-closeout review
 - if `Step Acceptance Criteria` exists, every entry must be a markdown checkbox
 - archived plans require all step-local acceptance checkboxes to be checked
 

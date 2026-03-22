@@ -22,6 +22,18 @@ including review orchestration. Do not switch the controller into
 `harness-reviewer`; that skill is only for spawned reviewer subagents assigned
 to specific review slots.
 
+Run `harness status` at controller checkpoints, not just once per session:
+
+- at start or resume
+- before marking a step done
+- after each review aggregate
+- before trusting later-step or finalize progression after warnings, repair, or
+  review follow-up
+
+Routine review progression is controller-owned. Once the approved plan reaches
+an ordinary step-closeout or finalize-review boundary, the controller should
+start that review flow without asking the human to micromanage it.
+
 Keep exactly one active review round at a time. The detailed review rules live
 in [review-orchestration.md](references/review-orchestration.md).
 
@@ -54,12 +66,17 @@ when it is genuinely impractical, and record the reason in the step's
 - `execution/step-<n>/implement`
   - continue the current step, fix review findings, or mark the step done once
     the slice is genuinely complete
+  - rerun `harness status` before marking the step done so the next action
+    reflects whether review, repair, or a warning-driven follow-up is due
 - `execution/step-<n>/review`
   - review is in flight; aggregate or wait for reviewer submissions rather
     than continuing implementation blindly
 - `execution/finalize/review|fix|archive`
   - the step list is done and the branch is in closeout, review, or
     archive-prep work
+  - treat `execution/finalize/review` as a continuation state: start or
+    aggregate finalize review as the status guidance indicates instead of
+    stopping to ask the human whether routine review closeout should happen
 - `execution/finalize/publish`
   - the plan is archived, but publish, CI, or sync evidence still needs work
 - `execution/finalize/await_merge`
@@ -90,6 +107,9 @@ Execute is done when:
 
 - Do not ask the human to micromanage routine execution once the plan is
   approved.
+- Do not ask the human whether routine step-closeout or finalize review should
+  start once `harness status` and the tracked plan make the next review action
+  clear.
 - Do not bypass node or review gates just because the next action feels obvious.
 - Do not skip TDD for behavior changes without documenting why the usual
   Red/Green/Refactor loop was not practical.

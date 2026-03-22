@@ -1,8 +1,10 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -89,6 +91,19 @@ type evidenceContext struct {
 	Publish *evidence.PublishRecord
 	CI      *evidence.CIRecord
 	Sync    *evidence.SyncRecord
+}
+
+type missingStepCloseoutReminder struct {
+	MissingTitles []string
+}
+
+type historicalReviewManifest struct {
+	Trigger string `json:"trigger"`
+	Target  string `json:"target"`
+}
+
+type historicalReviewAggregate struct {
+	Decision string `json:"decision"`
 }
 
 func (s Service) Read() Result {
@@ -241,8 +256,14 @@ func (s Service) Read() Result {
 	if strings.HasPrefix(result.State.CurrentNode, "execution/finalize/") && reviewCtx != nil && reviewCtx.Trigger == "step_closeout" {
 		clearStepCloseoutReviewMetadata(facts, result.Artifacts)
 	}
+	missingStepReminder, reminderWarnings := loadMissingStepCloseoutReminder(s.Workdir, planStem, doc, result.State.CurrentNode)
+	result.Warnings = append(result.Warnings, reminderWarnings...)
 	result.Summary = buildSummary(result.State.CurrentNode, facts, reviewCtx, blockers, currentPlan)
 	result.NextAction = buildNextActions(result.State.CurrentNode, facts, reviewCtx, blockers)
+	if missingStepReminder != nil {
+		result.Warnings = append(result.Warnings, buildMissingStepCloseoutWarnings(result.State.CurrentNode, missingStepReminder)...)
+		result.NextAction = prependMissingStepCloseoutActions(result.State.CurrentNode, result.NextAction, missingStepReminder)
+	}
 	if facts.empty() {
 		result.Facts = nil
 	} else {
@@ -437,6 +458,119 @@ func loadEvidenceContext(workdir string, state *runstate.State) (*evidenceContex
 	}
 
 	return ctx, warnings
+}
+
+func loadMissingStepCloseoutReminder(workdir, planStem string, doc *plan.Document, currentNode string) (*missingStepCloseoutReminder, []string) {
+	candidateIndexes := completedStepIndexesBeforeCurrentPosition(doc, currentNode)
+	if len(candidateIndexes) == 0 {
+		return nil, nil
+	}
+
+	satisfiedTargets, warnings := loadSatisfiedStepCloseoutTargets(workdir, planStem)
+	missingTitles := make([]string, 0)
+	for _, index := range candidateIndexes {
+		step := doc.Steps[index]
+		if !step.Done {
+			continue
+		}
+		if hasNoStepReviewNeededMarker(step.Sections["Review Notes"]) {
+			continue
+		}
+		if satisfiedTargets[normalizeReviewTarget(step.Title)] {
+			continue
+		}
+		missingTitles = append(missingTitles, step.Title)
+	}
+	if len(missingTitles) == 0 {
+		return nil, warnings
+	}
+	return &missingStepCloseoutReminder{MissingTitles: missingTitles}, warnings
+}
+
+func completedStepIndexesBeforeCurrentPosition(doc *plan.Document, currentNode string) []int {
+	switch {
+	case strings.HasPrefix(currentNode, "execution/finalize/"):
+		indexes := make([]int, 0, len(doc.Steps))
+		for index, step := range doc.Steps {
+			if step.Done {
+				indexes = append(indexes, index)
+			}
+		}
+		return indexes
+	case strings.HasPrefix(currentNode, "execution/step-"):
+		index, ok := stepIndexFromNode(currentNode)
+		if !ok || index <= 0 {
+			return nil
+		}
+		indexes := make([]int, 0, index)
+		for candidate := 0; candidate < index; candidate++ {
+			if doc.Steps[candidate].Done {
+				indexes = append(indexes, candidate)
+			}
+		}
+		return indexes
+	default:
+		return nil
+	}
+}
+
+func loadSatisfiedStepCloseoutTargets(workdir, planStem string) (map[string]bool, []string) {
+	satisfied := map[string]bool{}
+	reviewsDir := filepath.Join(workdir, ".local", "harness", "plans", planStem, "reviews")
+	entries, err := os.ReadDir(reviewsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return satisfied, nil
+		}
+		return satisfied, []string{fmt.Sprintf("Unable to inspect historical step-closeout reviews: %v", err)}
+	}
+
+	warnings := make([]string, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		roundID := entry.Name()
+		manifestPath := filepath.Join(reviewsDir, roundID, "manifest.json")
+		aggregatePath := filepath.Join(reviewsDir, roundID, "aggregate.json")
+
+		var manifest historicalReviewManifest
+		if err := readJSONFile(manifestPath, &manifest); err != nil {
+			warnings = append(warnings, fmt.Sprintf("Unable to read historical review manifest for %s; status may miss older step-closeout evidence.", roundID))
+			continue
+		}
+		if manifest.Trigger != "step_closeout" {
+			continue
+		}
+
+		var aggregate historicalReviewAggregate
+		if err := readJSONFile(aggregatePath, &aggregate); err != nil {
+			continue
+		}
+		if strings.TrimSpace(aggregate.Decision) != "pass" {
+			continue
+		}
+		target := normalizeReviewTarget(manifest.Target)
+		if target == "" {
+			continue
+		}
+		satisfied[target] = true
+	}
+
+	return satisfied, warnings
+}
+
+func hasNoStepReviewNeededMarker(reviewNotes string) bool {
+	for _, line := range strings.Split(reviewNotes, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "NO_STEP_REVIEW_NEEDED:") {
+			continue
+		}
+		if strings.TrimSpace(strings.TrimPrefix(line, "NO_STEP_REVIEW_NEEDED:")) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func applyEvidenceFacts(facts *Facts, artifacts *Artifacts, evidenceCtx *evidenceContext) {
@@ -650,6 +784,48 @@ func buildNextActions(node string, facts *Facts, reviewCtx *reviewContext, block
 	return nil
 }
 
+func buildMissingStepCloseoutWarnings(node string, reminder *missingStepCloseoutReminder) []string {
+	if reminder == nil || len(reminder.MissingTitles) == 0 {
+		return nil
+	}
+
+	if len(reminder.MissingTitles) == 1 {
+		title := reminder.MissingTitles[0]
+		if strings.HasPrefix(node, "execution/finalize/") {
+			return []string{fmt.Sprintf("Finalize progression is continuing while %s is marked done but still lacks review-complete closeout.", title)}
+		}
+		return []string{fmt.Sprintf("%s is marked done, but no clean step-closeout review was found and Review Notes do not record NO_STEP_REVIEW_NEEDED.", title)}
+	}
+
+	context := "Later-step progression is continuing"
+	if strings.HasPrefix(node, "execution/finalize/") {
+		context = "Finalize progression is continuing"
+	}
+	warnings := []string{fmt.Sprintf("%s while %d completed steps still lack review-complete closeout: %s.", context, len(reminder.MissingTitles), strings.Join(reminder.MissingTitles, "; "))}
+	for _, title := range reminder.MissingTitles {
+		warnings = append(warnings, fmt.Sprintf("%s is marked done, but no clean step-closeout review was found and Review Notes do not record NO_STEP_REVIEW_NEEDED.", title))
+	}
+	return warnings
+}
+
+func prependMissingStepCloseoutActions(node string, actions []NextAction, reminder *missingStepCloseoutReminder) []NextAction {
+	if reminder == nil || len(reminder.MissingTitles) == 0 {
+		return actions
+	}
+
+	earliestTitle := reminder.MissingTitles[0]
+	description := fmt.Sprintf("%s is already marked done but still needs review-complete closeout; resolve it first by starting step-closeout review or recording NO_STEP_REVIEW_NEEDED: <reason> in Review Notes.", earliestTitle)
+	if strings.HasPrefix(node, "execution/finalize/") {
+		description = fmt.Sprintf("Earlier completed steps still need review-complete closeout before relying on finalize progression; resolve %s first by starting step-closeout review or recording NO_STEP_REVIEW_NEEDED: <reason> in Review Notes.", earliestTitle)
+	}
+
+	prefixed := []NextAction{
+		{Command: nil, Description: description},
+		{Command: strPtr("harness review start --spec <path>"), Description: fmt.Sprintf("Start a fresh step-closeout review for %s once the closeout slice is ready.", earliestTitle)},
+	}
+	return append(prefixed, actions...)
+}
+
 func buildPublishNextActions(facts *Facts) []NextAction {
 	actions := make([]NextAction, 0)
 
@@ -781,6 +957,17 @@ func normalizeReviewTarget(value string) string {
 		return ' '
 	}, value)
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func readJSONFile(path string, target any) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return err
+	}
+	return nil
 }
 
 func fallbackReviewTargetStep(doc *plan.Document, state *runstate.State) (int, bool) {
