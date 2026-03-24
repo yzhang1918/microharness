@@ -224,7 +224,14 @@ the expected four platform archives plus `SHA256SUMS`. Downloaded the published
 `26-Mar-24 16:23` instead of the old year-2000 placeholder, and ran the
 packaged binary's `--version` successfully:
 `version: v0.1.0-alpha.2`, `mode: release`,
-`commit: aec8d255afb9090ab45e347bc12d3144ff9dd137`.
+`commit: aec8d255afb9090ab45e347bc12d3144ff9dd137`. To keep the release proof
+durable for archive review, the authoritative downloaded artifact and derived
+evidence now live under
+`.local/harness/plans/2026-03-25-fix-timestamp-fidelity-and-reissue-release/release-verification/v0.1.0-alpha.2-aec8d25/`,
+including the downloaded archive, `SHA256SUMS`, `release-view.json`,
+`zipinfo.txt`, `version.txt`, and the locally recomputed SHA256 for the
+downloaded `darwin/arm64` asset. That proof directory supersedes the earlier
+scratch `alpha.2` checks under `.local/`.
 
 #### Review Notes
 
