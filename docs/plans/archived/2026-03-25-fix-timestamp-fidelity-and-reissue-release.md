@@ -312,7 +312,7 @@ receive a full pre-archive review before archive.
 
 - Archived At: 2026-03-25T00:37:37+08:00
 - Revision: 1
-- PR: Pending archive commit push for `codex/timestamp-fidelity-followup`.
+- PR: https://github.com/yzhang1918/superharness/pull/47
 - Ready: Revision 1 documents the forward timestamp contract, updates
   `harness plan template --date` to keep the current local time-of-day on the
   requested date, switches release packaging from the fake year-2000 mtime to
@@ -322,10 +322,9 @@ receive a full pre-archive review before archive.
   `aec8d255afb9090ab45e347bc12d3144ff9dd137`, the downloaded release proof is
   stored under the plan-local `release-verification/` directory, and
   `review-006-full` has already passed as the fresh full `pre_archive` review.
-- Merge Handoff: Run `harness archive`, commit the archive move and refreshed
-  closeout summaries, push `codex/timestamp-fidelity-followup`, open or update
-  the PR, then record publish, CI, and sync evidence for this revision until
-  `harness status` returns `execution/finalize/await_merge`.
+- Merge Handoff: Refresh publish, CI, and sync evidence for PR #47 until
+  `harness status` returns `execution/finalize/await_merge`, then wait for
+  human merge approval before switching into `harness-land`.
 
 ## Outcome Summary
 
