@@ -19,6 +19,11 @@ You can also use the workflow-dispatch path to republish assets for an
 existing `v*` tag without creating a second tag. The workflow rejects branch
 names or other non-tag refs.
 
+Release archives intentionally normalize packaged file mtimes to the tagged
+commit timestamp in UTC. That keeps repeated builds of the same commit
+deterministic without making unpacked files look like they came from
+`2000-01-01 00:00`.
+
 ## What Gets Published
 
 - Prebuilt `darwin/amd64`, `darwin/arm64`, `linux/amd64`, and `linux/arm64`
@@ -28,6 +33,8 @@ names or other non-tag refs.
   prereleases rather than stable releases.
 - The release binary reports the release version, build commit, and mode through
   `harness --version`.
+- Archive entry timestamps are derived from the source commit time for the
+  tagged revision rather than the wall-clock publish time.
 
 ## Contributor Baseline
 
