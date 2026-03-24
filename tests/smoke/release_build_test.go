@@ -635,10 +635,15 @@ func verifyArchiveContents(t *testing.T, workspace *support.Workspace, archivePa
 	var sawReadme bool
 	var sawLicense bool
 	for _, file := range reader.File {
-		if file.Modified.UTC() != expectedArchiveTime {
-			t.Fatalf("expected archive entry %s to use commit timestamp %s, got %s", file.Name, expectedArchiveTime.Format(time.RFC3339), file.Modified.UTC().Format(time.RFC3339))
+		archiveTime := file.Modified.UTC()
+		delta := archiveTime.Sub(expectedArchiveTime)
+		if delta < 0 {
+			delta = -delta
 		}
-		if file.Modified.UTC().Year() == 2000 {
+		if delta > time.Second {
+			t.Fatalf("expected archive entry %s to stay within ZIP timestamp precision of commit time %s, got %s", file.Name, expectedArchiveTime.Format(time.RFC3339), archiveTime.Format(time.RFC3339))
+		}
+		if archiveTime.Year() == 2000 {
 			t.Fatalf("expected archive entry %s to stop using the fixed year-2000 timestamp", file.Name)
 		}
 		switch file.Name {
@@ -710,7 +715,7 @@ func gitCommitTimestampUTC(t *testing.T, repoRoot, commit string) time.Time {
 	}
 
 	ts := time.Unix(seconds, 0).UTC()
-	return ts.Truncate(2 * time.Second)
+	return ts
 }
 
 func verifyBinaryMetadata(t *testing.T, binaryPath, version, goos, goarch, expectedCommit string) {

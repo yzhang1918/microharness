@@ -19,10 +19,10 @@ You can also use the workflow-dispatch path to republish assets for an
 existing `v*` tag without creating a second tag. The workflow rejects branch
 names or other non-tag refs.
 
-Release archives intentionally normalize packaged file mtimes to the tagged
-commit timestamp in UTC. That keeps repeated builds of the same commit
-deterministic without making unpacked files look like they came from
-`2000-01-01 00:00`.
+Release archives intentionally derive packaged file mtimes from the tagged
+commit timestamp in UTC, subject to ZIP's 2-second timestamp precision. That
+keeps repeated builds of the same commit deterministic without making unpacked
+files look like they came from `2000-01-01 00:00`.
 
 ## What Gets Published
 
@@ -34,7 +34,8 @@ deterministic without making unpacked files look like they came from
 - The release binary reports the release version, build commit, and mode through
   `harness --version`.
 - Archive entry timestamps are derived from the source commit time for the
-  tagged revision rather than the wall-clock publish time.
+  tagged revision, subject to ZIP's 2-second precision, rather than the
+  wall-clock publish time.
 
 ## Contributor Baseline
 
