@@ -282,6 +282,52 @@ and license additions against the tracked binary-first alpha contract.
   and `go test ./... -count=1` after tightening output-directory guardrails,
   adding spaced-output checksum coverage, and re-tracking the reopened active
   plan.
+- Revision-3 reopen repairs passed `bash -n scripts/build-release`,
+  `go test ./tests/smoke -run 'TestBuildRelease(CreatesMissingSafeRootInFreshCheckout|OnlyCleansPreparedLeafForNestedOutputDirectories|RejectsPreparedOutputDirectoryBeingReplacedDuringBuild|RejectsOutputDirectoryReplacedBySymlinkAfterValidation|RejectsSymlinkEscapesFromAllowedOutputRoots|RejectsUnsafeVersion|RejectsUnsafeOutputDirectory|SupportsOutputDirectoryWithSpaces)' -count=1`,
+  `go test ./tests/smoke -run 'TestBuildRelease' -count=1`, and
+  `go test ./... -count=1` after adding physical-path output validation,
+  symlink-escape coverage, safe release-version token validation, explicit
+  safe-root creation for fresh checkouts, isolated worktree coverage that
+  proves nested output cleanup stays scoped to the prepared leaf, and a
+  safe-root traversal path that creates output segments one level at a time,
+  rejects raced symlink replacements before cleaning, and keeps the build
+  pinned to the prepared output directory inode until artifacts are moved in.
+- After `review-020-full` called out that the nested cleanup smoke still did
+  not prove the requested leaf was the directory being cleaned and populated,
+  `go test ./tests/smoke -run 'TestBuildRelease(CreatesMissingSafeRootInFreshCheckout|OnlyCleansPreparedLeafForNestedOutputDirectories)' -count=1`
+  and `go test ./... -count=1` passed again after seeding stale content in the
+  requested nested leaf and asserting the rebuilt archive plus `SHA256SUMS`
+  land in that same leaf while sibling sentinels survive.
+- After `review-022-full` found one last publish-path hardening gap and one
+  shared-fixture regression in the smoke suite, `bash -n scripts/build-release`,
+  `go test ./tests/smoke -run 'TestBuildRelease(RejectsSymlinkEscapesFromAllowedOutputRoots|RejectsOutputDirectoryReplacedBySymlinkAfterValidation|RejectsPreparedOutputDirectoryBeingReplacedDuringBuild|DoesNotFollowSymlinkedOutputEntryDuringPublish|CreatesMissingSafeRootInFreshCheckout|OnlyCleansPreparedLeafForNestedOutputDirectories)' -count=1`,
+  two concurrent `go test ./tests/smoke -run 'TestBuildRelease' -count=1`
+  invocations in the same worktree, and `go test ./... -count=1` all passed
+  after isolating repo-owned `dist/` fixtures per test process, refreshing the
+  tracked archive gate narrative, and publishing staged artifacts through
+  output-dir-local temporary files plus shell-side leaf-name checks so
+  preexisting symlinked destination names were blocked before the final leaf
+  write.
+- After `review-023-full` found that shell-level `ln` still left a raced
+  symlink window, `bash -n scripts/build-release`,
+  `go test ./tests/smoke -run 'TestBuildRelease(RejectsSymlinkEscapesFromAllowedOutputRoots|RejectsOutputDirectoryReplacedBySymlinkAfterValidation|RejectsPreparedOutputDirectoryBeingReplacedDuringBuild|DoesNotFollowSymlinkedOutputEntryDuringPublish|CreatesMissingSafeRootInFreshCheckout|OnlyCleansPreparedLeafForNestedOutputDirectories)' -count=1`,
+  and `go test ./... -count=1` all passed again after switching final publish
+  to the repo-owned `scripts/release_publish.go` helper, which copies into an
+  output-dir-local temporary file and then uses `os.Rename` for the final leaf
+  path so raced symlink destination names are replaced rather than followed.
+- After `review-024-full` showed that the helper still trusted a post-check
+  output-directory path swap and that the tracked narrative overstated when
+  rename semantics first landed, `bash -n scripts/build-release`,
+  `go test ./tests/smoke -run 'TestBuildRelease(RejectsSymlinkEscapesFromAllowedOutputRoots|RejectsOutputDirectoryReplacedBySymlinkAfterValidation|RejectsPreparedOutputDirectoryBeingReplacedDuringBuild|DoesNotFollowSymlinkedOutputEntryDuringPublish|RejectsPreparedOutputDirectoryReplacementDuringPublish|CreatesMissingSafeRootInFreshCheckout|OnlyCleansPreparedLeafForNestedOutputDirectories)' -count=1`,
+  and `go test ./... -count=1` all passed after making
+  `scripts/release_publish.go` work from the inherited prepared output
+  directory, rechecking the expected physical directory before staging and
+  rename, and aligning the validation/archive narrative with the actual
+  review-022 through review-024 chronology.
+- `review-025-full` then passed cleanly after rerunning `bash -n scripts/build-release`,
+  the focused publish and output-safety smoke slice, two concurrent
+  `go test ./tests/smoke -run 'TestBuildRelease' -count=1` runs in the same
+  worktree, and `go test ./... -count=1`.
 
 ## Review Summary
 
@@ -304,22 +350,99 @@ and license additions against the tracked binary-first alpha contract.
   re-tracked in git, and `review-014-full` passed cleanly after restoring the
   tracked active-plan move and landing the `scripts/build-release` safety and
   spaced-path checksum fixes.
+- Revision-3 finalize review `review-015-full` then requested follow-up on two
+  remaining gaps: validating `--version` before it can steer archive paths,
+  and refreshing the reopened plan summaries so the active tracked plan no
+  longer presents stale revision-2 archive metadata. Those repairs are now in
+  progress and require one fresh full finalize review before re-archive.
+- Follow-up full review `review-016-full` cleared the plan-summary and version
+  path findings, then surfaced one more output hardening gap: a missing leaf
+  output directory could still be raced into a symlink between validation and
+  `mkdir -p`. Revision 3 now revalidates the resolved output directory after
+  creation and carries a fake-`mkdir` smoke test for that race, so one fresh
+  full finalize review remains before re-archive.
+- `review-017-full` then tightened the same area further by pointing out that
+  leaf symlink races could still redirect outputs into the wrong repo-owned
+  directory and that `rm -rf "${output_dir}"` still trusted a path that could
+  change after validation. Revision 3 now prepares the output directory by
+  traversing from the trusted safe root, rejecting symlink segments, creating
+  missing levels one at a time, and cleaning contents from inside the prepared
+  directory instead of deleting the user-supplied path directly. One fresh
+  full finalize review remains before re-archive.
+- `review-018-full` then closed the last two path-hardening gaps in that same
+  area: each prepared segment now has to stay on its exact requested path, and
+  the build keeps its working directory pinned to the prepared output
+  directory while staging archives in `tmp_dir` before moving them in via
+  relative paths. A stability check now rejects output-directory replacement
+  during the build itself, and a fresh full finalize review remains before
+  re-archive.
+- `review-019-full` then surfaced one real regression and one proof gap in
+  that hardening work: fresh checkouts without a preexisting `dist/` or
+  `.local/` root could no longer build the default `dist/release` output, and
+  nested output cleanup needed explicit regression coverage to show that only
+  the prepared leaf is cleaned. Revision 3 now creates the trusted safe root
+  before traversal and carries isolated worktree-backed smoke coverage for
+  both the fresh-checkout path and nested leaf-only cleanup, so one fresh full
+  finalize review remains before re-archive.
+- `review-020-full` then narrowed the remaining gap to test proof only: the
+  nested cleanup smoke preserved siblings, but it did not yet prove that the
+  requested leaf itself was the cleaned output directory. Revision 3 now seeds
+  stale content in that nested leaf and asserts the rebuilt archive plus
+  `SHA256SUMS` land there after cleanup.
+- `review-021-full` then passed cleanly with zero blocking or non-blocking
+  findings after that proof-gap fix, confirming that revision 3 now covers
+  fresh-checkout safe-root creation, nested leaf-only cleanup, and the
+  requested-leaf repopulation path strongly enough to re-archive.
+- `review-022-full` then exercised the actual `pre_archive` gate and found
+  three more follow-ups before revision 3 can re-archive: final artifact
+  publish still trusts symlinked destination names inside the prepared output
+  directory, the negative smoke fixtures under `dist/` still collide across
+  concurrent shared-worktree runs, and the active plan's archive summary needs
+  to point at `review-022-full` rather than the already-passed `review-021-full`.
+  Revision 3 now isolates repo-owned `dist/` fixtures per test process and
+  refreshes the archive summary to the active `pre_archive` gate.
+- `review-023-full` then found one more publish hardening gap: shell-level
+  `ln` could still follow a symlink-to-directory created after the initial
+  publish checks. Revision 3 now routes final publish through the repo-owned
+  `scripts/release_publish.go` helper so each staged artifact is copied into an
+  output-dir-local temporary file and then renamed into place with non-
+  following rename semantics. One fresh full pre-archive review remains before
+  re-archive.
+- `review-024-full` then found one more publish-path gap plus one tracked
+  summary contradiction: the first helper version still trusted a post-check
+  output-directory path swap, and the Validation Summary described the rename
+  semantics as if they had already landed in the earlier review-022 follow-up.
+  Revision 3 now runs the publish helper from the inherited prepared output
+  directory with expected-dir rechecks before staging and rename, and the
+  tracked validation/archive narrative now matches that chronology. One fresh
+  full pre-archive review remains before re-archive.
+- `review-025-full` then passed cleanly with zero blocking or non-blocking
+  findings after the review-024 publish-path and narrative repairs, confirming
+  that revision 3 is ready to re-archive.
 
 ## Archive Summary
 
-- Archived At: 2026-03-24T08:38:25+08:00
-- Revision: 2
+- Archived At: 2026-03-24T10:18:58+08:00
+- Revision: 3
 - PR: https://github.com/yzhang1918/superharness/pull/43
-- Ready: The candidate now has clean step-closeout and finalize review,
-  deterministic release packaging, prerelease-aware GitHub Release
-  publication, existing-tag validation for manual dispatch, repo-scoped
-  output-directory safety, destructive-directory rejection for repo-owned
-  non-artifact paths, space-safe checksum generation, and stable release smoke
-  coverage even when reviewer subagents run checks in parallel.
+- Ready: Revision 3 extends the reopened candidate with physical-path output
+  validation for `--output-dir`, explicit rejection of symlink escapes from
+  repo-owned output roots, safe release-version token validation before archive
+  paths are composed, trusted safe-root creation for fresh checkouts,
+  safe-root traversal that rejects symlinked path segments while creating or
+  cleaning the requested output directory, explicit smoke coverage proving
+  cleanup stays scoped to the prepared leaf and that the rebuilt artifacts land
+  in that same requested leaf, a final publish path that safely replaces
+  symlinked destination leaf entries via output-dir-local temporary files plus
+  repo-owned rename semantics from the inherited prepared output directory
+  instead of following them, and negative smoke fixtures that stay isolated
+  even when two shared-worktree smoke runs execute concurrently. The tracked
+  reopen summaries are also refreshed for revision 3, and `review-025-full`
+  has already passed as the fresh full `pre_archive` gate for these repairs.
 - Merge Handoff: Run `harness archive`, commit the archive move with the
-  release-readiness changes, push the updated `codex/alpha-binary-release-readiness`
-  branch to refresh PR #43, and then record publish, CI, and sync evidence
-  for revision 2 through `harness evidence submit` until status reaches
+  revision-3 release safety repairs, push the updated
+  `codex/alpha-binary-release-readiness` branch to refresh PR #43, and refresh
+  publish, CI, and sync evidence for revision 3 until status returns to
   `execution/finalize/await_merge`.
 
 ## Outcome Summary
@@ -335,6 +458,23 @@ and license additions against the tracked binary-first alpha contract.
   repo-owned `dist/` or `.local/` subtrees, reject parent-directory escapes or
   destructive repo paths, and generate `SHA256SUMS` without breaking when the
   repo or output path contains spaces.
+- Hardened the reopened release path so output directories are checked against
+  their physical resolved locations, symlink escapes from allowed roots are
+  rejected before destructive cleanup, `--version` must be a safe release
+  token before it can influence staged or archived artifact paths, and the
+  script now creates missing repo-owned output roots for fresh checkouts,
+  walks from a trusted safe root to build the output directory one segment at
+  a time so raced or preexisting symlink segments cannot redirect cleanup or
+  archive writes into the wrong location, and carries isolated smoke coverage
+  that proves nested output cleanup stays scoped to the prepared leaf and that
+  the rebuilt archive plus `SHA256SUMS` land in that same requested leaf.
+  Release archives and checksums are now staged outside the output tree and
+  only published through output-dir-local temporary files plus the repo-owned
+  `scripts/release_publish.go` helper, which finishes each leaf entry with
+  `os.Rename` from the inherited prepared output directory after rechecking the
+  expected physical directory path, so raced symlink destination names and
+  post-check output-directory path swaps are rejected rather than followed
+  during the build.
 - Added CI and release GitHub Actions workflows that reuse the repo-owned
   packaging path, validate release tags, and publish prerelease-tagged alpha
   releases correctly.

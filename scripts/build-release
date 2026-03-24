@@ -10,7 +10,8 @@ Build versioned release archives and SHA256 checksums for superharness.
 Options:
   --version <version>     Required release identifier (for example v0.1.0-alpha.1).
   --output-dir <path>     Output directory under repo-owned dist/ or .local/
-                          subdirectories. Defaults to dist/release.
+                          subdirectories after resolving symlinks. Defaults to
+                          dist/release.
   --platform <goos/goarch>
                           Build only the given target. Repeat to add more targets.
                           Defaults to: darwin/amd64, darwin/arm64, linux/amd64, linux/arm64.
@@ -18,13 +19,133 @@ Options:
 EOF
 }
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 version_package="github.com/yzhang1918/superharness/internal/version"
 output_dir="${repo_root}/dist/release"
 version=""
 platforms=()
 dist_root="${repo_root}/dist"
 local_root="${repo_root}/.local"
+
+require_safe_output_dir() {
+  local requested_path="$1"
+  local physical_path="$2"
+
+  case "${physical_path}" in
+    "${dist_root}"/*|"${local_root}"/*)
+      ;;
+    *)
+      echo "output directory must stay within repo-owned dist/ or .local/ subdirectories after resolving symlinks, got ${requested_path} -> ${physical_path}" >&2
+      exit 2
+      ;;
+  esac
+}
+
+prepare_output_anchor() {
+  local requested_path="$1"
+  local anchor_root="$2"
+
+  if [[ -L "${anchor_root}" ]]; then
+    echo "safe output root must not be a symlink: ${anchor_root}" >&2
+    exit 2
+  fi
+  if [[ -e "${anchor_root}" ]]; then
+    if [[ ! -d "${anchor_root}" ]]; then
+      echo "safe output root must resolve from a directory path: ${anchor_root}" >&2
+      exit 2
+    fi
+  else
+    if ! mkdir "${anchor_root}"; then
+      echo "unable to create safe output root for ${requested_path}" >&2
+      exit 2
+    fi
+  fi
+
+  local physical_anchor
+  if ! physical_anchor="$(cd "${anchor_root}" && pwd -P)"; then
+    echo "unable to resolve safe output root for ${requested_path}" >&2
+    exit 2
+  fi
+  if [[ "${physical_anchor}" != "${anchor_root}" ]]; then
+    echo "safe output root must not be a symlink: ${anchor_root}" >&2
+    exit 2
+  fi
+
+  printf '%s\n' "${physical_anchor}"
+}
+
+prepare_output_dir() {
+  local requested_path="$1"
+  local anchor_root="$2"
+  local relative_path="$3"
+  local physical_anchor
+
+  physical_anchor="$(prepare_output_anchor "${requested_path}" "${anchor_root}")"
+
+  cd "${physical_anchor}"
+  local current_path="${physical_anchor}"
+
+  local -a segments=()
+  IFS='/' read -r -a segments <<< "${relative_path}"
+
+  local segment
+  for segment in "${segments[@]}"; do
+    local expected_path="${current_path}/${segment}"
+    if [[ -z "${segment}" || "${segment}" == "." || "${segment}" == ".." ]]; then
+      echo "output directory must stay within repo-owned dist/ or .local/ subdirectories after resolving symlinks, got ${requested_path}" >&2
+      exit 2
+    fi
+    if [[ -L "${segment}" ]]; then
+      echo "output directory path must not traverse symlink segments: ${requested_path}" >&2
+      exit 2
+    fi
+    if [[ -e "${segment}" ]]; then
+      if [[ ! -d "${segment}" ]]; then
+        echo "output directory must resolve from a directory path, got ${requested_path}" >&2
+        exit 2
+      fi
+    else
+      if ! mkdir "${segment}"; then
+        echo "output directory path could not be created safely: ${requested_path}" >&2
+        exit 2
+      fi
+    fi
+    cd "${segment}"
+    current_path="$(pwd -P)"
+    if [[ "${current_path}" != "${expected_path}" ]]; then
+      echo "output directory path must stay on the requested directory path during preparation: ${requested_path}" >&2
+      exit 2
+    fi
+    require_safe_output_dir "${requested_path}" "${current_path}"
+  done
+
+  # Cleanup must stay scoped to the final prepared leaf.
+  find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+  output_dir="$(pwd -P)"
+}
+
+publish_output_file() {
+  local source_path="$1"
+  local destination_name="$2"
+
+  if [[ -z "${destination_name}" || "${destination_name}" == */* || "${destination_name}" == "." || "${destination_name}" == ".." ]]; then
+    echo "prepared output entry name must be a simple file name: ${destination_name}" >&2
+    exit 2
+  fi
+  if [[ "$(pwd -P)" != "${output_dir}" ]]; then
+    echo "prepared output directory changed unexpectedly during build: ${requested_output_dir}" >&2
+    exit 2
+  fi
+  if ! "${publish_helper}" \
+    --source "${source_path}" \
+    --expected-dir "${output_dir}" \
+    --dest-name "${destination_name}"; then
+    echo "unable to publish output entry safely: ${requested_output_dir}/${destination_name}" >&2
+    exit 2
+  fi
+
+  rm -f -- "${source_path}"
+}
 
 while (($#)); do
   case "$1" in
@@ -71,18 +192,26 @@ if [[ -z "${version}" ]]; then
   exit 2
 fi
 
-case "/${output_dir}/" in
+if [[ ! "${version}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+  echo "version must use only ASCII letters, digits, dot, underscore, plus, or hyphen, and start with a letter or digit: ${version}" >&2
+  exit 2
+fi
+
+requested_output_dir="${output_dir}"
+
+case "/${requested_output_dir}/" in
   */../*)
-    echo "output directory must not contain parent-directory segments: ${output_dir}" >&2
+    echo "output directory must not contain parent-directory segments: ${requested_output_dir}" >&2
     exit 2
     ;;
 esac
 
-case "${output_dir}" in
+case "${requested_output_dir}" in
   /*)
+    output_dir="${requested_output_dir}"
     ;;
   *)
-    output_dir="${repo_root}/${output_dir}"
+    output_dir="${repo_root}/${requested_output_dir}"
     ;;
 esac
 
@@ -104,14 +233,24 @@ case "${output_dir}" in
     ;;
 esac
 
+output_anchor=""
+output_relative=""
 case "${output_dir}" in
-  "${dist_root}"/*|"${local_root}"/*)
+  "${dist_root}"/*)
+    output_anchor="${dist_root}"
+    output_relative="${output_dir#${dist_root}/}"
+    ;;
+  "${local_root}"/*)
+    output_anchor="${local_root}"
+    output_relative="${output_dir#${local_root}/}"
     ;;
   *)
-    echo "output directory must stay within repo-owned dist/ or .local/ subdirectories, got ${output_dir}" >&2
+    echo "output directory must stay within repo-owned dist/ or .local/ subdirectories after resolving symlinks, got ${requested_output_dir} -> ${output_dir}" >&2
     exit 2
     ;;
 esac
+
+prepare_output_dir "${requested_output_dir}" "${output_anchor}" "${output_relative}"
 
 if [[ ${#platforms[@]} -eq 0 ]]; then
   platforms=(
@@ -146,10 +285,12 @@ if [[ -z "${build_commit}" ]]; then
   exit 1
 fi
 
-rm -rf "${output_dir}"
-mkdir -p "${output_dir}"
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/superharness-release.XXXXXX")"
 trap 'rm -rf "${tmp_dir}"' EXIT
+artifact_output_dir="${tmp_dir}/artifacts"
+mkdir -p "${artifact_output_dir}"
+publish_helper="${tmp_dir}/release-publish"
+go build -trimpath -o "${publish_helper}" "${repo_root}/scripts/release_publish.go"
 
 fixed_touch_timestamp="200001010000"
 archives=()
@@ -176,7 +317,7 @@ for platform in "${platforms[@]}"; do
   build_dir="${tmp_dir}/build/${goos}-${goarch}"
   stage_root="${tmp_dir}/staging/${package_name}"
   binary_path="${build_dir}/harness"
-  archive_path="${output_dir}/${package_name}.zip"
+  archive_path="${artifact_output_dir}/${package_name}.zip"
 
   rm -rf "${build_dir}" "${stage_root}"
   mkdir -p "${build_dir}" "${stage_root}"
@@ -214,15 +355,27 @@ for platform in "${platforms[@]}"; do
 done
 
 checksum_path="${output_dir}/SHA256SUMS"
-: > "${checksum_path}"
+checksum_staging_path="${artifact_output_dir}/SHA256SUMS"
+: > "${checksum_staging_path}"
 sorted_archives=()
 while IFS= read -r archive_path; do
   sorted_archives+=("${archive_path}")
 done < <(printf '%s\n' "${archives[@]}" | LC_ALL=C sort)
 for archive_path in "${sorted_archives[@]}"; do
   checksum="$("${sha256_cmd[@]}" "${archive_path}" | awk '{print $1}')"
-  printf '%s  %s\n' "${checksum}" "$(basename "${archive_path}")" >> "${checksum_path}"
+  printf '%s  %s\n' "${checksum}" "$(basename "${archive_path}")" >> "${checksum_staging_path}"
 done
+
+if [[ "$(pwd -P)" != "${output_dir}" ]]; then
+  echo "prepared output directory changed unexpectedly during build: ${requested_output_dir}" >&2
+  exit 2
+fi
+
+for archive_path in "${sorted_archives[@]}"; do
+  publish_output_file "${archive_path}" "$(basename "${archive_path}")"
+done
+publish_output_file "${checksum_staging_path}" "SHA256SUMS"
+checksum_path="${output_dir}/SHA256SUMS"
 
 echo "Built release artifacts in ${output_dir}"
 for archive_path in "${sorted_archives[@]}"; do
