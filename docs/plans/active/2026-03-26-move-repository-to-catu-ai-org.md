@@ -73,7 +73,7 @@ CLI command intentionally remains `harness`.
 
 ### Step 1: Lock the org-move contract and migration prerequisites
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -106,15 +106,24 @@ to move together.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Confirmed the migration prerequisites before touching the remote transfer:
+`catu-ai` already existed as an organization, `yzhang1918` had active `admin`
+membership there, `catu-ai/microharness` was still unclaimed, and the current
+GitHub token had the `repo` and `read:org` scopes needed for repo transfer and
+follow-up release work. The plan and live docs were also tightened around the
+real boundary for this slice: move the repo and module path into `catu-ai`,
+keep the executable name as `harness`, and leave Homebrew deferred until the
+org namespace is stable.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: this prerequisite/contract step was implemented as part
+of the broader namespace and transfer slice, so a separate step-only review
+would be redundant and less accurate than the later branch-level review.
 
 ### Step 2: Update the codebase and live docs for the catu-ai namespace
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -156,11 +165,25 @@ preserving the `harness` binary name.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Moved the live repository-owned namespace from
+`github.com/yzhang1918/microharness` to
+`github.com/catu-ai/microharness` across `go.mod`, imports, tests, build/release
+helpers, and live docs. The installer kept a compatibility bridge for both the
+immediately previous personal `microharness` namespace and the older
+`superharness` namespace so existing wrappers and symlink installs still count
+as managed during upgrade. Validation passed with `go test ./tests/smoke -run
+'TestInstallDevHarness(ReplacesLegacySymlinkedBinaryWithoutForce|WrapperDispatchesToCurrentWorktree)|TestBuildReleaseProducesSupportedAlphaArchivesAndVersionedBinary' -count=1`,
+a host-platform `scripts/build-release --version v0.1.0-alpha.4 --output-dir
+.local/release-org-transfer-check --platform $(go env GOOS)/$(go env GOARCH)`,
+`unzip -l` on the generated archive confirming the packaged `harness` binary,
+and a fresh `go test ./... -count=1`.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: once the repository transfer and org-hosted prerelease
+joined the same candidate, a Step-2-only delta review would have been
+misleading. The broader Step 3 review and final full review cover this
+namespace migration in more realistic branch context.
 
 ### Step 3: Transfer the repository and publish an org-hosted prerelease
 
@@ -199,7 +222,17 @@ produce the `harness` binary with the expected version information.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Transferred the repository from `yzhang1918/microharness` to
+`catu-ai/microharness`, updated the local `origin` remote to
+`git@github.com:catu-ai/microharness.git`, pushed
+`codex/move-to-catu-ai-org`, and opened PR #49 in the org-owned repository. A
+fresh prerelease tag `v0.1.0-alpha.4` was pushed from the transferred repo,
+the release workflow succeeded, and the downloaded `darwin_arm64` archive from
+`https://github.com/catu-ai/microharness/releases/tag/v0.1.0-alpha.4` verified
+cleanly: the local checksum matched the published `SHA256SUMS`, the archive
+contained the expected `microharness_v0.1.0-alpha.4_darwin_arm64/` root with
+`harness`, and the unpacked binary reported `version: v0.1.0-alpha.4`,
+`mode: release`, and commit `98f4fc2c0b75de3dbb238ac833e50ca3c3492bc3`.
 
 #### Review Notes
 
