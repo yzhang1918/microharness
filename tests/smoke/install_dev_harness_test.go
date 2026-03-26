@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yzhang1918/superharness/tests/support"
+	"github.com/yzhang1918/microharness/tests/support"
 )
 
 type commandResult struct {
@@ -338,8 +338,8 @@ find_repo_root() {
 }
 
 if ! repo_root="$(find_repo_root)"; then
-  echo "Could not find a superharness worktree from ${PWD}." >&2
-  echo "Run harness from inside a superharness checkout, or call a repo-local binary directly." >&2
+  echo "Could not find a microharness worktree from ${PWD}." >&2
+  echo "Run harness from inside a microharness checkout, or call a repo-local binary directly." >&2
   exit 1
 fi
 
@@ -373,7 +373,7 @@ exec "${binary_path}" "$@"
 	if err != nil {
 		t.Fatalf("read refreshed wrapper: %v", err)
 	}
-	support.RequireContains(t, string(refreshed), "# superharness-install-dev-wrapper")
+	support.RequireContains(t, string(refreshed), "# microharness-install-dev-wrapper")
 }
 
 func copyInstallerFixture(t *testing.T) string {
@@ -454,7 +454,7 @@ func newFakeWorktree(t *testing.T) (string, string) {
 
 	writeFixtureFile(t, filepath.Join(root, "scripts", "install-dev-harness"), "#!/usr/bin/env bash\n", 0o755)
 	writeFixtureFile(t, filepath.Join(root, "cmd", "harness", "main.go"), "package main\n", 0o644)
-	writeFixtureFile(t, filepath.Join(root, "go.mod"), "module github.com/yzhang1918/superharness\n", 0o644)
+	writeFixtureFile(t, filepath.Join(root, "go.mod"), "module github.com/yzhang1918/microharness\n", 0o644)
 	writeFixtureFile(
 		t,
 		filepath.Join(root, ".local", "bin", "harness"),
