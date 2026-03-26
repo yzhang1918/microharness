@@ -235,7 +235,21 @@ repo identity while the binary name remains `harness`.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Renamed the GitHub repository from `yzhang1918/superharness` to
+`yzhang1918/microharness`, updated the local `origin` remote to the renamed
+repo URL, pushed `codex/rename-to-microharness`, and opened PR #48:
+`https://github.com/yzhang1918/microharness/pull/48`. Published
+`v0.1.0-alpha.3` from commit `cd6a8efdacc7feeb5c9f94ad4c32735145946454`; the
+Release workflow succeeded at run `23574207229`, and PR #48 now shows passing
+`Build and Publish Release Assets` plus both `Go Test` checks. External
+verification for the renamed release is recorded under
+`.local/harness/plans/2026-03-26-rename-project-to-microharness/release-verification/v0.1.0-alpha.3-cd6a8ef/`:
+the downloaded host archive is named
+`microharness_v0.1.0-alpha.3_darwin_arm64.zip`, `SHA256SUMS` matches the local
+SHA256, `zipinfo -l` shows a `microharness_v0.1.0-alpha.3_darwin_arm64/`
+package root with `harness` inside, and the unpacked binary reports
+`version: v0.1.0-alpha.3`, `mode: release`, and
+`commit: cd6a8efdacc7feeb5c9f94ad4c32735145946454`.
 
 #### Review Notes
 
