@@ -218,7 +218,7 @@ rename and release step.
 
 ### Step 3: Rename the GitHub repository and publish the renamed prerelease
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -256,11 +256,32 @@ new repo identity while the binary name remains `harness`.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Renamed the GitHub repository from `catu-ai/microharness` to
+`catu-ai/easyharness`, updated `origin` to
+`git@github.com:catu-ai/easyharness.git`, pushed
+`codex/rename-to-easyharness`, and opened PR #60:
+`https://github.com/catu-ai/easyharness/pull/60`. Published
+`v0.1.0-alpha.5` from tag `v0.1.0-alpha.5`; the renamed `Release` workflow run
+`23713508896` succeeded, the renamed repo now resolves at
+`https://github.com/catu-ai/easyharness`, and the PR status checks show
+successful `CI` and `Release` runs for the renamed namespace.
+
+Remote verification passed through `gh repo view catu-ai/microharness --json
+nameWithOwner,url,viewerPermission` resolving to `catu-ai/easyharness`,
+`gh release view v0.1.0-alpha.5 --repo catu-ai/easyharness --json
+url,tagName,isPrerelease,assets`, and `scripts/verify-release-namespace --repo
+catu-ai/easyharness --tag v0.1.0-alpha.5 --asset SHA256SUMS --asset
+easyharness_v0.1.0-alpha.5_$(go env GOOS)_$(go env GOARCH).zip --download-dir
+.local/release-verify-easyharness-alpha5`, which downloaded and verified the
+renamed assets successfully.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: this step was primarily remote rename, publish, and
+release-verification work after the already reviewed repository rename. The
+remaining tracked change was a narrow workflow verification fix that was
+validated through a successful live `Release` run and will still be covered by
+the upcoming finalize review of the full candidate.
 
 ## Validation Strategy
 
