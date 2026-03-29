@@ -144,7 +144,7 @@ rename will cover these boundary changes in more realistic context.
 
 ### Step 2: Rename the codebase, module path, and packaging metadata
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -209,7 +209,12 @@ the naming proposal plus explicit legacy-compatibility fixtures.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-001-delta` passed cleanly for Step 2 with no findings across the
+`correctness`, `tests`, and `docs_consistency` dimensions. The aggregate at
+`.local/harness/plans/2026-03-29-rename-project-to-easyharness/reviews/review-001-delta/aggregate.json`
+records decision `pass` at revision 1, so the renamed codebase, validation
+coverage, and live docs/spec surfaces are ready to advance into the public
+rename and release step.
 
 ### Step 3: Rename the GitHub repository and publish the renamed prerelease
 
