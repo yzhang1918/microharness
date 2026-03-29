@@ -54,19 +54,19 @@ architectural naming preference.
 
 ## Acceptance Criteria
 
-- [ ] A durable tracked proposal explains the user-facing rationale for
+- [x] A durable tracked proposal explains the user-facing rationale for
       preferring `easyharness`, and the tracked execution plan stays aligned
       with that rationale.
-- [ ] The GitHub repository, live tracked docs, module path, and live codepaths
+- [x] The GitHub repository, live tracked docs, module path, and live codepaths
       align on `easyharness`, with only intentional historical references left
       under archived materials.
-- [ ] `go.mod` and all live in-repo imports use
+- [x] `go.mod` and all live in-repo imports use
       `github.com/catu-ai/easyharness`, and the repository still builds and
       tests successfully after the rename.
-- [ ] Release packaging, installer behavior, workflow docs, and smoke coverage
+- [x] Release packaging, installer behavior, workflow docs, and smoke coverage
       publish and validate `easyharness_*` archives while preserving `harness`
       as the executable name.
-- [ ] A fresh prerelease from the renamed repository is published and verified
+- [x] A fresh prerelease from the renamed repository is published and verified
       as the recommended public test artifact after the rename.
 
 ## Deferred Items
@@ -311,26 +311,84 @@ the upcoming finalize review of the full candidate.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- Confirmed rename prerequisites and live-doc boundaries with `gh auth status`,
+  `gh repo view catu-ai/microharness --json ...`, and an initial
+  `gh repo view catu-ai/easyharness` miss before execution started.
+- Validated the repo-wide rename locally with `scripts/install-dev-harness`,
+  `go test ./... -count=1`, `scripts/build-release --version
+  v0.1.0-alpha.5 --output-dir .local/release-easyharness-check --platform
+  $(go env GOOS)/$(go env GOARCH)`, `unzip -l` on the generated
+  `easyharness_*` archive, and checksum verification against `SHA256SUMS`.
+- Verified the renamed release workflow path with `go test ./tests/smoke -run
+  TestVerifyReleaseNamespaceWithFakeGHDownloadsAndChecksums -count=1`.
+- Verified the published prerelease remotely with `gh release view
+  v0.1.0-alpha.5 --repo catu-ai/easyharness --json
+  url,tagName,isPrerelease,assets` and `scripts/verify-release-namespace
+  --repo catu-ai/easyharness --tag v0.1.0-alpha.5 --asset SHA256SUMS --asset
+  easyharness_v0.1.0-alpha.5_$(go env GOOS)_$(go env GOARCH).zip --download-dir
+  .local/release-verify-easyharness-alpha5`.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Step 1 recorded `NO_STEP_REVIEW_NEEDED` because it only locked the naming
+  rationale, doc boundary, and remote prerequisites ahead of the broader rename.
+- `review-001-delta` passed with zero findings across `correctness`, `tests`,
+  and `docs_consistency`, closing Step 2 after the repository-wide rename.
+- Step 3 recorded `NO_STEP_REVIEW_NEEDED` because it was primarily remote
+  rename, PR, release, and verification work after the already reviewed repo
+  rename; the narrow workflow fix was validated through the live release run.
+- `review-002-full` passed with zero findings across `correctness`, `tests`,
+  `docs_consistency`, and `risk_scan`, clearing the full candidate for archive
+  closeout.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-03-30T00:31:06+08:00
+- Revision: 1
+- PR: https://github.com/catu-ai/easyharness/pull/60
+- Ready: The candidate now renames the live project, repository, module path,
+  release packaging, docs, and tests to `easyharness`, preserves `harness` as
+  the executable name, publishes and verifies `v0.1.0-alpha.5`, and carries a
+  clean `review-002-full` finalize pass.
+- Merge Handoff: Run `harness archive`, commit the archive move plus these
+  closeout summaries, push the refreshed branch tip to PR #60, then record
+  publish, CI, and sync evidence for the archived candidate until
+  `harness status` reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Added a durable naming proposal that favors `easyharness` from a
+  user-mental-model perspective and updated the live README, AGENTS contract,
+  release guide, and specs to describe the new project name while keeping the
+  `harness` executable boundary explicit.
+- Renamed the live Go module path and in-repo imports to
+  `github.com/catu-ai/easyharness`.
+- Updated release packaging, installer behavior, workflow metadata, and
+  automated coverage so archives are named `easyharness_*`, the packaged
+  executable remains `harness`, and legacy installer takeover still recognizes
+  older `microharness` and `superharness` managed installs.
+- Renamed the GitHub repository to `catu-ai/easyharness`, opened PR #60 in the
+  renamed repo, published `v0.1.0-alpha.5`, and recorded durable external proof
+  for the renamed prerelease assets and binary identity.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- `#42` Homebrew distribution and tap naming/install flow remain deferred.
+- Website, domain, and broader branding rollout outside repository-owned docs
+  and release surfaces remain intentionally out of scope.
+- The CLI executable remains `harness`; renaming it to `easyharness` was
+  explicitly deferred.
+- Historical archived plans, releases, and issue text that still mention
+  `microharness` remain intentionally preserved.
 
 ### Follow-Up Issues
 
-NONE
+- `#42` tracks Homebrew distribution after the `easyharness` rename lands.
+- Website/domain work and any broader branding rollout beyond repo-owned docs
+  remain intentionally deferred with no active follow-up issue yet.
+- Any future CLI executable rename remains deferred; this slice intentionally
+  keeps `harness`.
+- Historical old-name references remain preserved in archived plans and prior
+  releases; no cleanup slice is planned right now.
