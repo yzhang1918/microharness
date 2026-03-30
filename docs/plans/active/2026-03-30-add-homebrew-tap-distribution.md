@@ -93,7 +93,8 @@ formula should track the current release channel: alpha now, stable later if
 the project begins shipping stable tags. This step should also record the
 remote prerequisites that execution must satisfy: a `catu-ai/homebrew-tap`
 repository, a cross-repo credential available to GitHub Actions in
-`catu-ai/easyharness`, and permission to publish commits into the tap.
+`catu-ai/easyharness`, the tap branch fixed at `main` for this first slice,
+and permission to publish commits into the tap.
 
 #### Expected Files
 
@@ -112,7 +113,9 @@ Discovery concluded that `#42` should use a dedicated
 The default formula remains `easyharness`; users install the `harness`
 executable from that formula. The first slice should support the current alpha
 line through the default formula, with a future stable release allowed to take
-over the same formula. Nightly and split prerelease channels stay deferred.
+over the same formula. The tracked prerequisite contract also assumes the tap
+branch is `main`, because the release workflow publishes to that branch
+explicitly. Nightly and split prerelease channels stay deferred.
 
 #### Review Notes
 

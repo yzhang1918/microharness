@@ -153,7 +153,7 @@ func TestVerifyReleaseNamespaceAgainstGitHubWhenEnabled(t *testing.T) {
 
 	repo := requiredEnv(t, "EASYHARNESS_LIVE_GH_REPO")
 	tag := requiredEnv(t, "EASYHARNESS_LIVE_GH_TAG")
-	asset := requiredEnv(t, "EASYHARNESS_LIVE_GH_ASSET")
+	assets := expectedReleaseAssets(tag)
 
 	ghPath, err := exec.LookPath("gh")
 	if err != nil {
@@ -161,33 +161,43 @@ func TestVerifyReleaseNamespaceAgainstGitHubWhenEnabled(t *testing.T) {
 	}
 
 	downloadDir := filepath.Join(t.TempDir(), "downloads")
-	result := runCommand(
-		t,
-		support.RepoRoot(t),
-		envWithOverrides(t, map[string]string{
-			"PATH": strings.Join([]string{filepath.Dir(ghPath), installerPath(t)}, string(os.PathListSeparator)),
-		}),
-		"/bin/bash",
-		filepath.Join(support.RepoRoot(t), "scripts", "verify-release-namespace"),
-		"--repo", repo,
-		"--tag", tag,
-		"--asset", "SHA256SUMS",
-		"--asset", asset,
-		"--download-dir", downloadDir,
-	)
-	if result.ExitCode != 0 {
-		t.Fatalf("live verify-release-namespace failed with exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+	var result commandResult
+	for _, asset := range assets {
+		result = runCommand(
+			t,
+			support.RepoRoot(t),
+			envWithOverrides(t, map[string]string{
+				"PATH": strings.Join([]string{filepath.Dir(ghPath), installerPath(t)}, string(os.PathListSeparator)),
+			}),
+			"/bin/bash",
+			filepath.Join(support.RepoRoot(t), "scripts", "verify-release-namespace"),
+			"--repo", repo,
+			"--tag", tag,
+			"--asset", "SHA256SUMS",
+			"--asset", asset,
+			"--download-dir", downloadDir,
+		)
+		if result.ExitCode != 0 {
+			t.Fatalf("live verify-release-namespace failed with exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+		}
 	}
 
 	support.RequireContains(t, result.Stdout, "Verified repo: "+repo)
 	support.RequireContains(t, result.Stdout, "Verified release: "+tag)
 	support.RequireContains(t, result.Stdout, "Verified downloaded assets in "+downloadDir)
 	support.RequireFileExists(t, filepath.Join(downloadDir, "SHA256SUMS"))
-	support.RequireFileExists(t, filepath.Join(downloadDir, asset))
+	for _, asset := range assets {
+		support.RequireFileExists(t, filepath.Join(downloadDir, asset))
+	}
+
+	hostAsset := fmt.Sprintf("easyharness_%s_%s_%s.zip", tag, runtime.GOOS, runtime.GOARCH)
+	if !containsString(assets, hostAsset) {
+		t.Fatalf("expected host asset %s to be part of the supported release asset matrix", hostAsset)
+	}
 
 	extractDir := filepath.Join(t.TempDir(), "extract")
-	extractZipAsset(t, filepath.Join(downloadDir, asset), extractDir)
-	binaryPath := filepath.Join(extractDir, strings.TrimSuffix(asset, ".zip"), "harness")
+	extractZipAsset(t, filepath.Join(downloadDir, hostAsset), extractDir)
+	binaryPath := filepath.Join(extractDir, strings.TrimSuffix(hostAsset, ".zip"), "harness")
 	versionCmd := exec.Command(binaryPath, "--version")
 	versionCmd.Dir = support.RepoRoot(t)
 	versionOutput, err := versionCmd.CombinedOutput()
@@ -196,6 +206,24 @@ func TestVerifyReleaseNamespaceAgainstGitHubWhenEnabled(t *testing.T) {
 	}
 	support.RequireContains(t, string(versionOutput), "version: "+tag)
 	support.RequireContains(t, string(versionOutput), "mode: release")
+}
+
+func expectedReleaseAssets(tag string) []string {
+	return []string{
+		fmt.Sprintf("easyharness_%s_darwin_amd64.zip", tag),
+		fmt.Sprintf("easyharness_%s_darwin_arm64.zip", tag),
+		fmt.Sprintf("easyharness_%s_linux_amd64.zip", tag),
+		fmt.Sprintf("easyharness_%s_linux_arm64.zip", tag),
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func fakeGHReleaseDir(t *testing.T, repo, tag string, assets map[string][]byte) string {
