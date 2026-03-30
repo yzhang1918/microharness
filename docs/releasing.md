@@ -24,7 +24,9 @@ install as `catu-ai/tap/easyharness`.
    `Formula/easyharness.rb` in `catu-ai/homebrew-tap`.
 8. Confirm the release workflow's Homebrew verification job passed.
    It should stage a local `catu-ai/tap` checkout from the rendered formula,
-   install `catu-ai/tap/easyharness`, and pass `brew test easyharness`.
+   install an earlier compatible release when one exists, upgrade to the
+   current release with `brew upgrade catu-ai/tap/easyharness`, and pass
+   `brew test easyharness`.
 
 You can also use the workflow-dispatch path to republish assets for an
 existing `v*` tag without creating a second tag. The workflow rejects branch

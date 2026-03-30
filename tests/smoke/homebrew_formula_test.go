@@ -1,6 +1,7 @@
 package smoke_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -221,16 +222,24 @@ func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {
 
 	repo := requiredEnv(t, "EASYHARNESS_LIVE_GH_REPO")
 	tag := requiredEnv(t, "EASYHARNESS_LIVE_GH_TAG")
+	previousTag := os.Getenv("EASYHARNESS_LIVE_PREVIOUS_GH_TAG")
 
 	brewPath, err := exec.LookPath("brew")
 	if err != nil {
 		t.Skip("brew not available on PATH")
 	}
+	ghPath, err := exec.LookPath("gh")
+	if err != nil {
+		t.Fatalf("find gh on PATH: %v", err)
+	}
 
 	repoRoot := support.RepoRoot(t)
 	env := envWithOverrides(t, map[string]string{
-		"PATH": strings.Join([]string{filepath.Dir(brewPath), installerPath(t)}, string(os.PathListSeparator)),
+		"PATH": strings.Join([]string{filepath.Dir(brewPath), filepath.Dir(ghPath), installerPath(t)}, string(os.PathListSeparator)),
 	})
+	if previousTag == "" {
+		previousTag = resolvePreviousHomebrewReleaseTag(t, repoRoot, env, repo, tag)
+	}
 
 	brewRepoResult := runCommand(t, repoRoot, env, brewPath, "--repository")
 	if brewRepoResult.ExitCode != 0 {
@@ -247,6 +256,46 @@ func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {
 		_ = os.RemoveAll(tapRoot)
 	})
 
+	formulaPath := filepath.Join(tapRoot, "Formula", "easyharness.rb")
+	if err := os.MkdirAll(filepath.Dir(formulaPath), 0o755); err != nil {
+		t.Fatalf("mkdir staged tap formula dir: %v", err)
+	}
+
+	currentChecksumsPath := downloadReleaseChecksums(t, repoRoot, env, repo, tag)
+	if previousTag != "" {
+		previousChecksumsPath := downloadReleaseChecksums(t, repoRoot, env, repo, previousTag)
+		renderHomebrewFormula(t, repoRoot, env, repo, previousTag, previousChecksumsPath, formulaPath)
+
+		installResult := runCommand(t, repoRoot, env, brewPath, "install", "catu-ai/tap/easyharness")
+		if installResult.ExitCode != 0 {
+			t.Fatalf("brew install catu-ai/tap/easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", installResult.ExitCode, installResult.Stdout, installResult.Stderr)
+		}
+		requireInstalledHarnessVersion(t, repoRoot, env, brewPath, previousTag)
+
+		renderHomebrewFormula(t, repoRoot, env, repo, tag, currentChecksumsPath, formulaPath)
+		upgradeResult := runCommand(t, repoRoot, env, brewPath, "upgrade", "catu-ai/tap/easyharness")
+		if upgradeResult.ExitCode != 0 {
+			t.Fatalf("brew upgrade catu-ai/tap/easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", upgradeResult.ExitCode, upgradeResult.Stdout, upgradeResult.Stderr)
+		}
+	} else {
+		renderHomebrewFormula(t, repoRoot, env, repo, tag, currentChecksumsPath, formulaPath)
+
+		installResult := runCommand(t, repoRoot, env, brewPath, "install", "catu-ai/tap/easyharness")
+		if installResult.ExitCode != 0 {
+			t.Fatalf("brew install catu-ai/tap/easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", installResult.ExitCode, installResult.Stdout, installResult.Stderr)
+		}
+	}
+	requireInstalledHarnessVersion(t, repoRoot, env, brewPath, tag)
+
+	testResult := runCommand(t, repoRoot, env, brewPath, "test", "easyharness")
+	if testResult.ExitCode != 0 {
+		t.Fatalf("brew test easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", testResult.ExitCode, testResult.Stdout, testResult.Stderr)
+	}
+}
+
+func downloadReleaseChecksums(t *testing.T, repoRoot string, env []string, repo, tag string) string {
+	t.Helper()
+
 	downloadDir := filepath.Join(t.TempDir(), "downloads")
 	verifyResult := runCommand(
 		t,
@@ -260,13 +309,13 @@ func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {
 		"--download-dir", downloadDir,
 	)
 	if verifyResult.ExitCode != 0 {
-		t.Fatalf("verify-release-namespace failed with exit %d\nstdout:\n%s\nstderr:\n%s", verifyResult.ExitCode, verifyResult.Stdout, verifyResult.Stderr)
+		t.Fatalf("verify-release-namespace failed for %s with exit %d\nstdout:\n%s\nstderr:\n%s", tag, verifyResult.ExitCode, verifyResult.Stdout, verifyResult.Stderr)
 	}
+	return filepath.Join(downloadDir, "SHA256SUMS")
+}
 
-	formulaPath := filepath.Join(tapRoot, "Formula", "easyharness.rb")
-	if err := os.MkdirAll(filepath.Dir(formulaPath), 0o755); err != nil {
-		t.Fatalf("mkdir staged tap formula dir: %v", err)
-	}
+func renderHomebrewFormula(t *testing.T, repoRoot string, env []string, repo, tag, checksumsPath, formulaPath string) {
+	t.Helper()
 
 	renderResult := runCommand(
 		t,
@@ -276,17 +325,16 @@ func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {
 		filepath.Join(repoRoot, "scripts", "render-homebrew-formula"),
 		"--repo", repo,
 		"--tag", tag,
-		"--checksums", filepath.Join(downloadDir, "SHA256SUMS"),
+		"--checksums", checksumsPath,
 		"--output", formulaPath,
 	)
 	if renderResult.ExitCode != 0 {
-		t.Fatalf("render-homebrew-formula failed with exit %d\nstdout:\n%s\nstderr:\n%s", renderResult.ExitCode, renderResult.Stdout, renderResult.Stderr)
+		t.Fatalf("render-homebrew-formula failed for %s with exit %d\nstdout:\n%s\nstderr:\n%s", tag, renderResult.ExitCode, renderResult.Stdout, renderResult.Stderr)
 	}
+}
 
-	installResult := runCommand(t, repoRoot, env, brewPath, "install", "catu-ai/tap/easyharness")
-	if installResult.ExitCode != 0 {
-		t.Fatalf("brew install catu-ai/tap/easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", installResult.ExitCode, installResult.Stdout, installResult.Stderr)
-	}
+func requireInstalledHarnessVersion(t *testing.T, repoRoot string, env []string, brewPath string, tag string) {
+	t.Helper()
 
 	prefixResult := runCommand(t, repoRoot, env, brewPath, "--prefix")
 	if prefixResult.ExitCode != 0 {
@@ -295,17 +343,72 @@ func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {
 	binaryPath := filepath.Join(strings.TrimSpace(prefixResult.Stdout), "bin", "harness")
 	versionCmd := exec.Command(binaryPath, "--version")
 	versionCmd.Dir = repoRoot
+	versionCmd.Env = env
 	versionOutput, err := versionCmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("run installed harness --version: %v\n%s", err, versionOutput)
 	}
 	support.RequireContains(t, string(versionOutput), "version: "+tag)
 	support.RequireContains(t, string(versionOutput), "mode: release")
+}
 
-	testResult := runCommand(t, repoRoot, env, brewPath, "test", "easyharness")
-	if testResult.ExitCode != 0 {
-		t.Fatalf("brew test easyharness failed with exit %d\nstdout:\n%s\nstderr:\n%s", testResult.ExitCode, testResult.Stdout, testResult.Stderr)
+func resolvePreviousHomebrewReleaseTag(t *testing.T, repoRoot string, env []string, repo, tag string) string {
+	t.Helper()
+
+	ghPath, err := exec.LookPath("gh")
+	if err != nil {
+		t.Fatalf("find gh on PATH: %v", err)
 	}
+
+	cmd := exec.Command(ghPath, "api", "repos/"+repo+"/releases?per_page=20")
+	cmd.Dir = repoRoot
+	cmd.Env = env
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("gh api releases failed: %v\n%s", err, output)
+	}
+
+	var releases []struct {
+		TagName string `json:"tag_name"`
+		Draft   bool   `json:"draft"`
+	}
+	if err := json.Unmarshal(output, &releases); err != nil {
+		t.Fatalf("parse gh release response: %v\n%s", err, output)
+	}
+	for i, release := range releases {
+		if release.TagName != tag {
+			continue
+		}
+		for _, previous := range releases[i+1:] {
+			if previous.TagName == "" || previous.Draft {
+				continue
+			}
+			checksumsPath := downloadReleaseChecksums(t, repoRoot, env, repo, previous.TagName)
+			if releaseSupportsHomebrewFormula(t, checksumsPath, previous.TagName) {
+				return previous.TagName
+			}
+		}
+		return ""
+	}
+
+	t.Fatalf("release tag %s not found in GitHub release list", tag)
+	return ""
+}
+
+func releaseSupportsHomebrewFormula(t *testing.T, checksumsPath string, tag string) bool {
+	t.Helper()
+
+	checksumsData, err := os.ReadFile(checksumsPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", checksumsPath, err)
+	}
+	checksums := string(checksumsData)
+	for _, asset := range expectedReleaseAssets(tag) {
+		if !strings.Contains(checksums, "  "+asset+"\n") {
+			return false
+		}
+	}
+	return true
 }
 
 func mustRunGit(t *testing.T, workdir string, args ...string) {
