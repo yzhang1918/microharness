@@ -263,6 +263,15 @@ func TestInstallRecognizesManagedBlockWithCRLFLineEndings(t *testing.T) {
 		t.Fatalf("first install failed: %#v", first)
 	}
 
+	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read refreshed AGENTS.md: %v", err)
+	}
+	normalized := strings.ReplaceAll(string(data), "\r\n", "")
+	if strings.Contains(normalized, "\n") || strings.Contains(normalized, "\r") {
+		t.Fatalf("expected refreshed AGENTS.md to preserve consistent CRLF line endings, got:\n%q", string(data))
+	}
+
 	second := svc.Install(Options{Scope: ScopeAgents})
 	if !second.OK {
 		t.Fatalf("second install failed: %#v", second)

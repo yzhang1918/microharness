@@ -185,10 +185,10 @@ func (s Service) Install(opts Options) Result {
 
 func (s Service) planAgents() (plannedWrite, *CommandError) {
 	targetPath := filepath.Join(s.Workdir, "AGENTS.md")
-	managedBlock := renderManagedBlock()
 	data, err := os.ReadFile(targetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			managedBlock := renderManagedBlock("\n")
 			content := "# AGENTS.md\n\n" + managedBlock
 			return plannedWrite{
 				relPath: "AGENTS.md",
@@ -202,6 +202,8 @@ func (s Service) planAgents() (plannedWrite, *CommandError) {
 	}
 
 	existing := string(data)
+	lineEnding := detectLineEnding(existing)
+	managedBlock := renderManagedBlock(lineEnding)
 	beginMatches := agentsManagedBlockBeginPattern.FindAllStringIndex(existing, -1)
 	endMatches := agentsManagedBlockEndPattern.FindAllStringIndex(existing, -1)
 	beginCount := len(beginMatches)
@@ -220,11 +222,11 @@ func (s Service) planAgents() (plannedWrite, *CommandError) {
 	case 0:
 		trimmed := strings.TrimSpace(existing)
 		if trimmed == "" {
-			next = "# AGENTS.md\n\n" + managedBlock
+			next = "# AGENTS.md" + lineEnding + lineEnding + managedBlock
 			kind = ActionUpdate
 			details = "Populate the empty AGENTS.md file with the harness-managed workflow block."
 		} else {
-			next = strings.TrimRight(existing, "\n") + "\n\n" + managedBlock
+			next = trimTrailingLineBreaks(existing) + lineEnding + lineEnding + managedBlock
 			kind = ActionUpdate
 			details = "Append the harness-managed workflow block to AGENTS.md."
 		}
@@ -238,17 +240,17 @@ func (s Service) planAgents() (plannedWrite, *CommandError) {
 			}
 		}
 		end = endMatches[0][1]
-		before := strings.TrimRight(existing[:begin], "\n")
-		after := strings.Trim(existing[end:], "\n")
+		before := trimTrailingLineBreaks(existing[:begin])
+		after := trimSurroundingLineBreaks(existing[end:])
 		parts := []string{}
 		if before != "" {
 			parts = append(parts, before)
 		}
-		parts = append(parts, strings.TrimRight(managedBlock, "\n"))
+		parts = append(parts, trimTrailingLineBreaks(managedBlock))
 		if after != "" {
 			parts = append(parts, after)
 		}
-		next = strings.Join(parts, "\n\n") + "\n"
+		next = strings.Join(parts, lineEnding+lineEnding) + lineEnding
 		kind = ActionUpdate
 		details = "Refresh the existing harness-managed AGENTS.md block in place."
 	}
@@ -314,9 +316,9 @@ func (s Service) planSkills() ([]plannedWrite, []CommandError) {
 	return writes, nil
 }
 
-func renderManagedBlock() string {
-	body := strings.TrimSpace(bootstrapassets.AgentsManagedBlock())
-	return agentsManagedBlockBegin + "\n" + body + "\n" + agentsManagedBlockEnd + "\n"
+func renderManagedBlock(lineEnding string) string {
+	body := normalizeLineEndings(strings.TrimSpace(bootstrapassets.AgentsManagedBlock()), lineEnding)
+	return agentsManagedBlockBegin + lineEnding + body + lineEnding + agentsManagedBlockEnd + lineEnding
 }
 
 func normalizeScope(scope string) string {
@@ -367,6 +369,27 @@ func summarizeWrites(writes []plannedWrite, dryRun bool) string {
 		return fmt.Sprintf("Dry run complete. %d file(s) would be created and %d file(s) would be updated.", creates, updates)
 	}
 	return fmt.Sprintf("Installed or refreshed harness-managed repository assets. %d file(s) created and %d file(s) updated.", creates, updates)
+}
+
+func detectLineEnding(content string) string {
+	if strings.Contains(content, "\r\n") {
+		return "\r\n"
+	}
+	return "\n"
+}
+
+func normalizeLineEndings(content, lineEnding string) string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.ReplaceAll(content, "\r", "\n")
+	return strings.ReplaceAll(content, "\n", lineEnding)
+}
+
+func trimTrailingLineBreaks(content string) string {
+	return strings.TrimRight(content, "\r\n")
+}
+
+func trimSurroundingLineBreaks(content string) string {
+	return strings.Trim(content, "\r\n")
 }
 
 func countWrites(writes []plannedWrite) (int, int) {

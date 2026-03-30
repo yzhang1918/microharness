@@ -197,6 +197,11 @@ to whole-line markers only and added a focused regression test for the inline
 mention case. Finalize review `review-002-full` then found one more
 repeat-run edge case on CRLF `AGENTS.md` files; the repair widened marker-line
 matching so CRLF reruns refresh or noop instead of appending a duplicate block.
+Finalize review `review-003-full` then found a second CRLF correctness issue in
+the surrounding trim/join path; the final repair taught the installer to detect
+the existing file's line-ending style, render the managed block with that same
+style, and trim preserved user sections against both `\r` and `\n` so Windows
+worktrees do not get mixed newlines or stray carriage returns.
 
 #### Review Notes
 
@@ -253,7 +258,10 @@ existing user-authored `AGENTS.md`, refreshes the managed block, and proves the
 next rerun is a noop. After finalize review `review-002-full`, the smoke suite
 also gained explicit CLI coverage for duplicate managed-block failure and the
 `--scope skills` bootstrap path so both install branches now have end-to-end
-coverage.
+coverage. After finalize review `review-003-full`, the smoke suite gained one
+more apply-mode failure path by forcing `install --scope skills` to fail while
+`.agents` is a plain file, then verifying a cleaned-up rerun converges
+successfully.
 
 Validation passed with `go test ./internal/install ./internal/cli ./tests/smoke
 -run 'TestInstall|TestHelpShowsTopLevelUsage' -count=1`, a repo-local

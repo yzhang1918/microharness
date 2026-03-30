@@ -271,6 +271,37 @@ func TestInstallSkillsScopeBootstrapsOnlySkills(t *testing.T) {
 	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
 }
 
+func TestInstallSkillsScopeRecoversAfterApplyWriteFailure(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	agentsRootPath := workspace.Path(".agents")
+	if err := os.WriteFile(agentsRootPath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatalf("write blocking .agents file: %v", err)
+	}
+
+	failed := support.Run(t, workspace.Root, "install", "--scope", "skills")
+	support.RequireExitCode(t, failed, 1)
+	support.RequireNoStderr(t, failed)
+
+	failedPayload := support.RequireJSONResult[installResult](t, failed)
+	if failedPayload.OK {
+		t.Fatalf("expected apply-mode write failure, got %#v", failedPayload)
+	}
+
+	if err := os.Remove(agentsRootPath); err != nil {
+		t.Fatalf("remove blocking .agents file: %v", err)
+	}
+
+	retry := support.Run(t, workspace.Root, "install", "--scope", "skills")
+	support.RequireSuccess(t, retry)
+	support.RequireNoStderr(t, retry)
+
+	retryPayload := support.RequireJSONResult[installResult](t, retry)
+	if !retryPayload.OK || retryPayload.Scope != "skills" {
+		t.Fatalf("expected successful retry payload, got %#v", retryPayload)
+	}
+	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-reviewer/SKILL.md"))
+}
+
 func TestInstallRefreshesExistingManagedWrapperAndThenNoops(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	agentsPath := workspace.Path("AGENTS.md")
