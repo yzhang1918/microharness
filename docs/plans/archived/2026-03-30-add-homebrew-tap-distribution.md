@@ -3,7 +3,7 @@ template_version: 0.2.0
 created_at: "2026-03-30T14:03:45+08:00"
 source_type: direct_request
 source_refs:
-  - "#42"
+    - '#42'
 ---
 
 # Add Homebrew tap distribution for tagged releases
@@ -314,19 +314,23 @@ release-workflow behavior changed together in one bounded slice.
   still ended with archive placeholders. This revision writes the durable
   validation, review, archive, and outcome summaries plus the deferred issue
   handoff before rerunning finalize review.
+- `review-013-full` requested two final smoke-hardening fixes: paginating the
+  GitHub release lookup used to find prior upgrade candidates and asserting
+  the live Homebrew job's required env wiring in the workflow smoke test.
+- `review-014-full` passed clean across `correctness`, `tests`, and
+  `docs_consistency`, so the candidate is now ready to archive.
 
 ## Archive Summary
 
-- Archived At: not archived yet; `harness archive` is pending the next clean
-  finalize review.
+- Archived At: 2026-03-30T15:23:35+08:00
 - Revision: 1
 - PR: not created yet; post-archive publish evidence should record the PR URL.
-- Ready: acceptance criteria are satisfied, the release workflow now owns the
-  Homebrew tap update path on GitHub alone, and the latest validation evidence
-  covers formula render, tap update, live staged-tap install, and upgrade/test
-  behavior against the current public release.
-- Merge Handoff: once the next finalize review passes, run
-  `harness plan lint`, archive the plan, commit the tracked move plus summary
+- Ready: `review-014-full` passed clean, acceptance criteria are satisfied,
+  the release workflow now owns the Homebrew tap update path on GitHub alone,
+  and the latest validation evidence covers formula render, tap update, live
+  staged-tap install, and upgrade/test behavior against the current public
+  release.
+- Merge Handoff: archive the plan, commit the tracked move plus summary
   updates, push the branch, open or update the PR, and record publish/CI/sync
   evidence before treating the candidate as merge-ready.
 
