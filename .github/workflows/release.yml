@@ -128,3 +128,68 @@ jobs:
             --tap-dir dist/homebrew-tap \
             --branch "${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}" \
             --version "${{ steps.release-version.outputs.version }}"
+
+  verify-homebrew-install:
+    name: Verify Homebrew Install
+    needs: build-and-publish
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Determine release version
+        id: release-version
+        shell: bash
+        run: |
+          version="${{ inputs.version }}"
+          if [[ -z "${version}" ]]; then
+            version="${{ github.ref_name }}"
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "release version is required" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release-version.outputs.version }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download release checksum
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          mkdir -p dist/homebrew
+          gh release download "${{ steps.release-version.outputs.version }}" \
+            -R "${{ github.repository }}" \
+            -D dist/homebrew \
+            --clobber \
+            -p SHA256SUMS
+
+      - name: Render Homebrew formula
+        run: |
+          scripts/render-homebrew-formula \
+            --repo "${{ github.repository }}" \
+            --tag "${{ steps.release-version.outputs.version }}" \
+            --checksums dist/homebrew/SHA256SUMS \
+            --output dist/homebrew/easyharness.rb
+
+      - name: Install and test Homebrew formula
+        shell: bash
+        run: |
+          version="${{ steps.release-version.outputs.version }}"
+          brew install --formula dist/homebrew/easyharness.rb
+          binary_path="$(brew --prefix)/bin/harness"
+          version_output="$("${binary_path}" --version)"
+          printf '%s\n' "${version_output}"
+          grep -F "version: ${version}" <<<"${version_output}"
+          grep -F "mode: release" <<<"${version_output}"
+          brew test easyharness

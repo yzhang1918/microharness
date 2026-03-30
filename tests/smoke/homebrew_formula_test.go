@@ -204,6 +204,13 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	support.RequireContains(t, workflow, `--tap-dir dist/homebrew-tap`)
 	support.RequireContains(t, workflow, `--branch "${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}"`)
 	support.RequireContains(t, workflow, `--version "${{ steps.release-version.outputs.version }}"`)
+	support.RequireContains(t, workflow, `verify-homebrew-install:`)
+	support.RequireContains(t, workflow, `runs-on: macos-latest`)
+	support.RequireContains(t, workflow, `gh release download "${{ steps.release-version.outputs.version }}" \`)
+	support.RequireContains(t, workflow, `-D dist/homebrew \`)
+	support.RequireContains(t, workflow, `--checksums dist/homebrew/SHA256SUMS \`)
+	support.RequireContains(t, workflow, `brew install --formula dist/homebrew/easyharness.rb`)
+	support.RequireContains(t, workflow, `brew test easyharness`)
 }
 
 func mustRunGit(t *testing.T, workdir string, args ...string) {
