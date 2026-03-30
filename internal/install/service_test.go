@@ -95,6 +95,36 @@ func TestInstallRejectsDuplicateManagedBlocks(t *testing.T) {
 	}
 }
 
+func TestInstallIgnoresLiteralMarkerMentionsInUserOwnedProse(t *testing.T) {
+	root := t.TempDir()
+	content := strings.Join([]string{
+		"# AGENTS.md",
+		"",
+		"User-owned note mentioning markers inline: `<!-- easyharness:begin -->` and `<!-- easyharness:end -->`.",
+		"",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write AGENTS.md: %v", err)
+	}
+
+	result := Service{Workdir: root}.Install(Options{Scope: ScopeAgents})
+	if !result.OK {
+		t.Fatalf("expected install success, got %#v", result)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	rendered := string(data)
+	if !strings.Contains(rendered, "User-owned note mentioning markers inline") {
+		t.Fatalf("expected inline marker prose to survive, got:\n%s", rendered)
+	}
+	if len(agentsManagedBlockBeginPattern.FindAllStringIndex(rendered, -1)) != 1 || len(agentsManagedBlockEndPattern.FindAllStringIndex(rendered, -1)) != 1 {
+		t.Fatalf("expected a single managed block append, got:\n%s", rendered)
+	}
+}
+
 func TestInstallRefreshesManagedSkillsWithoutRemovingUserFiles(t *testing.T) {
 	root := t.TempDir()
 	managedPath := filepath.Join(root, ".agents/skills/harness-discovery/SKILL.md")

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -21,6 +22,11 @@ const (
 
 	agentsManagedBlockBegin = "<!-- easyharness:begin -->"
 	agentsManagedBlockEnd   = "<!-- easyharness:end -->"
+)
+
+var (
+	agentsManagedBlockBeginPattern = regexp.MustCompile(`(?m)^<!-- easyharness:begin -->[ \t]*$`)
+	agentsManagedBlockEndPattern   = regexp.MustCompile(`(?m)^<!-- easyharness:end -->[ \t]*$`)
 )
 
 type Service struct {
@@ -196,8 +202,10 @@ func (s Service) planAgents() (plannedWrite, *CommandError) {
 	}
 
 	existing := string(data)
-	beginCount := strings.Count(existing, agentsManagedBlockBegin)
-	endCount := strings.Count(existing, agentsManagedBlockEnd)
+	beginMatches := agentsManagedBlockBeginPattern.FindAllStringIndex(existing, -1)
+	endMatches := agentsManagedBlockEndPattern.FindAllStringIndex(existing, -1)
+	beginCount := len(beginMatches)
+	endCount := len(endMatches)
 	if beginCount != endCount || beginCount > 1 {
 		return plannedWrite{}, &CommandError{
 			Path:    "AGENTS.md",
@@ -221,15 +229,15 @@ func (s Service) planAgents() (plannedWrite, *CommandError) {
 			details = "Append the harness-managed workflow block to AGENTS.md."
 		}
 	default:
-		begin := strings.Index(existing, agentsManagedBlockBegin)
-		end := strings.Index(existing, agentsManagedBlockEnd)
+		begin := beginMatches[0][0]
+		end := endMatches[0][0]
 		if begin < 0 || end < 0 || begin > end {
 			return plannedWrite{}, &CommandError{
 				Path:    "AGENTS.md",
 				Message: "unable to locate a valid easyharness managed block",
 			}
 		}
-		end += len(agentsManagedBlockEnd)
+		end = endMatches[0][1]
 		before := strings.TrimRight(existing[:begin], "\n")
 		after := strings.Trim(existing[end:], "\n")
 		parts := []string{}

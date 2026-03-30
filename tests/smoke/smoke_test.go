@@ -208,6 +208,72 @@ func TestInstallRepeatRunReportsNoopActions(t *testing.T) {
 	}
 }
 
+func TestInstallRejectsInvalidScopeViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+
+	result := support.Run(t, workspace.Root, "install", "--scope", "bogus")
+	support.RequireExitCode(t, result, 1)
+	support.RequireNoStderr(t, result)
+
+	payload := support.RequireJSONResult[installResult](t, result)
+	if payload.OK {
+		t.Fatalf("expected install failure payload, got %#v", payload)
+	}
+	if payload.Command != "install" || payload.Scope != "bogus" {
+		t.Fatalf("unexpected invalid-scope payload: %#v", payload)
+	}
+}
+
+func TestInstallRefreshesExistingManagedWrapperAndThenNoops(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	agentsPath := workspace.Path("AGENTS.md")
+	initial := strings.Join([]string{
+		"# AGENTS.md",
+		"",
+		"Repo-owned intro.",
+		"",
+		"<!-- easyharness:begin -->",
+		"outdated managed content",
+		"<!-- easyharness:end -->",
+		"",
+		"## Repo Rules",
+		"",
+		"- Keep commits reviewable.",
+		"",
+	}, "\n")
+	if err := os.WriteFile(agentsPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write AGENTS.md: %v", err)
+	}
+
+	refresh := support.Run(t, workspace.Root, "install", "--scope", "agents")
+	support.RequireSuccess(t, refresh)
+	support.RequireNoStderr(t, refresh)
+
+	agentsData, err := os.ReadFile(agentsPath)
+	if err != nil {
+		t.Fatalf("read refreshed AGENTS.md: %v", err)
+	}
+	agentsBody := string(agentsData)
+	support.RequireContains(t, agentsBody, "Repo-owned intro.")
+	support.RequireContains(t, agentsBody, "## Repo Rules")
+	support.RequireContains(t, agentsBody, "## Harness Working Agreement")
+	if strings.Contains(agentsBody, "outdated managed content") {
+		t.Fatalf("expected refreshed managed block, got:\n%s", agentsBody)
+	}
+
+	second := support.Run(t, workspace.Root, "install", "--scope", "agents")
+	support.RequireSuccess(t, second)
+	support.RequireNoStderr(t, second)
+
+	payload := support.RequireJSONResult[installResult](t, second)
+	if !strings.Contains(payload.Summary, "already up to date") {
+		t.Fatalf("expected noop wrapper rerun summary, got %#v", payload)
+	}
+	if len(payload.Actions) != 1 || payload.Actions[0].Kind != "noop" {
+		t.Fatalf("expected noop wrapper rerun action, got %#v", payload.Actions)
+	}
+}
+
 func TestSupportRunUsesBuiltBinaryInsteadOfPATH(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	poisonDir := workspace.Path("tmp/poison-bin")

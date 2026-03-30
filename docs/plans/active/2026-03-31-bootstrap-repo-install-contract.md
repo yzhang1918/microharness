@@ -190,7 +190,11 @@ Focused TDD covered fresh installs, managed-block refresh, duplicate-marker
 errors, managed-skill refresh without deleting user files, repeat-run no-op
 behavior, and CLI help/JSON output. A repo-wrapper regression test fixed a
 newline-normalization bug so repo-specific `AGENTS.md` wrappers become stable
-no-op reruns after refresh.
+no-op reruns after refresh. Finalize review `review-001-full` then found one
+additional marker-parsing bug: inline user-owned mentions of the marker strings
+could be mistaken for the managed block. The repair tightened marker detection
+to whole-line markers only and added a focused regression test for the inline
+mention case.
 
 #### Review Notes
 
@@ -240,7 +244,11 @@ explicit repository bootstrap story after installing the binary. `README.md`
 documents `harness install`, the managed `AGENTS.md` block, repo-local skills,
 and repeat-run behavior. The CLI contract now includes `harness install`, and
 the smoke suite exercises fresh-repo bootstrap, dry-run non-writing behavior,
-and repeat-run no-op results.
+and repeat-run no-op results. After finalize review `review-001-full`
+requested stronger coverage, the smoke suite also gained failing-install
+coverage for invalid scope and a wrapper-refresh path that starts from an
+existing user-authored `AGENTS.md`, refreshes the managed block, and proves the
+next rerun is a noop.
 
 Validation passed with `go test ./internal/install ./internal/cli ./tests/smoke
 -run 'TestInstall|TestHelpShowsTopLevelUsage' -count=1`, a repo-local
