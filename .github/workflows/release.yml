@@ -18,6 +18,9 @@ jobs:
   build-and-publish:
     name: Build and Publish Release Assets
     runs-on: ubuntu-latest
+    env:
+      EASYHARNESS_HOMEBREW_TAP_BRANCH: main
+      EASYHARNESS_HOMEBREW_TAP_TOKEN: ${{ secrets.EASYHARNESS_HOMEBREW_TAP_TOKEN }}
     steps:
       - name: Determine release version
         id: release-version
@@ -98,5 +101,72 @@ jobs:
           EASYHARNESS_RUN_LIVE_GH_SMOKE: "1"
           EASYHARNESS_LIVE_GH_REPO: ${{ github.repository }}
           EASYHARNESS_LIVE_GH_TAG: ${{ steps.release-version.outputs.version }}
-          EASYHARNESS_LIVE_GH_ASSET: easyharness_${{ steps.release-version.outputs.version }}_linux_amd64.zip
         run: go test ./tests/smoke -run TestVerifyReleaseNamespaceAgainstGitHubWhenEnabled -count=1
+
+      - name: Render Homebrew formula
+        run: |
+          scripts/render-homebrew-formula \
+            --repo "${{ github.repository }}" \
+            --tag "${{ steps.release-version.outputs.version }}" \
+            --checksums dist/release/SHA256SUMS \
+            --output dist/homebrew/easyharness.rb
+
+      - name: Check out Homebrew tap
+        if: ${{ env.EASYHARNESS_HOMEBREW_TAP_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: catu-ai/homebrew-tap
+          ref: ${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}
+          token: ${{ env.EASYHARNESS_HOMEBREW_TAP_TOKEN }}
+          path: dist/homebrew-tap
+          fetch-depth: 0
+
+      - name: Update Homebrew tap formula
+        run: |
+          scripts/update-homebrew-tap \
+            --formula dist/homebrew/easyharness.rb \
+            --tap-dir dist/homebrew-tap \
+            --branch "${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}" \
+            --version "${{ steps.release-version.outputs.version }}"
+
+  verify-homebrew-install:
+    name: Verify Homebrew Install
+    needs: build-and-publish
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EASYHARNESS_RUN_LIVE_BREW_SMOKE: "1"
+    steps:
+      - name: Determine release version
+        id: release-version
+        shell: bash
+        run: |
+          version="${{ inputs.version }}"
+          if [[ -z "${version}" ]]; then
+            version="${{ github.ref_name }}"
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "release version is required" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release-version.outputs.version }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run Homebrew tap smoke
+        env:
+          EASYHARNESS_LIVE_GH_REPO: ${{ github.repository }}
+          EASYHARNESS_LIVE_GH_TAG: ${{ steps.release-version.outputs.version }}
+        run: go test ./tests/smoke -run TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled -count=1
