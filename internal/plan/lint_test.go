@@ -197,6 +197,47 @@ func TestLintFileRejectsInvalidFilename(t *testing.T) {
 	assertHasError(t, result, "path")
 }
 
+func TestLintFileAcceptsLightweightLocalPlan(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".local/harness/plans/2026-03-17-lightweight-plan/active/2026-03-17-lightweight-plan.md")
+	content := mustRenderTemplate(t, "Lightweight Local Plan")
+	content = strings.Replace(content, "source_refs: []", "source_refs: []\nworkflow_profile: lightweight", 1)
+	writeFile(t, path, content)
+
+	result := plan.LintFile(path)
+	if !result.OK {
+		t.Fatalf("expected local lightweight lint success, got %#v", result)
+	}
+}
+
+func TestLintFileRejectsLightweightProfileOnTrackedPlan(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "docs/plans/active/2026-03-17-tracked-plan.md")
+	content := mustRenderTemplate(t, "Tracked Plan")
+	content = strings.Replace(content, "source_refs: []", "source_refs: []\nworkflow_profile: lightweight", 1)
+	writeFile(t, path, content)
+
+	result := plan.LintFile(path)
+	if result.OK {
+		t.Fatalf("expected lint failure, got %#v", result)
+	}
+	assertHasError(t, result, "frontmatter.workflow_profile")
+}
+
+func TestLintFileRejectsUnsupportedWorkflowProfile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "docs/plans/active/2026-03-17-bad-profile.md")
+	content := mustRenderTemplate(t, "Bad Profile Plan")
+	content = strings.Replace(content, "source_refs: []", "source_refs: []\nworkflow_profile: risky", 1)
+	writeFile(t, path, content)
+
+	result := plan.LintFile(path)
+	if result.OK {
+		t.Fatalf("expected lint failure, got %#v", result)
+	}
+	assertHasError(t, result, "frontmatter.workflow_profile")
+}
+
 func TestLintFileRejectsInvalidStepHeading(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "docs/plans/active/2026-03-17-easyharness-cli-and-plan-foundations.md")

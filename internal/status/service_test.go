@@ -53,6 +53,50 @@ func TestStatusPlanNodeForActivePlan(t *testing.T) {
 	}
 }
 
+func TestStatusPlanNodeForLightweightLocalPlan(t *testing.T) {
+	root := t.TempDir()
+	writePlan(t, root, ".local/harness/plans/2026-03-18-status-lightweight/active/2026-03-18-status-lightweight.md", func(content string) string {
+		return strings.Replace(content, "source_refs: []", "source_refs: []\nworkflow_profile: lightweight", 1)
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if !result.OK {
+		t.Fatalf("expected OK status result, got %#v", result)
+	}
+	if result.State.CurrentNode != "plan" {
+		t.Fatalf("unexpected node: %#v", result.State)
+	}
+	if result.Artifacts == nil || !strings.Contains(result.Artifacts.PlanPath, ".local/harness/plans/2026-03-18-status-lightweight/active/2026-03-18-status-lightweight.md") {
+		t.Fatalf("unexpected artifacts: %#v", result.Artifacts)
+	}
+}
+
+func TestStatusLightweightPublishPromptsForBreadcrumb(t *testing.T) {
+	root := t.TempDir()
+	relPath := ".local/harness/plans/2026-03-18-status-lightweight/archived/2026-03-18-status-lightweight.md"
+	writePlan(t, root, relPath, func(content string) string {
+		content = strings.Replace(content, "source_refs: []", "source_refs: []\nworkflow_profile: lightweight", 1)
+		return completeAllStepsWithoutCloseout(content, true)
+	})
+	writeCurrentPlan(t, root, relPath)
+	writeState(t, root, "2026-03-18-status-lightweight", map[string]any{
+		"plan_path": relPath,
+		"plan_stem": "2026-03-18-status-lightweight",
+		"revision":  1,
+	})
+
+	result := status.Service{Workdir: root}.Read()
+	if result.State.CurrentNode != "execution/finalize/publish" {
+		t.Fatalf("unexpected node: %#v", result.State)
+	}
+	if len(result.NextAction) == 0 || !strings.Contains(result.NextAction[0].Description, "repo-visible breadcrumb") {
+		t.Fatalf("expected breadcrumb guidance first, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.Summary, "repo-visible breadcrumb") {
+		t.Fatalf("expected summary to mention breadcrumb, got %q", result.Summary)
+	}
+}
+
 func TestStatusExecutionStepImplementNode(t *testing.T) {
 	root := t.TempDir()
 	writePlan(t, root, "docs/plans/active/2026-03-18-status-plan.md", func(content string) string {

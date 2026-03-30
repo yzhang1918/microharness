@@ -18,6 +18,11 @@ Use this skill to create or update the tracked plan that will drive execution.
 ## Workflow
 
 1. Start from `harness plan template` when creating a new plan.
+   - use `harness plan template --lightweight` only for explicitly approved,
+     tiny bounded low-risk work such as README/docs/comments/copy cleanup
+   - if the slice touches behavior, normative contract meaning, release flow,
+     or another non-trivial risk surface, stay on the standard tracked-plan
+     path
 2. Name the file with the plan-schema convention:
    `YYYY-MM-DD-clear-topic.md`.
 3. Make the topic meaningful and specific. It should tell a cold reader what is
@@ -35,6 +40,7 @@ Use this skill to create or update the tracked plan that will drive execution.
 7. Reread the plan as if the chat history were unavailable. Fix anything that
    still depends on hidden context.
 8. Run `harness plan lint <plan-path>`.
+   - local lightweight plans still need lint before execution starts
 9. Present the plan for approval before execution starts.
    If the approved execution loop is likely to require reviewer subagents,
    ask for explicit subagent authorization in the same approval exchange so
@@ -52,6 +58,9 @@ The plan is ready when:
 - lint passes
 - the resulting tracked plan would resolve to `plan` until
   `harness execute start` is recorded
+- when the plan is lightweight, a future agent could still find the local plan,
+  explain why lightweight was eligible, and know that archive-time breadcrumb
+  guidance remains required
 - the human can approve or challenge it without hidden context
 - when reviewer subagents are likely later, the approval handoff makes that
   expected authorization explicit instead of deferring it implicitly

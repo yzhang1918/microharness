@@ -277,6 +277,7 @@ func (a *App) runPlanTemplate(args []string) int {
 	var refs stringListFlag
 	title := fs.String("title", "", "Seed the H1 title.")
 	output := fs.String("output", "", "Write the rendered template to this file instead of stdout.")
+	lightweight := fs.Bool("lightweight", false, "Render the lightweight local-plan variant and seed workflow_profile: lightweight.")
 	dateValue := fs.String("date", "", "Seed timestamps using this YYYY-MM-DD date with the current local time-of-day.")
 	timestampValue := fs.String("timestamp", "", "Seed timestamps using this RFC3339 timestamp.")
 	sourceType := fs.String("source-type", "direct_request", "Seed the frontmatter source_type field.")
@@ -311,6 +312,12 @@ func (a *App) runPlanTemplate(args []string) int {
 		Timestamp:  ts,
 		SourceType: *sourceType,
 		SourceRefs: refs,
+		WorkflowProfile: func() string {
+			if *lightweight {
+				return plan.WorkflowProfileLightweight
+			}
+			return ""
+		}(),
 	})
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "render template: %v\n", err)

@@ -70,6 +70,15 @@ lightweight`, keep the same workflow shape but store the plan and archived
 snapshot under `.local/harness/plans/<plan-stem>/...` instead of `docs/plans/`.
 That shortcut does not remove human steering, low-risk eligibility checks, or
 the requirement to leave a repo-visible breadcrumb such as a PR body note.
+
+Use `lightweight` only when all of these are true:
+
+- the whole slice is one bounded low-risk maintenance change
+- the edits are limited to README/docs/comments/copy or similarly
+  non-behavioral cleanup
+- no `harness` behavior, normative spec, state rule, persistence behavior,
+  release or CI workflow, or security-sensitive logic changes
+- if the boundary is unclear, default to `standard`
 Use it only for tiny bounded low-risk changes such as README wording, doc
 clarification, comment cleanup, or similarly narrow non-behavioral fixes. If a
 slice changes CLI/runtime behavior, review or archive semantics, release flow,

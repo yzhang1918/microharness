@@ -63,6 +63,7 @@ type Frontmatter struct {
 	CreatedAt       string   `yaml:"created_at"`
 	SourceType      string   `yaml:"source_type"`
 	SourceRefs      []string `yaml:"source_refs"`
+	WorkflowProfile string   `yaml:"workflow_profile,omitempty"`
 }
 
 type LintIssue struct {
@@ -260,6 +261,15 @@ func validateFrontmatter(ctx *lintContext) []LintIssue {
 			issues = append(issues, LintIssue{
 				Path:    "frontmatter." + legacyKey,
 				Message: "legacy runtime field is no longer allowed in v0.2 tracked plans",
+			})
+		}
+	}
+	if rawProfile, ok := ctx.rawFrontmatter["workflow_profile"]; ok {
+		value, ok := rawProfile.(string)
+		if !ok || (strings.TrimSpace(value) != WorkflowProfileStandard && strings.TrimSpace(value) != WorkflowProfileLightweight) {
+			issues = append(issues, LintIssue{
+				Path:    "frontmatter.workflow_profile",
+				Message: "must be standard or lightweight when provided",
 			})
 		}
 	}
@@ -500,11 +510,24 @@ func validatePathRules(ctx *lintContext) []LintIssue {
 	case "active":
 	case "archived":
 	default:
-		issues = append(issues, LintIssue{Path: "path", Message: "plan must live under docs/plans/active or docs/plans/archived"})
+		issues = append(issues, LintIssue{Path: "path", Message: "plan must live under docs/plans or .local/harness/plans in an active or archived location"})
 	}
 
 	if filenameErr := validatePlanFilename(filepath.Base(ctx.path)); filenameErr != nil {
 		issues = append(issues, LintIssue{Path: "path", Message: filenameErr.Error()})
+	}
+
+	pathProfile := inferWorkflowProfileFromPath(ctx.path)
+	declaredProfile := strings.TrimSpace(ctx.frontmatter.WorkflowProfile)
+	switch pathProfile {
+	case WorkflowProfileStandard:
+		if declaredProfile == WorkflowProfileLightweight {
+			issues = append(issues, LintIssue{Path: "frontmatter.workflow_profile", Message: "tracked docs/plans paths must omit workflow_profile or use standard"})
+		}
+	case WorkflowProfileLightweight:
+		if declaredProfile != WorkflowProfileLightweight {
+			issues = append(issues, LintIssue{Path: "frontmatter.workflow_profile", Message: "local .local/harness/plans paths require workflow_profile: lightweight"})
+		}
 	}
 	return issues
 }
@@ -569,18 +592,6 @@ func validateArchivedRules(ctx *lintContext) []LintIssue {
 	}
 
 	return issues
-}
-
-func inferPathKind(path string) string {
-	clean := filepath.ToSlash(filepath.Clean(path))
-	switch {
-	case strings.Contains(clean, "/docs/plans/active/") || strings.HasPrefix(clean, "docs/plans/active/"):
-		return "active"
-	case strings.Contains(clean, "/docs/plans/archived/") || strings.HasPrefix(clean, "docs/plans/archived/"):
-		return "archived"
-	default:
-		return ""
-	}
 }
 
 func parseCheckboxList(lines []string) ([]checkboxItem, error) {

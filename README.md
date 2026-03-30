@@ -179,6 +179,15 @@ such as a PR body note explaining why the lightweight path was used. If any
 lightweight candidate stops looking low-risk, it should escalate back to the
 standard tracked-plan path.
 
+Use `lightweight` only when all of these are true:
+
+- the whole slice is one bounded low-risk maintenance change
+- the edits are limited to README/docs/comments/copy or similarly
+  non-behavioral cleanup
+- no `harness` behavior, normative spec, state rule, persistence behavior,
+  release or CI workflow, or security-sensitive logic changes
+- if the boundary is unclear, default to `standard`
+
 In practice, lightweight is for tiny bounded low-risk changes such as README
 wording, doc clarification, comment cleanup, or similarly narrow non-behavioral
 metadata fixes. If the change touches CLI behavior, runtime state, review or

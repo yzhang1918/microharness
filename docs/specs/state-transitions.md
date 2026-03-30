@@ -20,7 +20,7 @@ the normative transition matrix.
 
 | From | To | Driver | Required inputs | Notes |
 | --- | --- | --- | --- | --- |
-| `idle` | `plan` | Derived from current plan presence | Exactly one active `standard` tracked plan exists, or exactly one active `lightweight` local plan exists, and execution-start is absent | `.local/harness/current-plan.json` may disambiguate or resume the current plan, but lightweight work must still be recoverable when exactly one active lightweight plan exists locally. |
+| `idle` | `plan` | Derived from current plan presence | Execution-start is absent, and exactly one active plan exists across tracked and lightweight-local paths: either one active `standard` tracked plan under `docs/plans/active/`, or one active `lightweight` local plan under `.local/harness/plans/*/active/*.md` | `.local/harness/current-plan.json` may resume or confirm the sole active plan, but it must not bypass the one-active-plan invariant or be required when exactly one active lightweight local plan exists. |
 | `plan` | `execution/step-<n>/implement` | `harness execute start` | Current plan is approved for execution and has at least one unfinished step | The CLI records the execution-start milestone; the first unfinished step becomes current. |
 
 ## Step Execution Loop

@@ -71,6 +71,51 @@ func TestArchiveMovesPlanAndUpdatesPointers(t *testing.T) {
 	}
 }
 
+func TestArchiveLightweightMovesLocalPlanAndPromptsBreadcrumb(t *testing.T) {
+	root := t.TempDir()
+	activeRelPath := ".local/harness/plans/2026-03-18-lightweight/active/2026-03-18-lightweight.md"
+	activePath := writeLightweightActiveArchiveCandidate(t, root, activeRelPath)
+	if _, err := runstate.SaveState(root, "2026-03-18-lightweight", &runstate.State{
+		PlanPath:           activeRelPath,
+		PlanStem:           "2026-03-18-lightweight",
+		ExecutionStartedAt: "2026-03-18T01:55:00Z",
+		ActiveReviewRound: &runstate.ReviewRound{
+			RoundID:    "review-001-full",
+			Kind:       "full",
+			Revision:   1,
+			Aggregated: true,
+			Decision:   "pass",
+		},
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	result := lifecycle.Service{
+		Workdir: root,
+		Now: func() time.Time {
+			return time.Date(2026, 3, 18, 2, 0, 0, 0, time.UTC)
+		},
+	}.Archive()
+	if !result.OK {
+		t.Fatalf("expected archive success, got %#v", result)
+	}
+
+	archivedRelPath := ".local/harness/plans/2026-03-18-lightweight/archived/2026-03-18-lightweight.md"
+	archivedPath := filepath.Join(root, archivedRelPath)
+	if _, err := os.Stat(archivedPath); err != nil {
+		t.Fatalf("expected local archived path, got %v", err)
+	}
+	if _, err := os.Stat(activePath); !os.IsNotExist(err) {
+		t.Fatalf("expected local active path to be removed, got %v", err)
+	}
+	if result.Artifacts == nil || result.Artifacts.ToPlanPath != archivedRelPath {
+		t.Fatalf("expected archived artifact path %q, got %#v", archivedRelPath, result.Artifacts)
+	}
+	if len(result.NextAction) == 0 || !strings.Contains(result.NextAction[0].Description, "repo-visible breadcrumb") {
+		t.Fatalf("expected breadcrumb guidance first, got %#v", result.NextAction)
+	}
+}
+
 func TestExecuteStartPersistsMilestoneAndPointer(t *testing.T) {
 	root := t.TempDir()
 	activeRelPath := "docs/plans/active/2026-03-18-execute-start-smoke.md"
@@ -1121,6 +1166,14 @@ func writeActiveArchiveCandidate(t *testing.T, root, relPath string) string {
 	t.Helper()
 	path := filepath.Join(root, relPath)
 	writeFile(t, path, buildActiveArchiveCandidate(t))
+	return path
+}
+
+func writeLightweightActiveArchiveCandidate(t *testing.T, root, relPath string) string {
+	t.Helper()
+	path := filepath.Join(root, relPath)
+	content := strings.Replace(buildActiveArchiveCandidate(t), "source_refs: []", "source_refs: []\nworkflow_profile: lightweight", 1)
+	writeFile(t, path, content)
 	return path
 }
 
