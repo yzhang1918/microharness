@@ -32,7 +32,7 @@ if [[ -z "${formula_path}" || -z "${tap_dir}" || -z "${version}" ]]; then
 fi
 
 if [[ -z "${EASYHARNESS_HOMEBREW_TAP_TOKEN:-}" ]]; then
-  echo "EASYHARNESS_HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update."
+  echo "::warning title=Homebrew tap update skipped::EASYHARNESS_HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update."
   exit 0
 fi
 

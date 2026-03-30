@@ -114,7 +114,7 @@ func TestUpdateHomebrewTapWarnsWithoutToken(t *testing.T) {
 	if result.ExitCode != 0 {
 		t.Fatalf("expected update-homebrew-tap to skip cleanly without a token, got exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
 	}
-	support.RequireContains(t, result.Stdout, "EASYHARNESS_HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update.")
+	support.RequireContains(t, result.Stdout, "::warning title=Homebrew tap update skipped::EASYHARNESS_HOMEBREW_TAP_TOKEN is not set; skipping Homebrew tap update.")
 }
 
 func TestUpdateHomebrewTapPushesFromDetachedCheckout(t *testing.T) {
