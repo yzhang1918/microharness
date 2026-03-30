@@ -121,7 +121,7 @@ execution prerequisites in the tracked plan.
 
 ### Step 2: Add formula generation and release-workflow automation
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -191,11 +191,16 @@ asserts all four rendered asset URL/checksum pairs and covers both the
 missing-token skip path and the detached-checkout commit/push path with local
 git remotes. Follow-up validation passed with
 `go test ./tests/smoke -run 'TestRenderHomebrewFormula|TestUpdateHomebrewTap|TestVerifyReleaseNamespace' -count=1`
-before the full-suite rerun and fresh delta review.
+before the full-suite rerun and fresh delta review. `review-002-delta`
+requested one additional visibility fix because the refactor had removed the
+documented GitHub Actions warning for missing tap-token runs. Restored the
+`::warning title=Homebrew tap update skipped::...` annotation in
+`scripts/update-homebrew-tap`, updated the skip test accordingly, and closed
+the step with `review-003-delta`, which passed with no remaining findings.
 
 ### Step 3: Publish the tap contract and user-facing docs
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -229,11 +234,21 @@ engineering the workflow.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Updated `README.md` and `docs/releasing.md` so the public install contract no
+longer says Homebrew is merely deferred. The live docs now explain that users
+install `easyharness` from `catu-ai/tap` while the installed executable
+remains `harness`, that the default formula tracks the current public release
+line (alpha today, stable later), and that maintainers need a public
+`catu-ai/homebrew-tap` repo plus the `EASYHARNESS_HOMEBREW_TAP_TOKEN` secret
+to let tagged releases publish `Formula/easyharness.rb`. The release guide
+also records the repair path: fix the token or tap repo state, then rerun the
+Release workflow for the same tag.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: the README and release-guide changes were reviewed as
+part of Step 2's broader delta review because the user-facing contract and the
+release-workflow behavior changed together in one bounded slice.
 
 ## Validation Strategy
 
