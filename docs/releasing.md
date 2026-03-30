@@ -57,6 +57,7 @@ Tagged releases update the tap on GitHub alone once these prerequisites are in
 place:
 
 1. Create `catu-ai/homebrew-tap` with an initial commit on its default branch.
+   The workflow assumes that branch is `main`.
 2. Add a repository secret named `EASYHARNESS_HOMEBREW_TAP_TOKEN` to
    `catu-ai/easyharness`.
 3. Give that token contents-write access to `catu-ai/homebrew-tap`.

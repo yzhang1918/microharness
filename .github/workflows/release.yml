@@ -19,6 +19,7 @@ jobs:
     name: Build and Publish Release Assets
     runs-on: ubuntu-latest
     env:
+      EASYHARNESS_HOMEBREW_TAP_BRANCH: main
       EASYHARNESS_HOMEBREW_TAP_TOKEN: ${{ secrets.EASYHARNESS_HOMEBREW_TAP_TOKEN }}
     steps:
       - name: Determine release version
@@ -116,6 +117,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: catu-ai/homebrew-tap
+          ref: ${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}
           token: ${{ env.EASYHARNESS_HOMEBREW_TAP_TOKEN }}
           path: dist/homebrew-tap
           fetch-depth: 0
@@ -125,4 +127,5 @@ jobs:
           scripts/update-homebrew-tap \
             --formula dist/homebrew/easyharness.rb \
             --tap-dir dist/homebrew-tap \
+            --branch "${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}" \
             --version "${{ steps.release-version.outputs.version }}"

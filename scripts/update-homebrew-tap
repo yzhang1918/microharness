@@ -4,6 +4,7 @@ set -euo pipefail
 formula_path=""
 tap_dir=""
 version=""
+branch=""
 
 while (($#)); do
   case "$1" in
@@ -19,6 +20,10 @@ while (($#)); do
       version="$2"
       shift 2
       ;;
+    --branch)
+      branch="$2"
+      shift 2
+      ;;
     *)
       echo "unknown argument: $1" >&2
       exit 1
@@ -26,8 +31,8 @@ while (($#)); do
   esac
 done
 
-if [[ -z "${formula_path}" || -z "${tap_dir}" || -z "${version}" ]]; then
-  echo "formula, tap-dir, and version are required" >&2
+if [[ -z "${formula_path}" || -z "${tap_dir}" || -z "${version}" || -z "${branch}" ]]; then
+  echo "formula, tap-dir, version, and branch are required" >&2
   exit 1
 fi
 
@@ -46,13 +51,6 @@ if ! git -C "${tap_dir}" rev-parse --git-dir >/dev/null 2>&1; then
   exit 1
 fi
 
-remote_head_ref="$(git -C "${tap_dir}" symbolic-ref --quiet --short refs/remotes/origin/HEAD || true)"
-if [[ -z "${remote_head_ref}" ]]; then
-  echo "could not resolve origin/HEAD for tap repo in ${tap_dir}" >&2
-  exit 1
-fi
-default_branch="${remote_head_ref#origin/}"
-
 mkdir -p "${tap_dir}/Formula"
 cp "${formula_path}" "${tap_dir}/Formula/easyharness.rb"
 
@@ -65,4 +63,4 @@ git -C "${tap_dir}" config user.name "github-actions[bot]"
 git -C "${tap_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git -C "${tap_dir}" add Formula/easyharness.rb
 git -C "${tap_dir}" commit -m "Update easyharness formula for ${version}"
-git -C "${tap_dir}" push origin "HEAD:refs/heads/${default_branch}"
+git -C "${tap_dir}" push origin "HEAD:refs/heads/${branch}"

@@ -109,6 +109,7 @@ func TestUpdateHomebrewTapWarnsWithoutToken(t *testing.T) {
 		filepath.Join(repoRoot, "scripts", "update-homebrew-tap"),
 		"--formula", formulaPath,
 		"--tap-dir", filepath.Join(t.TempDir(), "missing-tap"),
+		"--branch", "main",
 		"--version", "v0.1.0-alpha.5",
 	)
 	if result.ExitCode != 0 {
@@ -137,9 +138,10 @@ func TestUpdateHomebrewTapPushesFromDetachedCheckout(t *testing.T) {
 	mustRunGit(t, seedDir, "commit", "-m", "Initial tap commit")
 	mustRunGit(t, seedDir, "branch", "-M", "main")
 	mustRunGit(t, seedDir, "push", "-u", "origin", "main")
-	mustRunGit(t, tempDir, "clone", remoteDir, tapDir)
-
-	headCommit := strings.TrimSpace(runGitOutput(t, tapDir, "rev-parse", "HEAD"))
+	mustRunGit(t, tempDir, "init", tapDir)
+	mustRunGit(t, tapDir, "remote", "add", "origin", remoteDir)
+	mustRunGit(t, tapDir, "fetch", "--depth=1", "origin", "main")
+	headCommit := strings.TrimSpace(runGitOutput(t, tapDir, "rev-parse", "FETCH_HEAD"))
 	mustRunGit(t, tapDir, "checkout", "--detach", headCommit)
 
 	if err := os.WriteFile(formulaPath, []byte(formulaBody), 0o644); err != nil {
@@ -157,6 +159,7 @@ func TestUpdateHomebrewTapPushesFromDetachedCheckout(t *testing.T) {
 		filepath.Join(repoRoot, "scripts", "update-homebrew-tap"),
 		"--formula", formulaPath,
 		"--tap-dir", tapDir,
+		"--branch", "main",
 		"--version", "v0.1.0-alpha.5",
 	)
 	if result.ExitCode != 0 {
@@ -184,6 +187,7 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	workflow := string(workflowData)
 
 	support.RequireContains(t, workflow, `EASYHARNESS_HOMEBREW_TAP_TOKEN: ${{ secrets.EASYHARNESS_HOMEBREW_TAP_TOKEN }}`)
+	support.RequireContains(t, workflow, `EASYHARNESS_HOMEBREW_TAP_BRANCH: main`)
 	support.RequireContains(t, workflow, `if: ${{ env.EASYHARNESS_HOMEBREW_TAP_TOKEN != '' }}`)
 	support.RequireContains(t, workflow, `scripts/render-homebrew-formula \`)
 	support.RequireContains(t, workflow, `--repo "${{ github.repository }}"`)
@@ -193,6 +197,7 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	support.RequireContains(t, workflow, `scripts/update-homebrew-tap \`)
 	support.RequireContains(t, workflow, `--formula dist/homebrew/easyharness.rb`)
 	support.RequireContains(t, workflow, `--tap-dir dist/homebrew-tap`)
+	support.RequireContains(t, workflow, `--branch "${{ env.EASYHARNESS_HOMEBREW_TAP_BRANCH }}"`)
 	support.RequireContains(t, workflow, `--version "${{ steps.release-version.outputs.version }}"`)
 }
 
