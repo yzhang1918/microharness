@@ -81,12 +81,34 @@ func TestSchemaIndexNoLongerPointsAtGeneratedMarkdown(t *testing.T) {
 		t.Fatalf("expectedFiles: %v", err)
 	}
 
-	index := string(files["schema/index.json"])
-	if strings.Contains(index, "\"doc_path\"") {
-		t.Fatalf("expected schema index to omit doc_path references, got %s", index)
+	indexJSON := string(files["schema/index.json"])
+	if strings.Contains(indexJSON, "\"doc_path\"") {
+		t.Fatalf("expected schema index to omit doc_path references, got %s", indexJSON)
 	}
 	if _, ok := files["docs/reference/contracts/README.md"]; ok {
 		t.Fatal("expected contract sync to stop generating docs/reference/contracts/README.md")
+	}
+
+	var schemaIndex struct {
+		Schemas []struct {
+			Key     string `json:"key"`
+			Group   string `json:"group"`
+			Surface string `json:"surface"`
+		} `json:"schemas"`
+	}
+	if err := json.Unmarshal(files["schema/index.json"], &schemaIndex); err != nil {
+		t.Fatalf("unmarshal schema index: %v", err)
+	}
+
+	surfaces := map[string]string{}
+	for _, entry := range schemaIndex.Schemas {
+		surfaces[entry.Key] = entry.Surface
+	}
+	if surfaces["commands.status.result"] != "public" {
+		t.Fatalf("expected commands.status.result surface=public, got %q", surfaces["commands.status.result"])
+	}
+	if surfaces["artifacts.current_plan"] != "cli_owned_runtime" {
+		t.Fatalf("expected artifacts.current_plan surface=cli_owned_runtime, got %q", surfaces["artifacts.current_plan"])
 	}
 }
 

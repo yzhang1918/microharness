@@ -440,14 +440,15 @@ UPDATE_REQUIRED_AFTER_REOPEN
 - Refactored the runtime packages to consume those centralized contracts
   without changing the public JSON field names or broadening the contract to
   enums.
-- Added the `contract-sync` generation pipeline, checked-in schema registry
-  under `schema/`, and generated reference docs under
-  `docs/reference/contracts/`.
-- Updated the README and normative specs so field-level reference material now
-  points at the generated contract surface instead of duplicated prose tables.
+- Added the `contract-sync` generation pipeline and checked-in schema registry
+  under `schema/`, with `schema/index.json` as the machine-readable discovery
+  entrypoint.
+- Updated the README and normative specs so contract discovery now points at
+  the schema registry plus `docs/specs/contract.md` instead of duplicated
+  field tables or generated per-schema markdown.
 - Added contract-sync regression coverage and smoke drift checks for stale
-  schema artifacts and stale generated docs, then closed the remaining finalize
-  review findings through `review-005-full`.
+  schema artifacts and for deprecated generated markdown files reappearing,
+  then closed the remaining finalize review findings through `review-005-full`.
 
 ### Not Delivered
 

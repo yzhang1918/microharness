@@ -53,7 +53,7 @@ func expectedFiles(workdir string) (map[string][]byte, error) {
 
 	index := schemaIndex{
 		Title:       "easyharness contract schema index",
-		Description: "Generated JSON Schema index for public easyharness command, input, and local-artifact contracts.",
+		Description: "Generated JSON Schema index for public command surfaces plus CLI-owned runtime artifacts.",
 		Schemas:     make([]schemaIndexEntry, 0, len(entries)),
 	}
 
@@ -77,6 +77,7 @@ func expectedFiles(workdir string) (map[string][]byte, error) {
 		index.Schemas = append(index.Schemas, schemaIndexEntry{
 			Key:         entry.Key,
 			Group:       entry.Group,
+			Surface:     schemaSurface(entry.Group),
 			Title:       entry.Title,
 			Description: entry.Description,
 			Path:        filepath.ToSlash(entry.Path),
@@ -687,9 +688,19 @@ type schemaIndex struct {
 type schemaIndexEntry struct {
 	Key         string `json:"key"`
 	Group       string `json:"group"`
+	Surface     string `json:"surface"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Path        string `json:"path"`
 	ID          string `json:"id"`
 	GoType      string `json:"go_type"`
+}
+
+func schemaSurface(group string) string {
+	switch group {
+	case "artifacts":
+		return "cli_owned_runtime"
+	default:
+		return "public"
+	}
 }

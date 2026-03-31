@@ -29,6 +29,33 @@ The schema registry currently covers:
 
 The registry does not cover the markdown tracked-plan schema.
 
+## Surface Boundaries
+
+Not every schema in the registry has the same intended audience.
+
+### Public Command Surface
+
+Treat these as the stable external contract surface:
+
+- command results under `schema/commands/`
+- command inputs under `schema/inputs/`
+- shared reusable shapes under `schema/shared/` when they are embedded in the
+  public command surface
+
+In `schema/index.json`, these entries are marked with `"surface": "public"`.
+
+### CLI-Owned Runtime Artifacts
+
+Schemas under `schema/artifacts/` describe harness-owned runtime files such as
+`.local/harness/current-plan.json` and plan-local `state.json`.
+
+They are documented so agents and developers can inspect current runtime state
+without reverse-engineering Go structs, but they are still CLI-owned runtime
+artifacts rather than a recommended external integration API.
+
+In `schema/index.json`, these entries are marked with
+`"surface": "cli_owned_runtime"`.
+
 ## Documentation Policy
 
 We intentionally do not generate one markdown file per schema.

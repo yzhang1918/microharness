@@ -29,6 +29,8 @@ Field-level contract artifacts now live in:
 The field-level source of truth is the Go-owned contract module under
 `internal/contracts/`. We intentionally do not render one markdown page per
 schema because that was mostly duplicating the schema files themselves.
+`docs/specs/contract.md` also distinguishes the stable public command surface
+from CLI-owned runtime artifacts such as `.local/harness/*`.
 Refresh or verify the checked-in registry with:
 
 ```bash
