@@ -21,6 +21,19 @@ The repository is still in dogfood mode. The current cutover focuses on the
 v0.2 command surface, command-owned evidence artifacts, and the canonical
 `current_node` runtime model.
 
+Generated contract reference material now lives in:
+
+- `schema/index.json` for the checked-in JSON Schema registry
+- `docs/reference/contracts/` for generated human-readable contract docs
+
+The field-level source of truth for those generated artifacts is the Go-owned
+contract module under `internal/contracts/`. Refresh or verify them with:
+
+```bash
+scripts/sync-contract-artifacts
+scripts/sync-contract-artifacts --check
+```
+
 ## Development Setup
 
 Use the development installer to build a repo-local binary and expose

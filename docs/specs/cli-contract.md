@@ -12,6 +12,13 @@ JSON envelopes described here assume the canonical-node runtime model from
 [State Model](./state-model.md) and the exact transition matrix from
 [State Transitions](./state-transitions.md).
 
+The prose in this spec remains normative for command purpose, workflow intent,
+and compatibility boundaries. Generated field-level references for the current
+JSON command outputs and inputs live under
+[`docs/reference/contracts/`](../reference/contracts/README.md), backed by the
+checked-in JSON Schema registry at [`schema/index.json`](../../schema/index.json)
+and sourced from the Go-owned contract module under `internal/contracts`.
+
 ## Command Surface
 
 The current command surface is:

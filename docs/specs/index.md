@@ -10,6 +10,12 @@
   plans, local `lightweight` plans, and local state expectations.
 - [CLI Contract](./cli-contract.md): agent-facing command surface and JSON
   contract, including repository bootstrap through `harness install`.
+- [Generated Contract Reference](../reference/contracts/README.md): generated
+  field-level reference docs sourced from the Go-owned contract module and the
+  checked-in JSON Schema registry.
+- [Schema Registry](../../schema/index.json): checked-in JSON Schema index for
+  command outputs, command inputs, shared shapes, and CLI-owned local JSON
+  artifacts.
 
 ## Proposals
 
