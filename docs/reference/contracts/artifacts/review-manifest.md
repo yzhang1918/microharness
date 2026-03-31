@@ -16,7 +16,7 @@ ReviewManifest is the command-owned review manifest artifact for one review roun
 | --- | --- | --- | --- |
 | `aggregate_path` | `string` | yes | Aggregate is the path to the round aggregate artifact. |
 | `created_at` | `string` | yes | CreatedAt is the round creation timestamp. |
-| `dimensions` | `array<ReviewManifestSlot>` | yes | Dimensions lists the materialized reviewer slots for the round. |
+| `dimensions` | `array<ReviewManifestSlot> | null` | yes | Dimensions lists the materialized reviewer slots for the round. |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
 | `ledger_path` | `string` | yes | LedgerPath is the path to the round ledger artifact. |
 | `plan_path` | `string` | yes | PlanPath is the tracked or archived plan path associated with the round. |
@@ -37,7 +37,7 @@ ReviewManifest is the command-owned review manifest artifact for one review roun
 | --- | --- | --- | --- |
 | `aggregate_path` | `string` | yes | Aggregate is the path to the round aggregate artifact. |
 | `created_at` | `string` | yes | CreatedAt is the round creation timestamp. |
-| `dimensions` | `array<ReviewManifestSlot>` | yes | Dimensions lists the materialized reviewer slots for the round. |
+| `dimensions` | `array<ReviewManifestSlot> | null` | yes | Dimensions lists the materialized reviewer slots for the round. |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
 | `ledger_path` | `string` | yes | LedgerPath is the path to the round ledger artifact. |
 | `plan_path` | `string` | yes | PlanPath is the tracked or archived plan path associated with the round. |

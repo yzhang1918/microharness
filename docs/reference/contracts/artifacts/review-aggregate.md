@@ -15,10 +15,10 @@ ReviewAggregate is the command-owned aggregate artifact for a completed review r
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `aggregated_at` | `string` | yes | AggregatedAt is the aggregate timestamp. |
-| `blocking_findings` | `array<ReviewAggregateFinding>` | yes | BlockingFindings lists the findings that currently block progression. |
+| `blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | BlockingFindings lists the findings that currently block progression. |
 | `decision` | `string` | yes | Decision is the aggregate review decision for the round. |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
-| `non_blocking_findings` | `array<ReviewAggregateFinding>` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
+| `non_blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
 | `review_title` | `string` | no | ReviewTitle is the human-readable title for the round when one exists. |
 | `revision` | `integer` | yes | Revision is the plan-local revision associated with the round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
@@ -33,10 +33,10 @@ ReviewAggregate is the command-owned aggregate artifact for a completed review r
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `aggregated_at` | `string` | yes | AggregatedAt is the aggregate timestamp. |
-| `blocking_findings` | `array<ReviewAggregateFinding>` | yes | BlockingFindings lists the findings that currently block progression. |
+| `blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | BlockingFindings lists the findings that currently block progression. |
 | `decision` | `string` | yes | Decision is the aggregate review decision for the round. |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
-| `non_blocking_findings` | `array<ReviewAggregateFinding>` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
+| `non_blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
 | `review_title` | `string` | no | ReviewTitle is the human-readable title for the round when one exists. |
 | `revision` | `integer` | yes | Revision is the plan-local revision associated with the round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |

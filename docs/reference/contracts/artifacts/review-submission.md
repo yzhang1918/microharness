@@ -15,7 +15,7 @@ ReviewSubmission is the command-owned submission artifact for one reviewer slot.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dimension` | `string` | yes | Dimension is the human-readable review dimension label. |
-| `findings` | `array<ReviewFinding>` | yes | Findings lists the review findings for the slot. |
+| `findings` | `array<ReviewFinding> | null` | yes | Findings lists the review findings for the slot. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
 | `slot` | `string` | yes | Slot is the stable slot identifier. |
 | `submitted_at` | `string` | yes | SubmittedAt is the submission timestamp. |
@@ -40,7 +40,7 @@ ReviewSubmission is the command-owned submission artifact for one reviewer slot.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `dimension` | `string` | yes | Dimension is the human-readable review dimension label. |
-| `findings` | `array<ReviewFinding>` | yes | Findings lists the review findings for the slot. |
+| `findings` | `array<ReviewFinding> | null` | yes | Findings lists the review findings for the slot. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
 | `slot` | `string` | yes | Slot is the stable slot identifier. |
 | `submitted_at` | `string` | yes | SubmittedAt is the submission timestamp. |

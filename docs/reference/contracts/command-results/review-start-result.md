@@ -17,7 +17,7 @@ ReviewStartResult is the JSON result returned by `harness review start`.
 | `artifacts` | `ReviewStartArtifacts` | no | Artifacts points to the created review artifacts for the round. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |
 
@@ -38,7 +38,7 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |
 
 ## ReviewManifestSlot
@@ -64,7 +64,7 @@ ReviewStartArtifacts lists the review artifacts created by `harness review start
 | `manifest_path` | `string` | yes | ManifestPath is the path to the review manifest artifact. |
 | `plan_path` | `string` | yes | PlanPath is the current plan path associated with the review round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
-| `slots` | `array<ReviewManifestSlot>` | yes | Slots lists the materialized review slots created for the round. |
+| `slots` | `array<ReviewManifestSlot> | null` | yes | Slots lists the materialized review slots created for the round. |
 
 ## ReviewStartResult
 
@@ -75,6 +75,6 @@ ReviewStartResult is the JSON result returned by `harness review start`.
 | `artifacts` | `ReviewStartArtifacts` | no | Artifacts points to the created review artifacts for the round. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |

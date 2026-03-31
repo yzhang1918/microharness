@@ -69,17 +69,33 @@
           "description": "Scope is the resolved install scope."
         },
         "actions": {
-          "items": {
-            "$ref": "#/$defs/InstallAction"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/InstallAction"
+              },
+              "type": "array",
+              "description": "Actions lists the planned or executed file-level install actions."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Actions lists the planned or executed file-level install actions."
         },
         "next_actions": {
-          "items": {
-            "$ref": "#/$defs/NextAction"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/NextAction"
+              },
+              "type": "array",
+              "description": "NextAction lists the most relevant follow-up steps in priority order."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "NextAction lists the most relevant follow-up steps in priority order."
         },
         "errors": {
@@ -106,7 +122,15 @@
     "NextAction": {
       "properties": {
         "command": {
-          "type": "string",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Command is the suggested command line to run next when the next step is best expressed as a harness command."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Command is the suggested command line to run next when the next step is best expressed as a harness command."
         },
         "description": {

@@ -18,10 +18,18 @@
           "description": "UpdatedAt is the timestamp of the most recent ledger update."
         },
         "slots": {
-          "items": {
-            "$ref": "#/$defs/ReviewLedgerSlot"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReviewLedgerSlot"
+              },
+              "type": "array",
+              "description": "Slots lists the current state of every manifest slot."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Slots lists the current state of every manifest slot."
         }
       },

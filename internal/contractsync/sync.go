@@ -63,6 +63,7 @@ func expectedFiles(workdir string) (map[string][]byte, error) {
 	for _, entry := range entries {
 		schemaObj := reflector.ReflectFromType(entry.Type)
 		applyComments(schemaObj, comments)
+		applyNullability(schemaObj, collectFieldMetadata(entry.Type))
 		schemaObj.Version = jsonschema.Version
 		schemaObj.ID = jsonschema.ID(schemaBaseID + filepath.ToSlash(entry.Path))
 		schemaObj.Title = entry.Title
@@ -463,6 +464,10 @@ type commentMetadata struct {
 	Fields map[string]map[string]string
 }
 
+type fieldMetadata struct {
+	Nullable bool
+}
+
 func loadContractComments(workdir string) (commentMetadata, error) {
 	out := commentMetadata{
 		Types:  map[string]string{},
@@ -554,6 +559,150 @@ func applyFieldComments(properties *orderedmap.OrderedMap[string, *jsonschema.Sc
 		}
 		pair.Value.Description = fieldDocs[pair.Key]
 	}
+}
+
+func collectFieldMetadata(root reflect.Type) map[string]map[string]fieldMetadata {
+	out := map[string]map[string]fieldMetadata{}
+	seen := map[reflect.Type]bool{}
+	collectTypeMetadata(indirectType(root), out, seen)
+	return out
+}
+
+func collectTypeMetadata(t reflect.Type, out map[string]map[string]fieldMetadata, seen map[reflect.Type]bool) {
+	if t == nil || seen[t] {
+		return
+	}
+	seen[t] = true
+	if t.Kind() != reflect.Struct || t.PkgPath() != "github.com/catu-ai/easyharness/internal/contracts" {
+		return
+	}
+
+	fieldMap := make(map[string]fieldMetadata)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		jsonName, omitempty := jsonTagMetadata(field)
+		if jsonName == "" {
+			continue
+		}
+		fieldMap[jsonName] = fieldMetadata{
+			Nullable: !omitempty && typeCanMarshalNull(field.Type),
+		}
+		collectNestedFieldTypes(field.Type, out, seen)
+	}
+	if len(fieldMap) > 0 {
+		out[t.Name()] = fieldMap
+	}
+}
+
+func collectNestedFieldTypes(t reflect.Type, out map[string]map[string]fieldMetadata, seen map[reflect.Type]bool) {
+	t = indirectType(t)
+	if t == nil {
+		return
+	}
+	switch t.Kind() {
+	case reflect.Struct:
+		collectTypeMetadata(t, out, seen)
+	case reflect.Slice, reflect.Array:
+		collectNestedFieldTypes(t.Elem(), out, seen)
+	case reflect.Map:
+		collectNestedFieldTypes(t.Elem(), out, seen)
+	}
+}
+
+func indirectType(t reflect.Type) reflect.Type {
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t
+}
+
+func jsonTagMetadata(field reflect.StructField) (name string, omitempty bool) {
+	tag := field.Tag.Get("json")
+	if tag == "-" {
+		return "", false
+	}
+	if tag == "" {
+		return field.Name, false
+	}
+	parts := strings.Split(tag, ",")
+	name = parts[0]
+	if name == "" {
+		name = field.Name
+	}
+	for _, part := range parts[1:] {
+		if part == "omitempty" {
+			omitempty = true
+			break
+		}
+	}
+	return name, omitempty
+}
+
+func typeCanMarshalNull(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Pointer, reflect.Slice, reflect.Map, reflect.Interface:
+		return true
+	default:
+		return false
+	}
+}
+
+func applyNullability(schema *jsonschema.Schema, fields map[string]map[string]fieldMetadata) {
+	if schema == nil {
+		return
+	}
+	for typeName, fieldMap := range fields {
+		def, ok := schema.Definitions[typeName]
+		if !ok || def == nil || def.Properties == nil {
+			continue
+		}
+		for jsonName, meta := range fieldMap {
+			if !meta.Nullable {
+				continue
+			}
+			prop, present := def.Properties.Get(jsonName)
+			if !present || prop == nil {
+				continue
+			}
+			makeSchemaNullable(prop)
+		}
+	}
+}
+
+func makeSchemaNullable(schema *jsonschema.Schema) {
+	if schema == nil || schemaAlreadyNullable(schema) {
+		return
+	}
+	base := *schema
+	base.OneOf = nil
+	base.AnyOf = nil
+	schema.Type = ""
+	schema.Ref = ""
+	schema.Items = nil
+	schema.Properties = nil
+	schema.Required = nil
+	schema.AdditionalProperties = nil
+	schema.OneOf = []*jsonschema.Schema{
+		&base,
+		{Type: "null"},
+	}
+}
+
+func schemaAlreadyNullable(schema *jsonschema.Schema) bool {
+	for _, branch := range schema.OneOf {
+		if branch != nil && branch.Type == "null" {
+			return true
+		}
+	}
+	for _, branch := range schema.AnyOf {
+		if branch != nil && branch.Type == "null" {
+			return true
+		}
+	}
+	return false
 }
 
 func cleanComment(group *ast.CommentGroup) string {

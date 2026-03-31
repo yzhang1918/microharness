@@ -19,7 +19,7 @@ StatusResult is the JSON result returned by `harness status`.
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented full state resolution. |
 | `facts` | `StatusFacts` | no | Facts carries selected high-signal derived details that help explain the current node. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `state` | `StatusState` | yes | State is the canonical workflow position resolved for the current worktree. |
 | `summary` | `string` | yes | Summary is the concise human-readable explanation of the current state. |
@@ -42,7 +42,7 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |
 
 ## StatusArtifacts
@@ -92,7 +92,7 @@ StatusResult is the JSON result returned by `harness status`.
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented full state resolution. |
 | `facts` | `StatusFacts` | no | Facts carries selected high-signal derived details that help explain the current node. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `state` | `StatusState` | yes | State is the canonical workflow position resolved for the current worktree. |
 | `summary` | `string` | yes | Summary is the concise human-readable explanation of the current state. |

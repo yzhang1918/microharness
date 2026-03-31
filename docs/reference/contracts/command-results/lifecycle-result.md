@@ -17,7 +17,7 @@ LifecycleResult is the JSON result shape currently shared by `harness execute st
 | `artifacts` | `LifecycleArtifacts` | no | Artifacts points to relevant plan and local-state paths for the command. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `state` | `LifecycleState` | yes | State carries the command-specific lifecycle status fields currently emitted by these lifecycle commands. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |
@@ -53,7 +53,7 @@ LifecycleResult is the JSON result shape currently shared by `harness execute st
 | `artifacts` | `LifecycleArtifacts` | no | Artifacts points to relevant plan and local-state paths for the command. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `state` | `LifecycleState` | yes | State carries the command-specific lifecycle status fields currently emitted by these lifecycle commands. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |
@@ -74,5 +74,5 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |

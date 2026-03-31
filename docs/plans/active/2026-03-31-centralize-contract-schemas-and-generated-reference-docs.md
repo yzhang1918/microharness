@@ -309,7 +309,14 @@ Added a smoke drift check at `tests/smoke/contract_sync_test.go` so the current
 repository fails when generated schemas or reference docs drift from the
 Go-owned contract source. Validated the compatibility-preserving refactor and
 the new generation pipeline with focused package tests, a dedicated smoke test,
-and a full repository `go test ./...` pass. Validation:
+and a full repository `go test ./...` pass. Finalize review `review-001-full`
+then surfaced two repair items: generated schemas needed to model nullable
+pointer/slice fields that the current runtime can serialize as `null`, and the
+contract-sync package needed explicit negative tests for missing or unexpected
+generated files plus a write-path regression. The repair added nullable schema
+wrapping for non-omitempty pointer/slice/map fields and direct
+`internal/contractsync` regression tests for `checkFiles` and `writeFiles`.
+Validation:
 `go test ./cmd/contract-sync ./internal/contractsync ./internal/contracts ./internal/status ./internal/lifecycle ./internal/review ./internal/evidence ./internal/install ./internal/runstate ./tests/smoke -run 'TestSyncBootstrapAssetsCheckPassesForCurrentRepo|TestSyncContractArtifactsCheckPassesForCurrentRepo'`
 and `go test ./...`.
 

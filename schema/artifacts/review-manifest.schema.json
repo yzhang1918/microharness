@@ -38,10 +38,18 @@
           "description": "CreatedAt is the round creation timestamp."
         },
         "dimensions": {
-          "items": {
-            "$ref": "#/$defs/ReviewManifestSlot"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReviewManifestSlot"
+              },
+              "type": "array",
+              "description": "Dimensions lists the materialized reviewer slots for the round."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Dimensions lists the materialized reviewer slots for the round."
         },
         "ledger_path": {

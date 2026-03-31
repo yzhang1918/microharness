@@ -14,7 +14,7 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |
 
 ## Definitions
@@ -25,5 +25,5 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |

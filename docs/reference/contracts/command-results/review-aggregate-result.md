@@ -17,7 +17,7 @@ ReviewAggregateResult is the JSON result returned by `harness review aggregate`.
 | `artifacts` | `ReviewAggregateArtifacts` | no | Artifacts points to the updated aggregate artifacts. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `review` | `ReviewAggregate` | no | Review is the aggregate decision payload when aggregation succeeded. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |
@@ -39,7 +39,7 @@ NextAction describes one concrete follow-up action that the caller should consid
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | `string` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
+| `command` | `string | null` | yes | Command is the suggested command line to run next when the next step is best expressed as a harness command. |
 | `description` | `string` | yes | Description explains the suggested next step in plain language. |
 
 ## ReviewAggregate
@@ -49,10 +49,10 @@ ReviewAggregate is the command-owned aggregate artifact for a completed review r
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `aggregated_at` | `string` | yes | AggregatedAt is the aggregate timestamp. |
-| `blocking_findings` | `array<ReviewAggregateFinding>` | yes | BlockingFindings lists the findings that currently block progression. |
+| `blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | BlockingFindings lists the findings that currently block progression. |
 | `decision` | `string` | yes | Decision is the aggregate review decision for the round. |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
-| `non_blocking_findings` | `array<ReviewAggregateFinding>` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
+| `non_blocking_findings` | `array<ReviewAggregateFinding> | null` | yes | NonBlockingFindings lists the findings that were recorded without blocking progression. |
 | `review_title` | `string` | no | ReviewTitle is the human-readable title for the round when one exists. |
 | `revision` | `integer` | yes | Revision is the plan-local revision associated with the round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
@@ -89,7 +89,7 @@ ReviewAggregateResult is the JSON result returned by `harness review aggregate`.
 | `artifacts` | `ReviewAggregateArtifacts` | no | Artifacts points to the updated aggregate artifacts. |
 | `command` | `string` | yes | Command is the stable command identifier for the result payload. |
 | `errors` | `array<ErrorDetail>` | no | Errors lists hard failures that prevented the command from succeeding. |
-| `next_actions` | `array<NextAction>` | yes | NextAction lists the most relevant follow-up steps in priority order. |
+| `next_actions` | `array<NextAction> | null` | yes | NextAction lists the most relevant follow-up steps in priority order. |
 | `ok` | `boolean` | yes | OK reports whether the command succeeded. |
 | `review` | `ReviewAggregate` | no | Review is the aggregate decision payload when aggregation succeeded. |
 | `summary` | `string` | yes | Summary is the concise human-readable outcome description. |

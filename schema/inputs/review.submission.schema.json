@@ -34,10 +34,18 @@
           "description": "Summary is the reviewer's concise overall assessment."
         },
         "findings": {
-          "items": {
-            "$ref": "#/$defs/ReviewFinding"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReviewFinding"
+              },
+              "type": "array",
+              "description": "Findings lists the review findings for the slot."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Findings lists the review findings for the slot."
         }
       },

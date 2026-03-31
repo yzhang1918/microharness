@@ -25,7 +25,15 @@
     "NextAction": {
       "properties": {
         "command": {
-          "type": "string",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Command is the suggested command line to run next when the next step is best expressed as a harness command."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Command is the suggested command line to run next when the next step is best expressed as a harness command."
         },
         "description": {
@@ -97,10 +105,18 @@
           "description": "AggregatePath is the path to the review aggregate artifact."
         },
         "slots": {
-          "items": {
-            "$ref": "#/$defs/ReviewManifestSlot"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReviewManifestSlot"
+              },
+              "type": "array",
+              "description": "Slots lists the materialized review slots created for the round."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Slots lists the materialized review slots created for the round."
         }
       },
@@ -136,10 +152,18 @@
           "description": "Artifacts points to the created review artifacts for the round."
         },
         "next_actions": {
-          "items": {
-            "$ref": "#/$defs/NextAction"
-          },
-          "type": "array",
+          "oneOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/NextAction"
+              },
+              "type": "array",
+              "description": "NextAction lists the most relevant follow-up steps in priority order."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "NextAction lists the most relevant follow-up steps in priority order."
         },
         "errors": {

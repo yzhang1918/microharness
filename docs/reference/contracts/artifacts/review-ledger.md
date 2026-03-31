@@ -16,7 +16,7 @@ ReviewLedger is the command-owned ledger artifact tracking submission status for
 | --- | --- | --- | --- |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
-| `slots` | `array<ReviewLedgerSlot>` | yes | Slots lists the current state of every manifest slot. |
+| `slots` | `array<ReviewLedgerSlot> | null` | yes | Slots lists the current state of every manifest slot. |
 | `updated_at` | `string` | yes | UpdatedAt is the timestamp of the most recent ledger update. |
 
 ## Definitions
@@ -29,7 +29,7 @@ ReviewLedger is the command-owned ledger artifact tracking submission status for
 | --- | --- | --- | --- |
 | `kind` | `string` | yes | Kind is the review kind for the round. |
 | `round_id` | `string` | yes | RoundID is the stable identifier for the review round. |
-| `slots` | `array<ReviewLedgerSlot>` | yes | Slots lists the current state of every manifest slot. |
+| `slots` | `array<ReviewLedgerSlot> | null` | yes | Slots lists the current state of every manifest slot. |
 | `updated_at` | `string` | yes | UpdatedAt is the timestamp of the most recent ledger update. |
 
 ## ReviewLedgerSlot
