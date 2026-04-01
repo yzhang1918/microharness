@@ -56,7 +56,7 @@ dispatch the existing `Release` workflow after merge.
 
 ### Step 1: Prepare and publish the alpha.6 release bump
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -98,7 +98,10 @@ ReleaseVersion -count=1`.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-001-delta` passed clean for `docs_consistency` and `risk_scan` with no
+findings. The release bump stayed narrow to `VERSION` plus the matching README
+example, and the lightweight exception remains explicitly documented in this
+plan.
 
 ## Validation Strategy
 
