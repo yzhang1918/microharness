@@ -52,15 +52,15 @@ code changes.
 
 ## Acceptance Criteria
 
-- [ ] The repository includes a root `VERSION` file that serves as the human
+- [x] The repository includes a root `VERSION` file that serves as the human
       and automation entry point for release version bumps.
-- [ ] A merge to `main` that changes `VERSION` causes automation to create the
+- [x] A merge to `main` that changes `VERSION` causes automation to create the
       matching `v*` git tag when that tag does not already exist.
-- [ ] The existing release publication flow continues to run from the created
+- [x] The existing release publication flow continues to run from the created
       tag without regressing current GitHub Release or Homebrew behavior.
-- [ ] Release tooling and tests agree on one source of truth for the release
+- [x] Release tooling and tests agree on one source of truth for the release
       version instead of scattering manual tag strings.
-- [ ] Release documentation explains the dedicated release-PR convention: bump
+- [x] Release documentation explains the dedicated release-PR convention: bump
       `VERSION`, include any release docs updates, merge, then let automation
       create the tag and publish.
 
@@ -294,6 +294,15 @@ release-PR convention, and smoke coverage for the helper and workflow wiring.
 Finalize review is clean, the tracked plan lints, and the candidate is ready
 to archive and move into publish/merge handoff.
 
+- PR: NONE. The candidate has not been pushed or opened as a PR yet.
+- Ready: Acceptance criteria are satisfied, the VERSION-driven release entry
+  path is implemented and validated, and the remaining work is archive/publish
+  handoff rather than further feature development.
+- Merge Handoff: After archive, commit the tracked plan move, push branch
+  `codex/version-file-release-tagging`, open or refresh the PR, and record
+  publish/CI/sync evidence until `harness status` reaches
+  `execution/finalize/await_merge`.
+
 ## Outcome Summary
 
 ### Delivered
@@ -316,4 +325,14 @@ to archive and move into publish/merge handoff.
 
 ### Follow-Up Issues
 
-NONE
+- Existing issue [#87](https://github.com/catu-ai/easyharness/issues/87)
+  remains the durable follow-up for the broader release cadence and
+  alpha/beta/stable promotion policy that this slice intentionally did not
+  resolve.
+- Additional deferred scope still needs issue coverage before merge:
+  repository-enforced release-PR guardrails, changelog generation, and
+  post-release next-version automation. Creating those GitHub issues from this
+  worktree is currently blocked because local `gh` authentication is missing
+  (`gh issue list --repo catu-ai/easyharness` returned HTTP 401 on
+  2026-04-01), so the merge handoff must either authenticate and file them or
+  capture equivalent durable issue references before merge.
