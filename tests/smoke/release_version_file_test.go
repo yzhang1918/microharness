@@ -253,15 +253,19 @@ func TestVersionTagWorkflowUsesRepositoryVersionFile(t *testing.T) {
 	support.RequireContains(t, workflow, `tag="$(scripts/read-release-version --tag)"`)
 	support.RequireContains(t, workflow, `- name: Create release tag when missing`)
 	support.RequireContains(t, workflow, `scripts/create-release-tag-from-version --commit "${GITHUB_SHA}"`)
+	support.RequireContains(t, workflow, `- name: Dispatch Release workflow for resolved tag`)
+	support.RequireContains(t, workflow, `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`)
+	support.RequireContains(t, workflow, `gh workflow run release.yml --ref "${GITHUB_REF_NAME}" -f version="${{ steps.release-version.outputs.tag }}"`)
 
 	checkoutIndex := strings.Index(workflow, `uses: actions/checkout@v4`)
 	resolveIndex := strings.Index(workflow, `- name: Resolve release tag from VERSION`)
 	createIndex := strings.Index(workflow, `- name: Create release tag when missing`)
-	if checkoutIndex == -1 || resolveIndex == -1 || createIndex == -1 {
-		t.Fatalf("expected checkout, resolve, and create steps to exist in workflow")
+	dispatchIndex := strings.Index(workflow, `- name: Dispatch Release workflow for resolved tag`)
+	if checkoutIndex == -1 || resolveIndex == -1 || createIndex == -1 || dispatchIndex == -1 {
+		t.Fatalf("expected checkout, resolve, create, and dispatch steps to exist in workflow")
 	}
-	if !(checkoutIndex < resolveIndex && resolveIndex < createIndex) {
-		t.Fatalf("expected workflow step order checkout -> resolve -> create, got checkout=%d resolve=%d create=%d", checkoutIndex, resolveIndex, createIndex)
+	if !(checkoutIndex < resolveIndex && resolveIndex < createIndex && createIndex < dispatchIndex) {
+		t.Fatalf("expected workflow step order checkout -> resolve -> create -> dispatch, got checkout=%d resolve=%d create=%d dispatch=%d", checkoutIndex, resolveIndex, createIndex, dispatchIndex)
 	}
 }
 

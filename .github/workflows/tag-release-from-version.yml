@@ -33,3 +33,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           scripts/create-release-tag-from-version --commit "${GITHUB_SHA}"
+
+      - name: Dispatch Release workflow for resolved tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh workflow run release.yml --ref "${GITHUB_REF_NAME}" -f version="${{ steps.release-version.outputs.tag }}"

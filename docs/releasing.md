@@ -19,7 +19,8 @@ install as `catu-ai/tap/easyharness`.
    `scripts/build-release --version "v$(cat VERSION)"`.
 4. Merge the release PR to `main`.
 5. Confirm the `Tag Release From VERSION` workflow created the matching git
-   tag, for example `v0.1.0-alpha.6`.
+   tag, for example `v0.1.0-alpha.6`, and then dispatched the `Release`
+   workflow for that tag.
 6. Confirm the `Release` workflow uploaded the release archives and
    `SHA256SUMS` file.
 7. If the Homebrew tap token is configured, confirm the workflow updated
