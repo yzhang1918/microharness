@@ -118,25 +118,58 @@ plan.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+Validated the alpha.6 release bump by resolving the release tag directly from
+the repo-owned `VERSION` file and by rerunning the focused smoke coverage for
+release-version handling:
+
+- `scripts/read-release-version --tag`
+- `go test ./tests/smoke -run ReleaseVersion -count=1`
+
+The candidate only changes `VERSION`, the matching README release example, and
+this tracked lightweight plan.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+Step-closeout delta review `review-001-delta` passed clean for
+`docs_consistency` and `risk_scan`. Finalize full review `review-002-full`
+initially found one blocking `agent_ux` issue: the tracked plan lacked a
+durable PR/merge breadcrumb for the lightweight handoff. Revision 2 repairs
+that gap by recording explicit `PR` and `Merge Handoff` entries in the plan so
+archive/publish work no longer depends on chat history.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+The candidate is a user-approved lightweight exception for a dedicated
+`0.1.0-alpha.6` release bump. It keeps the tracked diff intentionally narrow:
+update `VERSION`, align the README maintainer example, and preserve the
+existing release automation unchanged. The remaining work is archive, open or
+refresh the release PR, leave the lightweight breadcrumb in the PR body, and
+record publish/CI/sync evidence until merge-ready.
+
+- PR: NONE. The alpha.6 release PR has not been opened yet.
+- Ready: The version bump, focused validation, and tracked step review are
+  complete; only finalize review closeout, archive, and publish handoff remain.
+- Merge Handoff: After archive, commit the tracked archive update, push branch
+  `codex/version-alpha-6-release`, open or refresh the dedicated alpha.6
+  release PR, add a PR-body breadcrumb explaining that this lightweight plan is
+  a user-approved exception for a one-line release bump, and record
+  publish/CI/sync evidence until `harness status` reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Root `VERSION` bump from `0.1.0-alpha.5` to `0.1.0-alpha.6`.
+- Matching README maintainer guidance that now uses alpha.6 as the example
+  release version.
+- A tracked lightweight plan that records the validation, review closeout, and
+  merge-handoff expectations for this dedicated release PR.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- No bootstrap-workflow fix for the one-time historical alpha.5 tag conflict.
+- No broader release-policy or versioning-flow changes beyond cutting alpha.6.
 
 ### Follow-Up Issues
 
