@@ -178,25 +178,76 @@ the final candidate before archive.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+Validated the repair at three levels:
+
+- workflow file inspection for `actions: write` on the VERSION tag workflow
+- targeted smoke coverage for the no-token Homebrew path and release workflow
+  wiring:
+  - `go test ./tests/smoke -run 'TestUpdateHomebrewTapWarnsWithoutToken|TestReleaseWorkflowWiresHomebrewTapPublishing' -count=1`
+  - `EASYHARNESS_HOMEBREW_TAP_TOKEN=dummy-token go test ./tests/smoke -run TestUpdateHomebrewTapWarnsWithoutToken -count=1`
+- operational repair dispatch:
+  - `Release` workflow run `23851570624` from branch
+    `codex/fix-release-dispatch-permission` for `v0.1.0-alpha.6`
+  - published release:
+    `https://github.com/catu-ai/easyharness/releases/tag/v0.1.0-alpha.6`
+  - Homebrew verification job passed in the same run
+
+Together these checks cover both root causes: the missing workflow-dispatch
+permission and the release-job environment leakage into smoke tests.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+Step-closeout delta review `review-001-delta` passed clean for `correctness`
+and `tests`. Finalize full review `review-002-full` then found two blocking
+gaps: missing automated coverage that pins `actions: write` on the VERSION tag
+workflow, and missing durable PR / merge-handoff breadcrumbs in the tracked
+plan. The candidate repairs both by adding the workflow-permission assertion to
+`tests/smoke/release_version_file_test.go` and by writing archive-ready handoff
+details into this plan. A follow-up finalize review still needs to confirm
+those two narrow repairs before archive.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+This candidate keeps the tracked diff intentionally narrow around the two real
+release failures that surfaced while cutting `v0.1.0-alpha.6`:
+
+- `.github/workflows/tag-release-from-version.yml` now grants `actions: write`
+  so the workflow-owned `gh workflow run release.yml ...` dispatch is allowed
+- `.github/workflows/release.yml` now clears
+  `EASYHARNESS_HOMEBREW_TAP_TOKEN` for the test step so release smoke tests do
+  not inherit the publishing secret
+- smoke coverage now pins both the workflow permission and the no-token
+  Homebrew path
+
+The operational repair has already succeeded for `v0.1.0-alpha.6`; the
+remaining work is to archive this durable fix, open the PR, and record the
+usual publish/CI/sync evidence for the fix itself.
+
+- PR: NONE. The workflow-fix PR has not been opened yet.
+- Ready: Step work, local validation, and the operational alpha.6 repair are
+  complete; only the narrow post-review repairs above still need a final clean
+  review before archive.
+- Merge Handoff: After archive, commit the tracked plan move, push branch
+  `codex/fix-release-dispatch-permission`, open or refresh the PR for this
+  workflow fix, and record publish/CI/sync evidence until `harness status`
+  reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- `actions: write` on the VERSION tag workflow so `release.yml` can be
+  dispatched from automation.
+- Release-workflow test-step isolation for
+  `EASYHARNESS_HOMEBREW_TAP_TOKEN`.
+- Smoke coverage that now pins both the workflow permission and the no-token
+  Homebrew path.
+- Successful operational repair for
+  `https://github.com/catu-ai/easyharness/releases/tag/v0.1.0-alpha.6`.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- No redesign of the broader release chain beyond the two targeted fixes above.
 
 ### Follow-Up Issues
 
