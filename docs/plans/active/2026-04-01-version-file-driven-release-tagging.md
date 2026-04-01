@@ -265,6 +265,11 @@ creation when the tag already matches the target commit, mismatched-tag
 failure, and the GitHub Actions workflow triggers and step ordering around the
 VERSION-driven tag path.
 
+This local validation proves the repo-owned helper semantics and the checked-in
+workflow wiring. It does not simulate a real GitHub Actions push-to-`main`
+execution end to end; that merged-release path still depends on remote Actions
+running against the created tag after branch publication.
+
 ## Review Summary
 
 Review history for this candidate:
