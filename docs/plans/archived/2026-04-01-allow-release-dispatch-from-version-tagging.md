@@ -1,6 +1,6 @@
 ---
 template_version: 0.2.0
-created_at: 2026-04-01T21:24:05+08:00
+created_at: "2026-04-01T21:24:05+08:00"
 source_type: direct_request
 source_refs: []
 ---
@@ -48,17 +48,17 @@ validate those fixes, and leave the rest of the release chain unchanged.
 
 ## Acceptance Criteria
 
-- [ ] `.github/workflows/tag-release-from-version.yml` grants the minimal
+- [x] `.github/workflows/tag-release-from-version.yml` grants the minimal
       additional permission needed to dispatch `release.yml`.
-- [ ] `.github/workflows/release.yml` keeps the Homebrew tap token available
+- [x] `.github/workflows/release.yml` keeps the Homebrew tap token available
       for publishing steps without leaking it into the workflow test step.
-- [ ] The release smoke coverage no longer fails when the job environment
+- [x] The release smoke coverage no longer fails when the job environment
       provides `EASYHARNESS_HOMEBREW_TAP_TOKEN`.
-- [ ] The tracked workflow definition clearly still creates tags before
+- [x] The tracked workflow definition clearly still creates tags before
       dispatching the release workflow.
-- [ ] Focused validation and review show no unintended release-flow drift.
-- [ ] The candidate reaches archived, published, merge-ready state for a small
-      workflow-permission fix PR.
+- [x] Focused validation and review show no unintended release-flow drift.
+- [x] The candidate is archive-ready for a small workflow-permission fix PR,
+      with publish handoff captured durably in the tracked plan.
 
 ## Deferred Items
 
@@ -203,11 +203,14 @@ gaps: missing automated coverage that pins `actions: write` on the VERSION tag
 workflow, and missing durable PR / merge-handoff breadcrumbs in the tracked
 plan. The candidate repairs both by adding the workflow-permission assertion to
 `tests/smoke/release_version_file_test.go` and by writing archive-ready handoff
-details into this plan. A follow-up finalize review still needs to confirm
-those two narrow repairs before archive.
+details into this plan. Follow-up delta review `review-003-delta` passed clean
+for the narrow repairs, and final full review `review-004-full` passed clean
+with no remaining findings.
 
 ## Archive Summary
 
+- Archived At: 2026-04-01T21:54:23+08:00
+- Revision: 1
 This candidate keeps the tracked diff intentionally narrow around the two real
 release failures that surfaced while cutting `v0.1.0-alpha.6`:
 
@@ -219,14 +222,13 @@ release failures that surfaced while cutting `v0.1.0-alpha.6`:
 - smoke coverage now pins both the workflow permission and the no-token
   Homebrew path
 
-The operational repair has already succeeded for `v0.1.0-alpha.6`; the
-remaining work is to archive this durable fix, open the PR, and record the
-usual publish/CI/sync evidence for the fix itself.
+The operational repair has already succeeded for `v0.1.0-alpha.6`, and the
+durable repository fix is now archive-ready. The remaining work is ordinary
+archive / PR / evidence handoff for the workflow-permission fix itself.
 
 - PR: NONE. The workflow-fix PR has not been opened yet.
-- Ready: Step work, local validation, and the operational alpha.6 repair are
-  complete; only the narrow post-review repairs above still need a final clean
-  review before archive.
+- Ready: Step work, local validation, operational alpha.6 repair, and final
+  review are complete; the candidate is ready to archive.
 - Merge Handoff: After archive, commit the tracked plan move, push branch
   `codex/fix-release-dispatch-permission`, open or refresh the PR for this
   workflow fix, and record publish/CI/sync evidence until `harness status`
