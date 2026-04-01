@@ -13,6 +13,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/catu-ai/easyharness/internal/plan"
+	"github.com/catu-ai/easyharness/internal/runstate"
+	"github.com/catu-ai/easyharness/internal/timeline"
 )
 
 func TestNewHandlerServesStatusJSON(t *testing.T) {
@@ -82,6 +86,152 @@ func TestNewHandlerFallsBackToIndexForSPAPath(t *testing.T) {
 	}
 	if !strings.Contains(body, "productName: \""+productDisplayName+"\"") {
 		t.Fatalf("expected injected product name %q in embedded index, got %s", productDisplayName, body)
+	}
+}
+
+func TestNewHandlerServesTimelineJSON(t *testing.T) {
+	workdir := t.TempDir()
+	relPlanPath := "docs/plans/active/2026-04-01-ui-timeline-plan.md"
+	path := filepath.Join(workdir, filepath.FromSlash(relPlanPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir plan dir: %v", err)
+	}
+	rendered, err := plan.RenderTemplate(plan.TemplateOptions{Title: "UI Timeline Plan"})
+	if err != nil {
+		t.Fatalf("render plan: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(rendered), 0o644); err != nil {
+		t.Fatalf("write plan: %v", err)
+	}
+	if _, err := runstate.SaveCurrentPlan(workdir, relPlanPath); err != nil {
+		t.Fatalf("save current plan: %v", err)
+	}
+	if _, err := runstate.SaveState(workdir, "2026-04-01-ui-timeline-plan", &runstate.State{
+		PlanPath: relPlanPath,
+		PlanStem: "2026-04-01-ui-timeline-plan",
+		Revision: 1,
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+	if _, _, err := timeline.AppendEvent(workdir, "2026-04-01-ui-timeline-plan", timeline.Event{
+		RecordedAt: "2026-04-01T10:00:00Z",
+		Kind:       "lifecycle",
+		Command:    "execute start",
+		Summary:    "Execution started for the current active plan.",
+		PlanPath:   relPlanPath,
+		Revision:   1,
+		ToNode:     "execution/step-1/implement",
+	}); err != nil {
+		t.Fatalf("append timeline event: %v", err)
+	}
+
+	handler, err := NewHandler(workdir)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/timeline", nil)
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload struct {
+		OK       bool   `json:"ok"`
+		Resource string `json:"resource"`
+		Events   []struct {
+			Command string `json:"command"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v\n%s", err, recorder.Body.String())
+	}
+	if !payload.OK || payload.Resource != "timeline" {
+		t.Fatalf("unexpected timeline payload: %#v", payload)
+	}
+	if len(payload.Events) != 2 || payload.Events[0].Command != "plan" || payload.Events[1].Command != "execute start" {
+		t.Fatalf("unexpected timeline events: %#v", payload.Events)
+	}
+}
+
+func TestNewHandlerServesLargeTimelinePayloadWithoutTruncation(t *testing.T) {
+	workdir := t.TempDir()
+	relPlanPath := "docs/plans/active/2026-04-01-ui-timeline-large.md"
+	path := filepath.Join(workdir, filepath.FromSlash(relPlanPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir plan dir: %v", err)
+	}
+	rendered, err := plan.RenderTemplate(plan.TemplateOptions{Title: "UI Timeline Large Payload"})
+	if err != nil {
+		t.Fatalf("render plan: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(rendered), 0o644); err != nil {
+		t.Fatalf("write plan: %v", err)
+	}
+	if _, err := runstate.SaveCurrentPlan(workdir, relPlanPath); err != nil {
+		t.Fatalf("save current plan: %v", err)
+	}
+	if _, err := runstate.SaveState(workdir, "2026-04-01-ui-timeline-large", &runstate.State{
+		PlanPath: relPlanPath,
+		PlanStem: "2026-04-01-ui-timeline-large",
+		Revision: 1,
+	}); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	blob := strings.Repeat("x", 2*1024*1024)
+	rawOutput, err := json.Marshal(map[string]string{"blob": blob})
+	if err != nil {
+		t.Fatalf("marshal large output: %v", err)
+	}
+	if _, _, err := timeline.AppendEvent(workdir, "2026-04-01-ui-timeline-large", timeline.Event{
+		RecordedAt: "2026-04-01T10:00:00Z",
+		Kind:       "review",
+		Command:    "review submit",
+		Summary:    "Recorded large review submission payload.",
+		PlanPath:   relPlanPath,
+		Revision:   1,
+		Output:     rawOutput,
+	}); err != nil {
+		t.Fatalf("append timeline event: %v", err)
+	}
+
+	handler, err := NewHandler(workdir)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/timeline", nil)
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload struct {
+		OK     bool `json:"ok"`
+		Events []struct {
+			Command string          `json:"command"`
+			Output  json.RawMessage `json:"output"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v\n%s", err, recorder.Body.String())
+	}
+	if !payload.OK || len(payload.Events) != 2 || payload.Events[1].Command != "review submit" {
+		t.Fatalf("unexpected timeline payload: %#v", payload)
+	}
+	var output struct {
+		Blob string `json:"blob"`
+	}
+	if err := json.Unmarshal(payload.Events[1].Output, &output); err != nil {
+		t.Fatalf("unmarshal event output: %v", err)
+	}
+	if output.Blob != blob {
+		t.Fatalf("expected large payload to survive api serialization, got %d bytes", len(output.Blob))
 	}
 }
 

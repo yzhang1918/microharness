@@ -32,6 +32,55 @@ type StatusResult = {
   errors?: ErrorDetail[] | null;
 };
 
+type TimelineDetail = {
+  key: string;
+  value: string;
+};
+
+type TimelineArtifactRef = {
+  label: string;
+  value: string;
+  path?: string;
+};
+
+type TimelineEvent = {
+  event_id: string;
+  sequence: number;
+  recorded_at: string;
+  kind: string;
+  command: string;
+  summary: string;
+  synthetic?: boolean;
+  plan_path?: string;
+  plan_stem: string;
+  revision?: number;
+  from_node?: string;
+  to_node?: string;
+  details?: TimelineDetail[] | null;
+  artifact_refs?: TimelineArtifactRef[] | null;
+  input?: unknown;
+  output?: unknown;
+  artifacts?: unknown;
+  payload?: unknown;
+  raw_input?: unknown;
+  raw_output?: unknown;
+  raw_artifacts?: unknown;
+  [key: string]: unknown;
+};
+
+type TimelineResult = {
+  ok: boolean;
+  resource: string;
+  summary: string;
+  artifacts?: {
+    plan_path?: string;
+    local_state_path?: string;
+    event_index_path?: string;
+  } | null;
+  events?: TimelineEvent[] | null;
+  errors?: ErrorDetail[] | null;
+};
+
 declare global {
   interface Window {
     __HARNESS_UI__?: {
@@ -141,6 +190,129 @@ function pickEntries(value: Record<string, unknown> | null | undefined): Array<[
   return Object.entries(value);
 }
 
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function humanizeLabel(value: string): string {
+  const normalized = value.replace(/[_-]+/g, " ").trim();
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : value;
+}
+
+function timelineEventTitle(event: TimelineEvent): string {
+  const command = event.command.trim();
+  if (command) return command;
+  const kind = event.kind.trim();
+  if (kind) return humanizeLabel(kind);
+  return `event ${event.sequence}`;
+}
+
+function timelineEventSubtitle(event: TimelineEvent): string {
+  const parts = [event.synthetic ? "bootstrap" : humanizeLabel(event.kind)];
+  if (event.revision !== undefined) {
+    parts.push(`rev ${event.revision}`);
+  }
+  return parts.join(" · ");
+}
+
+function sortTimelineEvents(events: TimelineEvent[]): TimelineEvent[] {
+  return [...events].sort((left, right) => {
+    const leftPriority = left.synthetic && left.command.trim().toLowerCase() === "plan" ? 0 : left.synthetic && left.command.trim().toLowerCase() === "implement" ? 1 : 2;
+    const rightPriority = right.synthetic && right.command.trim().toLowerCase() === "plan" ? 0 : right.synthetic && right.command.trim().toLowerCase() === "implement" ? 1 : 2;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    const leftTime = Date.parse(left.recorded_at);
+    const rightTime = Date.parse(right.recorded_at);
+    if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime) && leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+    if (!Number.isNaN(leftTime) && Number.isNaN(rightTime)) return -1;
+    if (Number.isNaN(leftTime) && !Number.isNaN(rightTime)) return 1;
+    if (left.synthetic !== right.synthetic) return left.synthetic ? -1 : 1;
+    if (left.sequence === 0 && right.sequence !== 0) return -1;
+    if (right.sequence === 0 && left.sequence !== 0) return 1;
+    if (left.sequence !== right.sequence) return left.sequence - right.sequence;
+    return left.event_id.localeCompare(right.event_id);
+  });
+}
+
+function pickDefaultTimelineEvent(events: TimelineEvent[]): TimelineEvent | null {
+  if (events.length === 0) return null;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (!events[index].synthetic) return events[index];
+  }
+  return events[events.length - 1];
+}
+
+function jsonStringify(value: unknown): string {
+  if (value === undefined) return "";
+  if (typeof value === "string") return JSON.stringify(value, null, 2);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function firstDefinedValue(event: TimelineEvent, keys: string[]): unknown {
+  for (const key of keys) {
+    const next = event[key];
+    if (next !== undefined && next !== null) {
+      if (typeof next === "string" && next.trim() === "") continue;
+      return next;
+    }
+  }
+  return undefined;
+}
+
+type TimelineTab = {
+  id: string;
+  label: string;
+  value: unknown;
+};
+
+function buildTimelineTabs(event: TimelineEvent | null): TimelineTab[] {
+  if (!event) return [];
+
+  const tabs: TimelineTab[] = [{ id: "event", label: "Event", value: event }];
+
+  const inputValue = firstDefinedValue(event, ["input", "raw_input"]);
+  if (inputValue !== undefined) {
+    tabs.push({ id: "input", label: "Input", value: inputValue });
+  }
+
+  const outputValue = firstDefinedValue(event, ["output", "raw_output"]);
+  if (outputValue !== undefined) {
+    tabs.push({ id: "output", label: "Output", value: outputValue });
+  }
+
+  const artifactsValue = firstDefinedValue(event, ["artifacts", "raw_artifacts"]);
+  if (artifactsValue !== undefined) {
+    tabs.push({ id: "artifacts", label: "Artifacts", value: artifactsValue });
+  }
+
+  const payloadValue = firstDefinedValue(event, ["payload"]);
+  if (payloadValue !== undefined) {
+    tabs.push({ id: "payload", label: "Payload", value: payloadValue });
+  }
+
+  if (Array.isArray(event.artifact_refs)) {
+    event.artifact_refs.forEach((artifactRef, index) => {
+      tabs.push({
+        id: `artifact-ref-${index}`,
+        label: artifactRef.label || `artifact_${index + 1}`,
+        value: artifactRef,
+      });
+    });
+  }
+
+  return tabs;
+}
+
 function formatStatusError(result: StatusResult | null, statusCode?: number): string {
   const details = Array.isArray(result?.errors)
     ? result?.errors
@@ -164,6 +336,9 @@ function sectionIDsForPage(page: Page): string[] {
   if (page === "status") {
     return ["summary", "next-actions", "warnings", "facts", "artifacts"];
   }
+  if (page === "timeline") {
+    return ["events"];
+  }
   return ["overview", "status"];
 }
 
@@ -178,6 +353,9 @@ function sectionsForPage(page: Page, status: {
   warnings: string[];
   facts: Array<[string, unknown]>;
   artifacts: Array<[string, unknown]>;
+}, timeline: {
+  events: TimelineEvent[];
+  artifacts: Array<[string, unknown]>;
 }): SectionLink[] {
   if (page === "status") {
     return [
@@ -186,6 +364,12 @@ function sectionsForPage(page: Page, status: {
       { id: "warnings", label: "Warnings", meta: String(status.warnings.length + status.blockers.length) },
       { id: "facts", label: "Facts", meta: String(status.facts.length) },
       { id: "artifacts", label: "Artifacts", meta: String(status.artifacts.length) },
+    ];
+  }
+
+  if (page === "timeline") {
+    return [
+      { id: "events", label: "Events", meta: String(timeline.events.length) },
     ];
   }
 
@@ -201,6 +385,9 @@ function App() {
   const [status, setStatus] = useState<StatusResult | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineResult | null>(null);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
     const onLocationChange = () => {
@@ -270,6 +457,47 @@ function App() {
     return () => controller.abort();
   }, [page]);
 
+  useEffect(() => {
+    if (page !== "timeline") return;
+
+    const controller = new AbortController();
+    setTimelineLoading(true);
+    setTimelineError(null);
+
+    fetch("/api/timeline", { signal: controller.signal })
+      .then(async (response) => {
+        const payload = (await response.json()) as TimelineResult;
+        if (!response.ok || payload.ok === false) {
+          const summary = payload?.summary?.trim();
+          const details = Array.isArray(payload?.errors)
+            ? payload.errors
+                ?.map((item) => {
+                  const path = item.path?.trim();
+                  const message = item.message?.trim();
+                  if (path && message) return `${path}: ${message}`;
+                  return message || path || "";
+                })
+                .filter(Boolean)
+            : [];
+          const fallback = summary || (response.status ? `GET /api/timeline failed with ${response.status}` : "Unable to load timeline");
+          throw new Error(details.length > 0 ? `${fallback} ${details.join("; ")}` : fallback);
+        }
+        return payload;
+      })
+      .then((nextTimeline) => {
+        setTimeline(nextTimeline);
+        setTimelineLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setTimeline(null);
+        setTimelineError(error instanceof Error ? error.message : "Unable to load timeline");
+        setTimelineLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [page]);
+
   const activeStatus = useMemo(() => {
     return {
       summary: status?.summary ?? "Waiting for status data.",
@@ -283,8 +511,18 @@ function App() {
     };
   }, [status]);
 
+  const activeTimeline = useMemo(() => {
+    const events = sortTimelineEvents(Array.isArray(timeline?.events) ? timeline?.events ?? [] : []);
+    const artifacts = pickEntries((timeline?.artifacts as Record<string, unknown>) ?? null);
+    return {
+      events,
+      artifacts,
+      latestEvent: events.length > 0 ? events[events.length - 1] : null,
+    };
+  }, [timeline]);
+
   const activeSectionLabel =
-    sectionsForPage(page, activeStatus).find((item) => item.id === section)?.label ?? pageDefinition(page).label;
+    sectionsForPage(page, activeStatus, activeTimeline).find((item) => item.id === section)?.label ?? pageDefinition(page).label;
 
   return (
     <div class="app-shell">
@@ -325,58 +563,66 @@ function App() {
           })}
         </aside>
 
-        <main class="content">
-          <aside class="sidebar" aria-label={`${pageDefinition(page).label} sidebar`}>
-            <div class="sidebar-header">
-              <span class="sidebar-label">Explorer</span>
-              <strong>{pageDefinition(page).label}</strong>
-            </div>
-            <nav class="sidebar-group" aria-label={`${pageDefinition(page).label} sections`}>
-              {sectionsForPage(page, activeStatus).map((item) => (
-                <a
-                  key={item.id}
-                  class={`sidebar-link${item.id === section ? " is-active" : ""}`}
-                  href={`#${item.id}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    navigateToSection(item.id);
-                  }}
-                >
-                  <span>{item.label}</span>
-                  {item.meta ? <span class="sidebar-meta">{item.meta}</span> : null}
-                </a>
-              ))}
-            </nav>
-          </aside>
-
-          <section class="editor">
-            <section class="page-header">
-              <div class="editor-tabs">
-                <div class="editor-tab is-active">{pageDefinition(page).label}</div>
-                <div class="editor-section-label">{activeSectionLabel}</div>
+        {page === "timeline" ? (
+          <TimelineWorkspace
+            loading={timelineLoading}
+            error={timelineError}
+            events={activeTimeline.events}
+          />
+        ) : (
+          <main class="content">
+            <aside class="sidebar" aria-label={`${pageDefinition(page).label} sidebar`}>
+              <div class="sidebar-header">
+                <span class="sidebar-label">Explorer</span>
+                <strong>{pageDefinition(page).label}</strong>
               </div>
-              {page === "status" && statusLoading ? <span class="muted">loading</span> : null}
-            </section>
+              <nav class="sidebar-group" aria-label={`${pageDefinition(page).label} sections`}>
+                {sectionsForPage(page, activeStatus, activeTimeline).map((item) => (
+                  <a
+                    key={item.id}
+                    class={`sidebar-link${item.id === section ? " is-active" : ""}`}
+                    href={`#${item.id}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigateToSection(item.id);
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    {item.meta ? <span class="sidebar-meta">{item.meta}</span> : null}
+                  </a>
+                ))}
+              </nav>
+            </aside>
 
-            {page === "status" ? (
-              <StatusPage
-                loading={statusLoading}
-                error={statusError}
-                summary={activeStatus.summary}
-                currentNode={activeStatus.currentNode}
-                nextActions={activeStatus.nextActions}
-                blockers={activeStatus.blockers}
-                warnings={activeStatus.warnings}
-                errors={Array.isArray(status?.errors) ? status?.errors ?? [] : []}
-                facts={activeStatus.facts}
-                artifacts={activeStatus.artifacts}
-                selectedSection={section}
-              />
-            ) : (
-              <PlaceholderPage title={pageDefinition(page).label} selectedSection={section} />
-            )}
-          </section>
-        </main>
+            <section class="editor">
+              <section class="page-header">
+                <div class="editor-tabs">
+                  <div class="editor-tab is-active">{pageDefinition(page).label}</div>
+                  <div class="editor-section-label">{activeSectionLabel}</div>
+                </div>
+                {page === "status" && statusLoading ? <span class="muted">loading</span> : null}
+              </section>
+
+              {page === "status" ? (
+                <StatusPage
+                  loading={statusLoading}
+                  error={statusError}
+                  summary={activeStatus.summary}
+                  currentNode={activeStatus.currentNode}
+                  nextActions={activeStatus.nextActions}
+                  blockers={activeStatus.blockers}
+                  warnings={activeStatus.warnings}
+                  errors={Array.isArray(status?.errors) ? status?.errors ?? [] : []}
+                  facts={activeStatus.facts}
+                  artifacts={activeStatus.artifacts}
+                  selectedSection={section}
+                />
+              ) : (
+                <PlaceholderPage title={pageDefinition(page).label} selectedSection={section} />
+              )}
+            </section>
+          </main>
+        )}
       </div>
     </div>
   );
@@ -533,6 +779,152 @@ function StatusPage(props: {
 
         {detailPane}
       </div>
+    </section>
+  );
+}
+
+function TimelineWorkspace(props: {
+  loading: boolean;
+  error: string | null;
+  events: TimelineEvent[];
+}) {
+  const { loading, error, events } = props;
+  const sortedEvents = useMemo(() => sortTimelineEvents(events), [events]);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const selectedEvent = useMemo(() => {
+    if (sortedEvents.length === 0) return null;
+    if (selectedEventId) {
+      const found = sortedEvents.find((event) => event.event_id === selectedEventId);
+      if (found) return found;
+    }
+    return pickDefaultTimelineEvent(sortedEvents);
+  }, [selectedEventId, sortedEvents]);
+  const [selectedTab, setSelectedTab] = useState<string>("event");
+  const timelineTabs = useMemo(() => buildTimelineTabs(selectedEvent), [selectedEvent]);
+
+  useEffect(() => {
+    if (sortedEvents.length === 0) {
+      setSelectedEventId(null);
+      return;
+    }
+    setSelectedEventId((current) => {
+      if (current && sortedEvents.some((event) => event.event_id === current)) {
+        return current;
+      }
+      return pickDefaultTimelineEvent(sortedEvents)?.event_id ?? null;
+    });
+  }, [sortedEvents]);
+
+  useEffect(() => {
+    if (timelineTabs.length === 0) {
+      setSelectedTab("event");
+      return;
+    }
+    setSelectedTab((current) => {
+      if (timelineTabs.some((tab) => tab.id === current)) {
+        return current;
+      }
+      return timelineTabs[0].id;
+    });
+  }, [timelineTabs, selectedEvent?.event_id]);
+
+  const selectedTabValue =
+    timelineTabs.find((tab) => tab.id === selectedTab)?.value ?? timelineTabs[0]?.value ?? selectedEvent ?? null;
+  const transitionLabel =
+    selectedEvent && (selectedEvent.from_node || selectedEvent.to_node)
+      ? `${selectedEvent.from_node || "unknown"} → ${selectedEvent.to_node || "unknown"}`
+      : null;
+
+  return (
+    <section class="timeline-shell">
+      <aside class="timeline-nav" aria-label="Timeline events">
+        <div class="timeline-nav-header">
+          <span class="sidebar-label">Explorer</span>
+          <strong>Timeline</strong>
+          <span class="timeline-nav-meta">{sortedEvents.length}</span>
+        </div>
+        <div class="timeline-nav-list">
+          {sortedEvents.length > 0 ? (
+            sortedEvents.map((event) => {
+              const selected = event.event_id === selectedEvent?.event_id;
+              return (
+                <button
+                  key={event.event_id}
+                  class={`timeline-stream-item${selected ? " is-active" : ""}`}
+                  type="button"
+                  onClick={() => setSelectedEventId(event.event_id)}
+                  aria-pressed={selected}
+                >
+                  <div class="timeline-stream-row">
+                    <div class="timeline-stream-title">{timelineEventTitle(event)}</div>
+                    <div class="timeline-stream-meta">
+                      <span>{formatTimestamp(event.recorded_at)}</span>
+                    </div>
+                  </div>
+                  <div class="timeline-stream-subtitle">{timelineEventSubtitle(event)}</div>
+                </button>
+              );
+            })
+          ) : (
+            <div class="empty-row">No timeline events recorded yet for this plan.</div>
+          )}
+        </div>
+      </aside>
+
+      <section class="editor timeline-editor">
+        <section class="page-header">
+          <div class="editor-tabs">
+            <div class="editor-tab is-active">Timeline</div>
+            <div class="editor-section-label">{selectedEvent ? timelineEventTitle(selectedEvent) : "Events"}</div>
+          </div>
+          {loading ? <span class="muted">loading</span> : null}
+        </section>
+
+        <section class="workspace workspace-timeline">
+          {error ? <div class="notice notice-error">{error}</div> : null}
+
+          <section class="timeline-inspector" aria-label="Selected event details">
+            <div class="timeline-inspector-tabs" role="tablist" aria-label="Timeline event payloads">
+              {timelineTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  class={`timeline-inspector-tab${selectedTab === tab.id ? " is-active" : ""}`}
+                  onClick={() => setSelectedTab(tab.id)}
+                  role="tab"
+                  aria-selected={selectedTab === tab.id}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div class="timeline-inspector-body">
+              {selectedEvent ? (
+                <>
+                  <div class="timeline-inspector-head">
+                    <div>
+                      <div class="timeline-inspector-command">{timelineEventTitle(selectedEvent)}</div>
+                      {transitionLabel ? <div class="timeline-inspector-transition">{transitionLabel}</div> : null}
+                      <div class="timeline-inspector-subtitle">{selectedEvent.summary}</div>
+                    </div>
+                    <div class="timeline-inspector-refs">
+                      <span>{selectedEvent.event_id}</span>
+                      <span>{formatTimestamp(selectedEvent.recorded_at)}</span>
+                    </div>
+                  </div>
+
+                  <pre class="timeline-json" aria-label={`${selectedTab} payload`}>
+                    {jsonStringify(selectedTabValue)}
+                  </pre>
+                </>
+              ) : (
+                <div class="empty-row">Select an event to inspect its raw payload.</div>
+              )}
+            </div>
+          </section>
+        </section>
+      </section>
     </section>
   );
 }

@@ -119,6 +119,8 @@ For active work in both profiles, this plan artifact is a tracked file under
 - worktree-level current-plan and last-landed context
 - execute-start milestones
 - review manifests, ledgers, submissions, and aggregates
+- append-only timeline event indexes under
+  `.local/harness/plans/<plan-stem>/events.jsonl`
 - append-only `ci`, `publish`, and `sync` evidence records
 - archive milestones
 - reopen milestones, including the explicit reopen mode
