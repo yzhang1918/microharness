@@ -342,9 +342,6 @@ archive.
     presentation contract.
 
 ## Validation Summary
-
-UPDATE_REQUIRED_AFTER_REOPEN
-
 The original archive candidate was reopened in `finalize-fix` mode after
 human feedback narrowed one remaining Timeline semantic gap: the right-hand
 inspector still rendered artifact-ref tabs as ref metadata instead of file
@@ -352,7 +349,12 @@ contents, and it still exposed context-only tabs such as `plan_path`. The
 current revision 3 follow-up then closed the last two presentation gaps:
 path-backed file tabs still showed raw labels like `submission_path`, and the
 event explorer still rendered oldest-first instead of showing the freshest
-activity at the top.
+activity at the top. Revision 4 then reopened strictly for remote-freshness
+repair after `origin/main` advanced: merging the latest mainline content into
+this branch produced one real conflict in `docs/specs/state-model.md`, and the
+repair kept both sides of that contract change by preserving the upstream
+review-finding-location wording alongside the local timeline-event-index
+artifact bullet.
 
 - `go test ./...` passes after the timeline transaction-boundary fixes,
   including new internal rollback coverage for `review start`,
@@ -382,11 +384,11 @@ activity at the top.
   headed Playwright screenshots under `output/playwright/manual-timeline-r3/`,
   including `review-start-manifest.png` and
   `review-submit-submission.png`.
+- After the revision 4 merge-from-main repair, `go test ./...` and
+  `bash scripts/ui-playwright-smoke` both passed again on the reopened active
+  candidate before the next finalize review.
 
 ## Review Summary
-
-UPDATE_REQUIRED_AFTER_REOPEN
-
 The original archive candidate passed `review-011-full`, then reopened for one
 narrow finalize follow-up after direct human UX feedback on the Timeline
 inspector tabs.
@@ -410,34 +412,35 @@ inspector tabs.
 - `review-013-delta` passed with zero blocking and zero non-blocking findings
   at `2026-04-02T22:14:36+08:00` after the revision 3 polish pass for
   newest-first explorer ordering and content-oriented artifact-tab labels.
+- `review-014-delta` passed with zero blocking and zero non-blocking findings
+  at `2026-04-02T22:28:54+08:00` after the revision 4 remote-freshness repair
+  merged `origin/main`, kept both intended `docs/specs/state-model.md`
+  contract bullets, and reran the full validation loop.
 
 ## Archive Summary
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
-- Archived At: 2026-04-02T22:15:49+08:00
-- Revision: 3
+- Archived At: 2026-04-02T22:29:44+08:00
+- Revision: 4
 This section records the first archive handoff and the state of the reopened
 candidate. Revision 1 archived successfully, then revision 2 reopened in
 `finalize-fix` mode after new UI feedback invalidated merge-readiness. The
-candidate has since reopened again into revision 3 for one last Timeline
-presentation polish pass.
+candidate then reopened into revision 3 for one last Timeline presentation
+polish pass and later reopened again into revision 4 after remote freshness
+work required merging the latest `origin/main`.
 
-- Finalize Review: `review-013-delta` passed at
-  `2026-04-02T22:14:36+08:00`.
+- Finalize Review: `review-014-delta` passed at
+  `2026-04-02T22:28:54+08:00`.
 - PR: https://github.com/catu-ai/easyharness/pull/102 remains the working PR,
-  but it is not merge-ready again until the revision 3 archive is committed,
-  pushed, and backed by refreshed publish/CI/sync evidence.
-- Ready: yes for archive closeout; `review-013-delta` passed clean and the
-  remaining work is the controller-owned archive/publish/CI/sync loop.
-- Merge Handoff: commit and push the revision 3 archive plus UI polish,
-  recompute publish/CI/sync evidence, and then wait for human merge approval.
+  but the candidate reopened again into revision 4 once remote freshness work
+  required merging the latest `origin/main`.
+- Ready: yes for publish handoff; `review-014-delta` passed clean and revision
+  4 is now archived on the refreshed branch head.
+- Merge Handoff: push the refreshed branch, record new publish/CI/sync
+  evidence, and then wait for human merge approval.
 
 ## Outcome Summary
 
 ### Delivered
-
-UPDATE_REQUIRED_AFTER_REOPEN
 
 - Added the command-owned `.local/harness/plans/<plan-stem>/events.jsonl`
   contract plus the `/api/timeline` read model and UI wiring.
@@ -452,6 +455,10 @@ UPDATE_REQUIRED_AFTER_REOPEN
   activity first and file-backed tabs are labeled by the content being viewed
   (`Manifest`, `Submission`, `Publish Record`) instead of raw `*_path`
   identifiers.
+- Preserved both sides of the later remote-merge contract change in
+  `docs/specs/state-model.md` so the branch now includes upstream review
+  finding-location wording without dropping the local timeline event-index
+  artifact contract.
 - Hardened lifecycle, review, and evidence timeline writes so successful
   command results roll back if later timeline/state persistence fails.
 - Added focused regression coverage for large timeline payloads and rollback
@@ -460,17 +467,12 @@ UPDATE_REQUIRED_AFTER_REOPEN
 
 ### Not Delivered
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 - The archive move itself, publish evidence refresh, CI/sync evidence refresh,
-  and renewed merge-ready handoff for revision 3 are still pending the
+  and renewed merge-ready handoff for revision 4 are still pending the
   post-review archive/publish loop.
 - Rich inline artifact viewers beyond raw JSON/tabbed inspection remain
   deferred.
 
 ### Follow-Up Issues
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 - #101: Track post-launch timeline follow-ups after event-index landing
-
