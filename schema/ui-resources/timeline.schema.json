@@ -38,10 +38,10 @@
         },
         "content_type": {
           "type": "string",
-          "description": "ContentType reports how Content should be rendered in the UI resource when the timeline read model resolves a referenced file."
+          "description": "ContentType reports how Content should be rendered in the UI resource. It is omitted from append-only event lines and only populated by the timeline read model when it resolves a referenced file."
         },
         "content": {
-          "description": "Content is the resolved artifact file payload for UI tabs when the reference points at a readable file."
+          "description": "Content is the resolved artifact file payload for UI tabs when the reference points at a readable file. It is omitted from append-only event lines and only populated by the timeline read model."
         }
       },
       "additionalProperties": false,
