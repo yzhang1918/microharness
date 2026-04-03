@@ -51,6 +51,26 @@ Use `harness reopen --mode finalize-fix|new-step` when an archived candidate
 is no longer merge-ready because of new feedback, remote changes, or other
 invalidation.
 
+## Harness Subagent Use
+
+The controller owns shared repository context and the final workflow judgment.
+Spawn subagents only for bounded subproblems; do not split one shared context
+bundle across multiple subagents just to get summaries back.
+
+Use `0`, `1`, or multiple subagents according to the current question shape:
+
+- use `0` when the controller can answer the next question from the shared
+  context it already needs to hold
+- use `1` when one bounded question or hypothesis needs independent repo
+  checking
+- use multiple subagents in parallel only when multiple hypotheses or
+  questions are genuinely independent
+
+In Codex, spawned subagents are not fire-and-forget memory. Once a bounded
+subagent task is complete and the controller has received the result, close
+that subagent promptly by default. Reuse `resume_agent` only when a later
+narrow follow-up makes continuity materially more valuable than a fresh agent.
+
 ## Harness Review Execution
 
 When work enters review orchestration, spawned reviewer subagents are the
