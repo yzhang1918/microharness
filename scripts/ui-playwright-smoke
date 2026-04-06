@@ -21,6 +21,7 @@ fi
 
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 requested_workdir="${HARNESS_UI_WORKDIR:-}"
@@ -334,18 +335,32 @@ navigate_browser_to() {
   pwcli "$session" open "$target_url" >/dev/null
 }
 
+stop_pid() {
+  local pid="$1"
+  if [[ -z "$pid" ]]; then
+    return
+  fi
+  kill "$pid" >/dev/null 2>&1 || true
+  for _ in $(seq 1 20); do
+    if ! kill -0 "$pid" >/dev/null 2>&1; then
+      wait "$pid" >/dev/null 2>&1 || true
+      return
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" >/dev/null 2>&1 || true
+  wait "$pid" >/dev/null 2>&1 || true
+}
+
 cleanup() {
   if [[ -n "${lock_holder_pid}" ]]; then
-    kill "${lock_holder_pid}" >/dev/null 2>&1 || true
-    wait "${lock_holder_pid}" >/dev/null 2>&1 || true
+    stop_pid "${lock_holder_pid}"
   fi
   if [[ -n "${server_pid}" ]]; then
-    kill "${server_pid}" >/dev/null 2>&1 || true
-    wait "${server_pid}" >/dev/null 2>&1 || true
+    stop_pid "${server_pid}"
   fi
   if [[ -n "${vite_pid}" ]]; then
-    kill "${vite_pid}" >/dev/null 2>&1 || true
-    wait "${vite_pid}" >/dev/null 2>&1 || true
+    stop_pid "${vite_pid}"
   fi
   pwcli_close "$rail_session" >/dev/null 2>&1 || true
   rm -rf "$tmp_dir"
@@ -567,6 +582,12 @@ interactive_ref_from_snapshot() {
   grep -F "\"$label\"" "$snapshot" | head -n 1 | sed -n 's/.*\[ref=\(e[0-9][0-9]*\)\].*/\1/p'
 }
 
+button_ref_from_snapshot() {
+  local label="$1"
+  local snapshot="$2"
+  grep -F "button \"$label" "$snapshot" | head -n 1 | sed -n 's/.*\[ref=\(e[0-9][0-9]*\)\].*/\1/p'
+}
+
 capture_session_snapshot() {
   local session="$1"
   local label="$2"
@@ -659,11 +680,56 @@ elif ! printf '%s\n' "$output" | write_inline_snapshot_from_output "${output_dir
   printf '%s\n' "$output" >&2
   exit 1
 fi
+capture_session_screenshot "$rail_session" "status"
 
 assert_has_text "status" "Status"
 assert_has_text "status" "$status_summary"
 assert_has_text "status" "$status_node"
 assert_has_text "status" "Next actions"
+assert_has_text "status" "Node"
+assert_has_text "status" "Warnings"
+assert_has_text "status" "Actions"
+assert_lacks_text "status" "READ-ONLY"
+assert_lacks_text "status" "LOCAL"
+
+status_mobile_session="$(session_name status-mobile)"
+navigate_browser_to "$status_mobile_session" "${base_url}/status"
+sleep 1
+pwcli_run_code_checked "$status_mobile_session" '
+async (page) => {
+  await page.setViewportSize({ width: 768, height: 1180 });
+  await page.reload({ waitUntil: "networkidle" });
+  return await page.evaluate(() => {
+    const layout = document.querySelector(".layout");
+    const rail = document.querySelector(".rail");
+    const explorer = document.querySelector(".workbench-explorer");
+    const inspector = document.querySelector(".workbench-inspector");
+    if (!layout || !rail || !explorer || !inspector) {
+      throw new Error("missing responsive workbench elements");
+    }
+    const layoutStyle = getComputedStyle(layout);
+    const railStyle = getComputedStyle(rail);
+    const explorerRect = explorer.getBoundingClientRect();
+    const inspectorRect = inspector.getBoundingClientRect();
+    if (layoutStyle.display !== "flex" || layoutStyle.flexDirection !== "column") {
+      throw new Error(`status mobile layout did not stack: ${layoutStyle.display}/${layoutStyle.flexDirection}`);
+    }
+    if (railStyle.flexDirection !== "row") {
+      throw new Error(`status mobile rail did not switch to row: ${railStyle.flexDirection}`);
+    }
+    if (inspectorRect.top <= explorerRect.bottom - 1) {
+      throw new Error(`status mobile inspector did not stack below explorer: ${explorerRect.bottom} vs ${inspectorRect.top}`);
+    }
+    return true;
+  });
+}
+' >/dev/null
+capture_session_snapshot "$status_mobile_session" "status-mobile"
+capture_session_screenshot "$status_mobile_session" "status-mobile"
+assert_has_text "status-mobile" "Status"
+assert_has_text "status-mobile" "Summary"
+pwcli_close "$status_mobile_session"
+
 capture_snapshot "/timeline" "timeline"
 assert_has_text "timeline" "Timeline"
 assert_has_text "timeline" "Explorer"
@@ -685,7 +751,7 @@ assert_has_text "timeline-inspector-initial" "execution/finalize/await_merge →
 assert_has_text "timeline-inspector-initial" "Publish Record"
 pwcli_run_code_checked "$timeline_inspector_session" '
 async (page) => await page.evaluate(() => {
-  const tabs = document.querySelector(".timeline-inspector-tabs");
+  const tabs = document.querySelector(".inspector-tabs");
   if (!tabs) {
     throw new Error("missing timeline inspector tabs");
   }
@@ -696,6 +762,74 @@ async (page) => await page.evaluate(() => {
   return true;
 })
 ' >/dev/null
+pwcli_run_code_checked "$timeline_inspector_session" '
+async (page) => {
+  const frame = page.locator(".workbench-page");
+  const divider = page.getByRole("separator", { name: /Timeline width/i });
+  const before = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const box = await divider.boundingBox();
+  if (!box) {
+    throw new Error("missing timeline splitter");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 72, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await divider.focus();
+  await page.keyboard.press("ArrowLeft");
+  const after = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const stored = await page.evaluate(() => window.localStorage.getItem("harness-ui:explorer-width:timeline"));
+  if (before === after) {
+    throw new Error(`timeline splitter width did not change: ${before}`);
+  }
+  if (!stored) {
+    throw new Error("timeline splitter width was not persisted");
+  }
+  return { before, after, stored };
+}
+' >/dev/null
+timeline_storage_denied_session="$(session_name timeline-storage-denied)"
+navigate_browser_to "$timeline_storage_denied_session" "${base_url}/timeline"
+sleep 1
+pwcli_run_code_checked "$timeline_storage_denied_session" '
+async (page) => {
+  await page.addInitScript(() => {
+    const proto = Storage.prototype;
+    proto.getItem = function() {
+      throw new DOMException("Storage denied", "SecurityError");
+    };
+    proto.setItem = function() {
+      throw new DOMException("Storage denied", "SecurityError");
+    };
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  const frame = page.locator(".workbench-page");
+  const divider = page.getByRole("separator", { name: /Timeline width/i });
+  const before = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const box = await divider.boundingBox();
+  if (!box) {
+    throw new Error("missing timeline splitter in storage-denied path");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 56, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const after = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const label = await page.locator(".editor-tab").textContent();
+  if (label?.trim() !== "Timeline") {
+    throw new Error(`unexpected page label after storage-denied reload: ${label}`);
+  }
+  if (before === after) {
+    throw new Error(`timeline splitter did not move under storage-denied fallback: ${before}`);
+  }
+  return { before, after };
+}
+' >/dev/null
+capture_session_snapshot "$timeline_storage_denied_session" "timeline-storage-denied"
+capture_session_screenshot "$timeline_storage_denied_session" "timeline-storage-denied"
+assert_has_text "timeline-storage-denied" "Timeline"
+assert_has_text "timeline-storage-denied" "Explorer"
+pwcli_close "$timeline_storage_denied_session"
 output_ref="$(interactive_ref_from_snapshot "Output" "${output_dir}/timeline-inspector-initial.yml")"
 if [[ -z "$output_ref" ]]; then
   echo "Could not find Output tab in timeline inspector snapshot." >&2
@@ -722,13 +856,41 @@ assert_has_text "timeline-inspector-publish-record" "https://github.com/catu-ai/
 pwcli_close "$timeline_inspector_session"
 
 navigate_via_rail "$rail_session" "status" "Timeline" "timeline-rail" "Timeline"
+actions_ref="$(button_ref_from_snapshot "Actions" "${output_dir}/timeline-rail.yml")"
+if [[ -z "$actions_ref" ]]; then
+  actions_ref="$(button_ref_from_snapshot "Actions 2" "${output_dir}/timeline-rail.yml")"
+fi
+if [[ -z "$actions_ref" ]]; then
+  echo "Could not find topbar Actions summary in ${output_dir}/timeline-rail.yml" >&2
+  cat "${output_dir}/timeline-rail.yml" >&2
+  exit 1
+fi
+pwcli "$rail_session" click "$actions_ref" >/dev/null
+sleep 0.5
+capture_session_snapshot "$rail_session" "status-topbar-actions"
+assert_has_text "status-topbar-actions" "Status"
+assert_has_text "status-topbar-actions" "Next actions"
+assert_has_text "status-topbar-actions" "$status_node"
+warning_ref="$(button_ref_from_snapshot "Warnings" "${output_dir}/status-topbar-actions.yml")"
+if [[ -z "$warning_ref" ]]; then
+  warning_ref="$(button_ref_from_snapshot "Warnings 0" "${output_dir}/status-topbar-actions.yml")"
+fi
+if [[ -z "$warning_ref" ]]; then
+  echo "Could not find topbar Warnings summary in ${output_dir}/status-topbar-actions.yml" >&2
+  cat "${output_dir}/status-topbar-actions.yml" >&2
+  exit 1
+fi
+pwcli "$rail_session" click "$warning_ref" >/dev/null
+sleep 0.5
+capture_session_snapshot "$rail_session" "status-topbar-warnings"
+assert_has_text "status-topbar-warnings" "Warnings"
 navigate_via_rail "$rail_session" "timeline-rail" "Status" "status-rail" "Status"
 navigate_via_rail "$rail_session" "status-rail" "Review" "review-rail" "Review data is hidden once land cleanup begins."
 navigate_via_rail "$rail_session" "review-rail" "Status" "status-return" "Status"
 pwcli_close "$rail_session"
 capture_snapshot "/review" "review"
 assert_has_text "review" "Review"
-assert_has_text "review" "Review rounds"
+assert_has_text "review" "Explorer"
 assert_has_text "review" "Review data is hidden once land cleanup begins."
 assert_lacks_text "review" "Archived finalize review"
 assert_lacks_text "review" "WIP"
@@ -768,12 +930,6 @@ with open(path, "w", encoding="utf-8") as fh:
     json.dump(payload, fh)
 PY
 
-capture_snapshot "/diff" "diff"
-assert_has_text "diff" "Diff"
-assert_has_text "diff" "WIP"
-capture_snapshot "/files" "files"
-assert_has_text "files" "Files"
-assert_has_text "files" "WIP"
 assert_has_text "status" "$(basename "$runtime_workdir")"
 assert_has_text "status" "$runtime_workdir"
 
