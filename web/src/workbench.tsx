@@ -117,18 +117,22 @@ export function WorkbenchFrame(props: {
   const widthStorageKey = `harness-ui:explorer-width:${storageKey}`;
   const minExplorerWidth = 220;
   const maxExplorerWidth = 420;
-  const [explorerWidth, setExplorerWidth] = useState(defaultExplorerWidth);
-  const [dragState, setDragState] = useState<{ pointerId: number; startX: number; startWidth: number } | null>(null);
-
   const clampExplorerWidth = (nextWidth: number) => Math.min(maxExplorerWidth, Math.max(minExplorerWidth, nextWidth));
-
-  useEffect(() => {
+  const [explorerWidth, setExplorerWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return defaultExplorerWidth;
+    }
     const stored = window.localStorage.getItem(widthStorageKey);
-    if (!stored) return;
+    if (!stored) {
+      return defaultExplorerWidth;
+    }
     const parsed = Number.parseInt(stored, 10);
-    if (Number.isNaN(parsed)) return;
-    setExplorerWidth(clampExplorerWidth(parsed));
-  }, [widthStorageKey]);
+    if (Number.isNaN(parsed)) {
+      return defaultExplorerWidth;
+    }
+    return clampExplorerWidth(parsed);
+  });
+  const [dragState, setDragState] = useState<{ pointerId: number; startX: number; startWidth: number } | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(widthStorageKey, String(explorerWidth));

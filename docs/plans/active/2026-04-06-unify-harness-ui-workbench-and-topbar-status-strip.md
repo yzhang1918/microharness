@@ -338,7 +338,11 @@ slower to return than ordinary unit/build commands, so the screenshot artifacts
 themselves were used as the durable evidence source. Final automated coverage
 passed with `scripts/ui-playwright-smoke`,
 `scripts/ui-playwright-review-smoke`, and
-`scripts/ui-playwright-topbar-smoke`.
+`scripts/ui-playwright-topbar-smoke`, including explicit mobile-layout
+assertions plus real splitter drag/keyboard-resize checks after the
+step-closeout review called out those two gaps. The splitter persistence path
+was also corrected so saved Explorer widths are restored on first render
+instead of flashing the default width before the persisted value loads.
 
 #### Review Notes
 

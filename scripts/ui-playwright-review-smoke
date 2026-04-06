@@ -18,6 +18,7 @@ fi
 
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 harness_bin="${HARNESS_UI_BINARY:-$repo_root/.local/bin/harness}"
@@ -1073,6 +1074,32 @@ async (page) => await page.evaluate(() => {
   }
   return true;
 })
+' >/dev/null
+run_code_checked "$session_name" '
+async (page) => {
+  const frame = page.locator(".workbench-page");
+  const divider = page.getByRole("separator", { name: /Review width/i });
+  const before = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const box = await divider.boundingBox();
+  if (!box) {
+    throw new Error("missing review splitter");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 64, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await divider.focus();
+  await page.keyboard.press("ArrowLeft");
+  const after = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const stored = await page.evaluate(() => window.localStorage.getItem("harness-ui:explorer-width:review"));
+  if (before === after) {
+    throw new Error(`review splitter width did not change: ${before}`);
+  }
+  if (!stored) {
+    throw new Error("review splitter width was not persisted");
+  }
+  return { before, after, stored };
+}
 ' >/dev/null
 
 round_ref="$(button_ref_from_snapshot "Finalize review Waiting for submissions Full · finalize · rev 2 Apr 2, 2026, 8:00 PM 1/2 submitted" "${output_dir}/review-initial.yml")"

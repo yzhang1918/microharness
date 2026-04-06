@@ -21,6 +21,7 @@ fi
 
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 requested_workdir="${HARNESS_UI_WORKDIR:-}"
@@ -690,6 +691,45 @@ assert_has_text "status" "Warnings"
 assert_has_text "status" "Actions"
 assert_lacks_text "status" "READ-ONLY"
 assert_lacks_text "status" "LOCAL"
+
+status_mobile_session="$(session_name status-mobile)"
+navigate_browser_to "$status_mobile_session" "${base_url}/status"
+sleep 1
+pwcli_run_code_checked "$status_mobile_session" '
+async (page) => {
+  await page.setViewportSize({ width: 768, height: 1180 });
+  await page.reload({ waitUntil: "networkidle" });
+  return await page.evaluate(() => {
+    const layout = document.querySelector(".layout");
+    const rail = document.querySelector(".rail");
+    const explorer = document.querySelector(".workbench-explorer");
+    const inspector = document.querySelector(".workbench-inspector");
+    if (!layout || !rail || !explorer || !inspector) {
+      throw new Error("missing responsive workbench elements");
+    }
+    const layoutStyle = getComputedStyle(layout);
+    const railStyle = getComputedStyle(rail);
+    const explorerRect = explorer.getBoundingClientRect();
+    const inspectorRect = inspector.getBoundingClientRect();
+    if (layoutStyle.display !== "flex" || layoutStyle.flexDirection !== "column") {
+      throw new Error(`status mobile layout did not stack: ${layoutStyle.display}/${layoutStyle.flexDirection}`);
+    }
+    if (railStyle.flexDirection !== "row") {
+      throw new Error(`status mobile rail did not switch to row: ${railStyle.flexDirection}`);
+    }
+    if (inspectorRect.top <= explorerRect.bottom - 1) {
+      throw new Error(`status mobile inspector did not stack below explorer: ${explorerRect.bottom} vs ${inspectorRect.top}`);
+    }
+    return true;
+  });
+}
+' >/dev/null
+capture_session_snapshot "$status_mobile_session" "status-mobile"
+capture_session_screenshot "$status_mobile_session" "status-mobile"
+assert_has_text "status-mobile" "Status"
+assert_has_text "status-mobile" "Summary"
+pwcli_close "$status_mobile_session"
+
 capture_snapshot "/timeline" "timeline"
 assert_has_text "timeline" "Timeline"
 assert_has_text "timeline" "Explorer"
@@ -721,6 +761,32 @@ async (page) => await page.evaluate(() => {
   }
   return true;
 })
+' >/dev/null
+pwcli_run_code_checked "$timeline_inspector_session" '
+async (page) => {
+  const frame = page.locator(".workbench-page");
+  const divider = page.getByRole("separator", { name: /Timeline width/i });
+  const before = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const box = await divider.boundingBox();
+  if (!box) {
+    throw new Error("missing timeline splitter");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 72, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await divider.focus();
+  await page.keyboard.press("ArrowLeft");
+  const after = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+  const stored = await page.evaluate(() => window.localStorage.getItem("harness-ui:explorer-width:timeline"));
+  if (before === after) {
+    throw new Error(`timeline splitter width did not change: ${before}`);
+  }
+  if (!stored) {
+    throw new Error("timeline splitter width was not persisted");
+  }
+  return { before, after, stored };
+}
 ' >/dev/null
 output_ref="$(interactive_ref_from_snapshot "Output" "${output_dir}/timeline-inspector-initial.yml")"
 if [[ -z "$output_ref" ]]; then

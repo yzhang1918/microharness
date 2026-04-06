@@ -13,6 +13,7 @@ fi
 
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
+export PATH="$HOME/.local/bin:$PATH"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 harness_bin="${HARNESS_UI_BINARY:-$repo_root/.local/bin/harness}"
