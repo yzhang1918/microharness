@@ -54,7 +54,7 @@ var canonicalTransitionFamilies = []transitionFamily{
 	{ID: "await_merge_to_finalize_fix", From: "execution/finalize/await_merge", To: "execution/finalize/fix", Driver: "harness reopen --mode finalize-fix", RequiredInputs: "Merge-ready archived candidate has been invalidated without justifying a new step"},
 	{ID: "await_merge_to_finalize_fix_new_step", From: "execution/finalize/await_merge", To: "execution/finalize/fix", Driver: "harness reopen --mode new-step", RequiredInputs: "Merge-ready archived candidate has been invalidated and the change deserves a new unfinished step"},
 	{ID: "land_self", From: "land", To: "land", Driver: "state-preserving", RequiredInputs: "state-preserving update"},
-	{ID: "land_to_idle", From: "land", To: "idle", Driver: "harness land complete", RequiredInputs: "Merge cleanup is done and land completion is intentionally recorded"},
+	{ID: "land_to_idle", From: "land", To: "idle", Driver: "harness land complete", RequiredInputs: "Required post-merge bookkeeping is done and land completion is intentionally recorded"},
 }
 
 var currentScenarioCoverage = []scenarioCoverage{

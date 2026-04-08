@@ -1216,6 +1216,9 @@ func TestLandCompleteWritesIdleMarkerForStatus(t *testing.T) {
 	if !result.OK {
 		t.Fatalf("expected land complete success, got %#v", result)
 	}
+	if !strings.Contains(result.Summary, "required post-merge bookkeeping completion") {
+		t.Fatalf("expected land complete summary to mention required bookkeeping, got %#v", result)
+	}
 
 	current, err := runstate.LoadCurrentPlan(root)
 	if err != nil {
@@ -1231,6 +1234,46 @@ func TestLandCompleteWritesIdleMarkerForStatus(t *testing.T) {
 	}
 	if statusResult.State.CurrentNode != "idle" {
 		t.Fatalf("unexpected current node: %#v", statusResult.State)
+	}
+}
+
+func TestLandGuidanceRequiresPRAndIssueBookkeeping(t *testing.T) {
+	root := t.TempDir()
+	writeArchivedLandedPlan(t, root, "docs/plans/archived/2026-03-18-landed-plan.md")
+	if _, err := runstate.SaveCurrentPlan(root, "docs/plans/archived/2026-03-18-landed-plan.md"); err != nil {
+		t.Fatalf("save current plan: %v", err)
+	}
+	seedMergeReadyEvidenceForLifecycle(t, root)
+
+	result := lifecycle.Service{
+		Workdir: root,
+		Now: func() time.Time {
+			return time.Date(2026, 3, 18, 6, 0, 0, 0, time.UTC)
+		},
+	}.Land("https://github.com/catu-ai/easyharness/pull/99", "abc123")
+	if !result.OK {
+		t.Fatalf("expected land success, got %#v", result)
+	}
+	if !strings.Contains(result.Summary, "entered required post-merge bookkeeping") {
+		t.Fatalf("expected land summary to mention required bookkeeping, got %#v", result)
+	}
+	if len(result.NextAction) < 2 {
+		t.Fatalf("expected land next actions, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "required post-merge bookkeeping") {
+		t.Fatalf("expected bookkeeping guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "final PR comment") {
+		t.Fatalf("expected final PR comment guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[0].Description, "follow-up references") {
+		t.Fatalf("expected linked issue follow-up guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[1].Description, "only after the required PR and issue bookkeeping is done") {
+		t.Fatalf("expected land complete gate guidance, got %#v", result.NextAction)
+	}
+	if !strings.Contains(result.NextAction[1].Description, "required post-merge bookkeeping completion") {
+		t.Fatalf("expected land complete action to mention required bookkeeping completion, got %#v", result.NextAction)
 	}
 }
 

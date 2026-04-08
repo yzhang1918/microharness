@@ -59,12 +59,40 @@ func TestHelpShowsTopLevelUsage(t *testing.T) {
 	support.RequireContains(t, result.CombinedOutput(), "review start    Create a deterministic review round")
 	support.RequireContains(t, result.CombinedOutput(), "review submit   Record one reviewer submission")
 	support.RequireContains(t, result.CombinedOutput(), "review aggregate Aggregate reviewer submissions")
-	support.RequireContains(t, result.CombinedOutput(), "land            Record merge confirmation for the archived candidate")
-	support.RequireContains(t, result.CombinedOutput(), "land complete   Record post-merge cleanup completion")
+	support.RequireContains(t, result.CombinedOutput(), "land            Record merge confirmation and start required post-merge bookkeeping")
+	support.RequireContains(t, result.CombinedOutput(), "land complete   Record required post-merge bookkeeping completion")
 	support.RequireContains(t, result.CombinedOutput(), "archive         Freeze the current active plan")
 	support.RequireContains(t, result.CombinedOutput(), "reopen          Restore the current archived plan")
 	support.RequireContains(t, result.CombinedOutput(), "status          Summarize the current plan and local execution state")
 	support.RequireContains(t, result.CombinedOutput(), "install         Install or refresh the harness-managed repository bootstrap")
+}
+
+func TestLandHelpShowsRequiredBookkeepingContract(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+
+	result := support.Run(t, workspace.Root, "land", "--help")
+	support.RequireSuccess(t, result)
+	support.RequireContains(t, result.CombinedOutput(), "Usage: harness land --pr <url> [--commit <sha>]")
+	support.RequireContains(t, result.CombinedOutput(), "land            Record merge confirmation and enter required post-merge bookkeeping")
+	support.RequireContains(t, result.CombinedOutput(), "land complete   Record required post-merge bookkeeping completion and restore idle")
+}
+
+func TestLandEntryUsageShowsRequiredBookkeepingContract(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+
+	result := support.Run(t, workspace.Root, "land")
+	support.RequireExitCode(t, result, 2)
+	support.RequireContains(t, result.CombinedOutput(), "Usage: harness land --pr <url> [--commit <sha>]")
+	support.RequireContains(t, result.CombinedOutput(), "Record merge confirmation for the current archived candidate and enter required post-merge bookkeeping.")
+}
+
+func TestLandCompleteHelpShowsRequiredBookkeepingContract(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+
+	result := support.Run(t, workspace.Root, "land", "complete", "--help")
+	support.RequireSuccess(t, result)
+	support.RequireContains(t, result.CombinedOutput(), "Usage: harness land complete")
+	support.RequireContains(t, result.CombinedOutput(), "Record that required post-merge bookkeeping is complete and restore idle worktree state.")
 }
 
 func TestVersionPrintsHumanReadableBuildInfo(t *testing.T) {

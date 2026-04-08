@@ -149,7 +149,7 @@ rollback is covered explicitly.
 ### Out of Scope
 
 - Adding a new step after reopen.
-- Land cleanup.
+- Required post-merge bookkeeping.
 
 ## Acceptance Criteria
 
@@ -279,7 +279,7 @@ rollback and later new-step consumption are both explicit.
 ### Out of Scope
 
 - Running the reopened step through a full review loop.
-- Land cleanup.
+- Required post-merge bookkeeping.
 
 ## Acceptance Criteria
 

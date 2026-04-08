@@ -310,7 +310,7 @@ func TestServiceReadHidesArchivedRoundsDuringLandCleanup(t *testing.T) {
 	if len(result.Rounds) != 0 {
 		t.Fatalf("expected landed archived plan to hide review rounds, got %#v", result.Rounds)
 	}
-	if !strings.Contains(result.Summary, "hidden once land cleanup begins") {
+	if !strings.Contains(result.Summary, "hidden once required post-merge bookkeeping begins") {
 		t.Fatalf("unexpected summary for landed archived plan: %#v", result)
 	}
 }
@@ -339,9 +339,9 @@ func TestServiceReadHidesArchivedRoundsDuringLegacyLandCleanup(t *testing.T) {
 		t.Fatalf("expected review read to succeed, got %#v", result)
 	}
 	if len(result.Rounds) != 0 {
-		t.Fatalf("expected legacy land cleanup state to hide archived review rounds, got %#v", result.Rounds)
+		t.Fatalf("expected legacy required post-merge bookkeeping state to hide archived review rounds, got %#v", result.Rounds)
 	}
-	if !strings.Contains(result.Summary, "hidden once land cleanup begins") {
+	if !strings.Contains(result.Summary, "hidden once required post-merge bookkeeping begins") {
 		t.Fatalf("unexpected summary for legacy landed archived plan: %#v", result)
 	}
 }

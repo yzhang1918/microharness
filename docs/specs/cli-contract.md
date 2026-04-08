@@ -816,7 +816,7 @@ Contract:
 Purpose:
 
 - record merge confirmation for the current archived candidate and enter land
-  cleanup
+  for the required post-merge bookkeeping
 
 Contract:
 
@@ -827,13 +827,14 @@ Contract:
 - leave archived plan content untouched; this is a local-state milestone only
 - return the shared v0.2 envelope with the `land` post-command node and any
   relevant `land_pr_url` / `land_commit` facts
-- return next actions that guide post-merge cleanup
+- return next actions that guide the required post-merge bookkeeping
 
 ### `harness land complete`
 
 Purpose:
 
-- record post-merge cleanup completion and restore idle worktree state
+- record required post-merge bookkeeping completion and restore idle worktree
+  state
 
 Contract:
 
