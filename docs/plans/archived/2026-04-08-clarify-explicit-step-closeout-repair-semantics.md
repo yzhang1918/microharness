@@ -203,13 +203,17 @@ behavior and does not change production logic.
   coverage in `tests/e2e/coverage_test.go` and
   `tests/e2e/explicit_step_repair_test.go` after CI exposed drift between the
   tracked transition matrix and the canonical test catalog.
-- Revalidated the repaired candidate with:
+- Revalidated revision 2 with:
   `go test ./tests/e2e/...`
   and
   `go test ./...`
+- After remote freshness checks showed the archived candidate had fallen behind
+  `origin/main`, reopened in `finalize-fix`, merged `origin/main` cleanly, and
+  revalidated revision 3 with:
+  `go test ./...`
 - Re-ran `harness plan lint docs/plans/active/2026-04-08-clarify-explicit-step-closeout-repair-semantics.md`
-  and `harness status` after the reopen-driven finalize-fix loop so the plan
-  returned to archive-ready state on revision 2.
+  and `harness status` through the reopen-driven finalize-fix loops so the
+  tracked plan stayed archive-ready before each archive attempt.
 
 ## Review Summary
 
@@ -235,18 +239,22 @@ behavior and does not change production logic.
   the archived candidate was reopened in `finalize-fix` mode for revision 2,
   the missing E2E coverage was added, and finalize review `review-006-full`
   passed cleanly with no blocking or non-blocking findings.
+- After revision-2 CI succeeded, remote freshness checks showed the archived
+  candidate was behind `origin/main`; the candidate was reopened again in
+  `finalize-fix`, merged `origin/main`, and finalize review `review-007-full`
+  passed cleanly with no blocking or non-blocking findings.
 
 ## Archive Summary
 
-- Archived At: 2026-04-08T21:23:00+08:00
-- Revision: 2
+- Archived At: 2026-04-08T21:31:56+08:00
+- Revision: 3
 - PR: `#114` (`https://github.com/catu-ai/easyharness/pull/114`)
-- Ready: The reopened finalize-fix candidate has a passing full finalize review
-  (`review-006-full`), focused and end-to-end validation are green, and the
-  remaining deferred scope is tracked separately in issue `#113`.
-- Merge Handoff: Archive the revision-2 candidate, commit the CI-fix follow-up,
-  push the branch update to PR `#114`, and refresh CI/sync evidence so the
-  candidate can return to merge-ready handoff.
+- Ready: The reopened remote-sync candidate has a passing full finalize review
+  (`review-007-full`), full validation is green after merging `origin/main`,
+  and the remaining deferred scope is tracked separately in issue `#113`.
+- Merge Handoff: Archive the revision-3 candidate, push the refreshed branch to
+  PR `#114`, then record publish, CI, and sync evidence for the now-fresh
+  archived candidate so status can advance to merge-ready handoff.
 
 ## Outcome Summary
 
@@ -263,6 +271,8 @@ behavior and does not change production logic.
 - Added canonical transition-catalog coverage and a built-binary E2E scenario
   for explicit earlier-step repair so CI now enforces the same revision-2
   semantics that the tracked specs describe.
+- Refreshed the archived candidate against the current `origin/main` baseline
+  so the handoff can reach merge-ready state without stale-sync debt.
 
 ### Not Delivered
 
