@@ -135,6 +135,14 @@ target_dir="$(choose_install_dir)"
 command_path="${target_dir}/harness"
 global_fallback_path="$(choose_global_fallback_path)"
 
+normalize_path() {
+  local path="$1"
+  local dir base
+  dir="$(cd "$(dirname "${path}")" 2>/dev/null && pwd -P)" || return 1
+  base="$(basename "${path}")"
+  printf '%s/%s\n' "${dir}" "${base}"
+}
+
 if [[ "${command_path}" == "${binary_path}" ]]; then
   echo "Refusing to install the wrapper over the repo-local binary at ${binary_path}." >&2
   echo "Choose a different --install-dir." >&2
@@ -299,7 +307,16 @@ if [[ "${install_global_fallback}" -eq 1 ]]; then
     exit 1
   fi
 
+  mkdir -p "${target_dir}"
   mkdir -p "$(dirname "${global_fallback_path}")"
+  normalized_command_path="$(normalize_path "${command_path}")"
+  normalized_global_fallback_path="$(normalize_path "${global_fallback_path}")"
+  if [[ "${normalized_command_path}" == "${normalized_global_fallback_path}" ]]; then
+    echo "Refusing to install the wrapper over the global fallback binary at ${global_fallback_path}." >&2
+    echo "Choose a different --install-dir." >&2
+    exit 2
+  fi
+
   cp "${binary_path}" "${global_fallback_path}"
   chmod 755 "${global_fallback_path}"
   global_fallback_updated=1

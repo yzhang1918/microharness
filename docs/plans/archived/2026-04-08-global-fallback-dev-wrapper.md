@@ -194,19 +194,29 @@ change, so the controller deferred review to the integrated branch candidate.
   `go test ./tests/smoke -run InstallDevHarness -count=1`.
 - `review-002-delta` passed cleanly for the bounded review-fix.
 - `review-003-full` passed with one non-blocking tests note about missing smoke
-  coverage for the default `scripts/install-dev-harness --global` path; that
-  follow-up is tracked in `#119`.
+  coverage for the default `scripts/install-dev-harness --global` path.
+- Reopened in `finalize-fix` mode for revision `2`, added the missing default
+  `--global` smoke coverage, and reran
+  `go test ./tests/smoke -run InstallDevHarness -count=1`.
+- `review-004-full` then requested two blocking findings: validate
+  wrapper-vs-fallback path conflicts before mutating the global fallback, and
+  prove that `--global` refreshes an already-populated stale fallback.
+- The repair now validates the wrapper target before writing the fallback and
+  adds smoke coverage for stale-fallback refresh plus the conflict path.
+- `review-005-delta` passed cleanly for that bounded follow-up.
 
 ## Archive Summary
 
-- Archived At: 2026-04-08T22:56:18+08:00
-- Revision: 1
-- PR: not created yet; publish evidence will record the PR URL after archive.
-- Ready: `review-003-full` passed as the archive-gating finalize review, all
-  acceptance criteria are satisfied, and only archive/publish handoff remains.
-- Merge Handoff: Archive this plan, then commit and push the archive move plus
-  tracked code/doc changes, open the PR, record publish/CI/sync evidence, and
-  wait for merge approval.
+- Archived At: 2026-04-08T23:22:48+08:00
+- Revision: 2
+- PR: existing PR `https://github.com/catu-ai/easyharness/pull/120` stays open
+  for the reopened finalize-fix candidate.
+- Ready: `review-005-delta` passed cleanly for the bounded revision-2 repair,
+  all acceptance criteria remain satisfied, and the candidate is ready to
+  re-enter publish/merge handoff after re-archive.
+- Merge Handoff: Re-archive this plan, push the revision-2 repair to the
+  existing branch and PR, refresh publish/CI/sync evidence, and wait for merge
+  approval once status returns to `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
@@ -221,14 +231,14 @@ change, so the controller deferred review to the integrated branch candidate.
 - Locked the default wrapper install directory policy to `~/.local/bin` and
   documented the required PATH setup in `README.md`.
 - Expanded installer smoke coverage for the explicit global fallback contract,
-  preservation of an existing global fallback on ordinary installs, and
-  worktree-vs-global precedence.
+  preservation of an existing global fallback on ordinary installs,
+  worktree-vs-global precedence, and the default
+  `scripts/install-dev-harness --global` path.
 
 ### Not Delivered
 
-- Default-path smoke coverage for `scripts/install-dev-harness --global`
-  without `--install-dir`; tracked as `#119`.
+None.
 
 ### Follow-Up Issues
 
-- `#119` Add smoke coverage for the default `--global` installer path.
+NONE

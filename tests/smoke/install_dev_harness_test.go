@@ -65,6 +65,112 @@ func TestInstallDevHarnessDefaultsToUserLocalBin(t *testing.T) {
 	}
 }
 
+func TestInstallDevHarnessGlobalDefaultsToUserLocalBinAndRefreshesFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("installer smoke tests require a POSIX shell")
+	}
+
+	repoRoot := copyInstallerFixture(t)
+	tempHome := t.TempDir()
+
+	result := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t, filepath.Join(tempHome, ".local", "bin")),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--global",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("install-dev-harness --global failed with exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+
+	expectedWrapper := filepath.Join(tempHome, ".local", "bin", "harness")
+	support.RequireFileExists(t, expectedWrapper)
+	support.RequireContains(t, result.Stdout, "Installed harness wrapper at "+expectedWrapper)
+
+	expectedGlobalFallback := filepath.Join(tempHome, ".local", "share", "easyharness", "dev", "harness")
+	support.RequireFileExists(t, expectedGlobalFallback)
+	support.RequireContains(t, result.Stdout, "Updated global fallback binary at "+expectedGlobalFallback)
+
+	writeFixtureFile(t, expectedGlobalFallback, "#!/bin/sh\nprintf 'stale-fallback\\n'\n", 0o755)
+
+	refreshResult := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t, filepath.Join(tempHome, ".local", "bin")),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--global",
+	)
+	if refreshResult.ExitCode != 0 {
+		t.Fatalf("second install-dev-harness --global failed with exit %d\nstdout:\n%s\nstderr:\n%s", refreshResult.ExitCode, refreshResult.Stdout, refreshResult.Stderr)
+	}
+
+	fallbackResult := runCommand(
+		t,
+		t.TempDir(),
+		envWithOverrides(t, map[string]string{
+			"PATH": installerPath(t),
+		}),
+		expectedWrapper,
+		"--help",
+	)
+	if fallbackResult.ExitCode != 0 {
+		t.Fatalf("wrapper using refreshed global fallback failed with exit %d\nstdout:\n%s\nstderr:\n%s", fallbackResult.ExitCode, fallbackResult.Stdout, fallbackResult.Stderr)
+	}
+	if strings.Contains(fallbackResult.CombinedOutput(), "stale-fallback") {
+		t.Fatalf("expected --global refresh to overwrite stale fallback contents\nstdout:\n%s\nstderr:\n%s", fallbackResult.Stdout, fallbackResult.Stderr)
+	}
+	support.RequireContains(t, refreshResult.Stdout, "Updated global fallback binary at "+expectedGlobalFallback)
+}
+
+func TestInstallDevHarnessGlobalRejectsWrapperInstallDirConflict(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("installer smoke tests require a POSIX shell")
+	}
+
+	repoRoot := copyInstallerFixture(t)
+	tempHome := t.TempDir()
+	conflictingDir := filepath.Join(tempHome, ".local", "share", "easyharness", "dev")
+	conflictingBinary := filepath.Join(conflictingDir, "harness")
+	if err := os.MkdirAll(conflictingDir, 0o755); err != nil {
+		t.Fatalf("mkdir conflicting dir: %v", err)
+	}
+	writeFixtureFile(t, conflictingBinary, "#!/bin/sh\nprintf 'old-global\\n'\n", 0o755)
+
+	result := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--global",
+		"--install-dir", conflictingDir,
+	)
+	if result.ExitCode == 0 {
+		t.Fatalf("expected conflicting --install-dir to fail\nstdout:\n%s\nstderr:\n%s", result.Stdout, result.Stderr)
+	}
+	support.RequireContains(t, result.Stderr, "Refusing to install the wrapper over the global fallback binary")
+
+	fallbackContents, err := os.ReadFile(conflictingBinary)
+	if err != nil {
+		t.Fatalf("read conflicting fallback after failed install: %v", err)
+	}
+	if string(fallbackContents) != "#!/bin/sh\nprintf 'old-global\\n'\n" {
+		t.Fatalf("expected failed install to leave existing fallback untouched, got:\n%s", string(fallbackContents))
+	}
+}
+
 func TestInstallDevHarnessVerifiesPATHResolvedWrapperWhenInstallDirIsAlreadyOnPATH(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("installer smoke tests require a POSIX shell")
