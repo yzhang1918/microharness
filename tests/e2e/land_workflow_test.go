@@ -107,7 +107,7 @@ func landWorkflowPlanBody() string {
 	return strings.TrimSpace(`
 ## Goal
 
-Exercise merge confirmation and post-merge cleanup through the real built
+Exercise merge confirmation and required post-merge bookkeeping through the real built
 binary so the workflow covers ` + "`" + `await_merge -> land -> idle` + "`" + ` as
 explicit command-owned transitions.
 
@@ -117,7 +117,7 @@ explicit command-owned transitions.
 
 - Archive a clean candidate.
 - Record the evidence needed to reach merge-ready handoff.
-- Enter land cleanup and then complete it.
+- Enter required post-merge bookkeeping and then complete it.
 
 ### Out of Scope
 
@@ -125,7 +125,7 @@ explicit command-owned transitions.
 
 ## Acceptance Criteria
 
-- [ ] Merge-ready evidence allows ` + "`" + `harness land --pr ...` + "`" + ` to enter land cleanup.
+- [ ] Merge-ready evidence allows ` + "`" + `harness land --pr ...` + "`" + ` to enter required post-merge bookkeeping.
 - [ ] Status remains at ` + "`" + `land` + "`" + ` until ` + "`" + `harness land complete` + "`" + ` is recorded.
 - [ ] ` + "`" + `harness land complete` + "`" + ` restores idle while preserving last-landed context.
 
@@ -173,7 +173,7 @@ Close out the final pre-land step and reach merge-ready handoff.
 
 #### Details
 
-Archive-ready top-level summaries are prefilled so the scenario can reach land cleanup through real commands.
+Archive-ready top-level summaries are prefilled so the scenario can reach required post-merge bookkeeping through real commands.
 
 #### Expected Files
 
@@ -202,11 +202,11 @@ PENDING_STEP_REVIEW
 
 ## Validation Summary
 
-Validated merge-ready handoff and post-merge cleanup through the built binary.
+Validated merge-ready handoff and required post-merge bookkeeping through the built binary.
 
 ## Review Summary
 
-No unresolved blocking review findings remain in the candidate used for land cleanup.
+No unresolved blocking review findings remain in the candidate used for required post-merge bookkeeping.
 
 ## Archive Summary
 
@@ -218,7 +218,7 @@ No unresolved blocking review findings remain in the candidate used for land cle
 
 ### Delivered
 
-Delivered the merge-ready candidate and land cleanup scenario.
+Delivered the merge-ready candidate and required post-merge bookkeeping scenario.
 
 ### Not Delivered
 

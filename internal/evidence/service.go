@@ -512,10 +512,10 @@ func (s Service) loadCurrentArchivedPlan() (string, string, string, *runstate.St
 		release()
 		return "", "", "", nil, "", func() {}, &Result{
 			OK:      false,
-			Summary: "Evidence commands are not allowed after merge confirmation enters land cleanup.",
+			Summary: "Evidence commands are not allowed after merge confirmation enters required post-merge bookkeeping.",
 			Errors: []CommandError{{
 				Path:    "state.current_node",
-				Message: "current archived candidate is already in land cleanup",
+				Message: "current archived candidate is already in required post-merge bookkeeping",
 			}},
 		}
 	}

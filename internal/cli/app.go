@@ -267,7 +267,7 @@ func (a *App) runLandEntry(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintln(a.Stderr, "Usage: harness land --pr <url> [--commit <sha>]")
 		fmt.Fprintln(a.Stderr)
-		fmt.Fprintln(a.Stderr, "Record merge confirmation for the current archived candidate and enter land cleanup.")
+		fmt.Fprintln(a.Stderr, "Record merge confirmation for the current archived candidate and enter required post-merge bookkeeping.")
 	}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -674,7 +674,7 @@ func (a *App) runLandComplete(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintln(a.Stderr, "Usage: harness land complete")
 		fmt.Fprintln(a.Stderr)
-		fmt.Fprintln(a.Stderr, "Record that post-merge cleanup is complete and restore idle worktree state.")
+		fmt.Fprintln(a.Stderr, "Record that required post-merge bookkeeping is complete and restore idle worktree state.")
 	}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -802,8 +802,8 @@ func (a *App) printRootUsage() {
 	fmt.Fprintln(a.Stderr, "  review start    Create a deterministic review round")
 	fmt.Fprintln(a.Stderr, "  review submit   Record one reviewer submission")
 	fmt.Fprintln(a.Stderr, "  review aggregate Aggregate reviewer submissions")
-	fmt.Fprintln(a.Stderr, "  land            Record merge confirmation for the archived candidate")
-	fmt.Fprintln(a.Stderr, "  land complete   Record post-merge cleanup completion")
+	fmt.Fprintln(a.Stderr, "  land            Record merge confirmation and start required post-merge bookkeeping")
+	fmt.Fprintln(a.Stderr, "  land complete   Record required post-merge bookkeeping completion")
 	fmt.Fprintln(a.Stderr, "  archive         Freeze the current active plan")
 	fmt.Fprintln(a.Stderr, "  reopen          Restore the current archived plan")
 	fmt.Fprintln(a.Stderr, "  status          Summarize the current plan and local execution state")
@@ -847,8 +847,8 @@ func (a *App) printLandUsage() {
 	fmt.Fprintln(a.Stderr, "   or: harness land complete")
 	fmt.Fprintln(a.Stderr)
 	fmt.Fprintln(a.Stderr, "Commands:")
-	fmt.Fprintln(a.Stderr, "  land            Record merge confirmation and enter post-merge cleanup")
-	fmt.Fprintln(a.Stderr, "  land complete   Record post-merge cleanup completion and restore idle")
+	fmt.Fprintln(a.Stderr, "  land            Record merge confirmation and enter required post-merge bookkeeping")
+	fmt.Fprintln(a.Stderr, "  land complete   Record required post-merge bookkeeping completion and restore idle")
 }
 
 type stringListFlag []string

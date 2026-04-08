@@ -255,9 +255,9 @@ func (s Service) Reopen(mode string) Result {
 		}})
 	}
 	if state != nil && (state.CurrentNode == "land" || (state.Land != nil && strings.TrimSpace(state.Land.LandedAt) != "" && strings.TrimSpace(state.Land.CompletedAt) == "")) {
-		return errorResult("reopen", "Archived candidate is already in land cleanup.", []CommandError{{
+		return errorResult("reopen", "Archived candidate is already in required post-merge bookkeeping.", []CommandError{{
 			Path:    "state.current_node",
-			Message: "land cleanup must finish with `harness land complete` before reopen is allowed",
+			Message: "required post-merge bookkeeping must finish with `harness land complete` before reopen is allowed",
 		}})
 	}
 	mode = strings.TrimSpace(mode)
@@ -405,7 +405,7 @@ func (s Service) Land(prURL, commit string) Result {
 		recordedCommit := strings.TrimSpace(state.Land.Commit)
 		requestedCommit := strings.TrimSpace(commit)
 		if recordedPR != prURL || (requestedCommit != "" && recordedCommit != "" && requestedCommit != recordedCommit) {
-			return errorResult("land", "Land cleanup is already in progress.", []CommandError{{
+			return errorResult("land", "Required post-merge bookkeeping is already in progress.", []CommandError{{
 				Path:    "state.land",
 				Message: fmt.Sprintf("land already recorded for pr=%q commit=%q at %s", recordedPR, recordedCommit, state.Land.LandedAt),
 			}})
@@ -420,7 +420,7 @@ func (s Service) Land(prURL, commit string) Result {
 			result := Result{
 				OK:      true,
 				Command: "land",
-				Summary: fmt.Sprintf("Recorded landed commit for the in-progress cleanup of %s.", filepath.Base(currentPath)),
+				Summary: fmt.Sprintf("Recorded landed commit for the in-progress required post-merge bookkeeping of %s.", filepath.Base(currentPath)),
 				State: State{
 					CurrentNode: "land",
 				},
@@ -434,8 +434,8 @@ func (s Service) Land(prURL, commit string) Result {
 					LocalStatePath: statePath,
 				},
 				NextAction: []NextAction{
-					{Command: nil, Description: "Finish post-merge cleanup such as comments, issue closure, local branch sync, and any final remote updates."},
-					{Command: strPtr("harness land complete"), Description: "Record cleanup completion once post-merge follow-up is done."},
+					{Command: nil, Description: "Finish required post-merge bookkeeping and cleanup: add the final PR comment when the permanent record still needs one, close resolved linked issues or add follow-up references for unresolved ones, sync local branches, and complete any final remote updates."},
+					{Command: strPtr("harness land complete"), Description: "Record required post-merge bookkeeping completion only after the required PR and issue bookkeeping is done."},
 				},
 			}
 			return s.finalizeMutation(result, func() []CommandError {
@@ -445,7 +445,7 @@ func (s Service) Land(prURL, commit string) Result {
 		return s.finalizeMutation(Result{
 			OK:      true,
 			Command: "land",
-			Summary: fmt.Sprintf("Land cleanup is already in progress for %s.", filepath.Base(currentPath)),
+			Summary: fmt.Sprintf("Required post-merge bookkeeping is already in progress for %s.", filepath.Base(currentPath)),
 			State: State{
 				CurrentNode: "land",
 			},
@@ -459,13 +459,13 @@ func (s Service) Land(prURL, commit string) Result {
 				LocalStatePath: statePath,
 			},
 			NextAction: []NextAction{
-				{Command: nil, Description: "Finish post-merge cleanup such as comments, issue closure, local branch sync, and any final remote updates."},
-				{Command: strPtr("harness land complete"), Description: "Record cleanup completion once post-merge follow-up is done."},
+				{Command: nil, Description: "Finish required post-merge bookkeeping and cleanup: add the final PR comment when the permanent record still needs one, close resolved linked issues or add follow-up references for unresolved ones, sync local branches, and complete any final remote updates."},
+				{Command: strPtr("harness land complete"), Description: "Record required post-merge bookkeeping completion only after the required PR and issue bookkeeping is done."},
 			},
 		}, nil)
 	}
 	if issues := s.landReadinessIssues(state, prURL); len(issues) > 0 {
-		return errorResult("land", "Archived candidate is not ready to enter land cleanup.", issues)
+		return errorResult("land", "Archived candidate is not ready to enter required post-merge bookkeeping.", issues)
 	}
 	originalState := cloneState(state)
 	if state == nil {
@@ -490,7 +490,7 @@ func (s Service) Land(prURL, commit string) Result {
 	result := Result{
 		OK:      true,
 		Command: "land",
-		Summary: fmt.Sprintf("Recorded merge confirmation for %s and entered land cleanup.", filepath.Base(currentPath)),
+		Summary: fmt.Sprintf("Recorded merge confirmation for %s and entered required post-merge bookkeeping.", filepath.Base(currentPath)),
 		State: State{
 			CurrentNode: "land",
 		},
@@ -504,8 +504,8 @@ func (s Service) Land(prURL, commit string) Result {
 			LocalStatePath: statePath,
 		},
 		NextAction: []NextAction{
-			{Command: nil, Description: "Finish post-merge cleanup such as comments, issue closure, local branch sync, and any final remote updates."},
-			{Command: strPtr("harness land complete"), Description: "Record cleanup completion once post-merge follow-up is done."},
+			{Command: nil, Description: "Finish required post-merge bookkeeping and cleanup: add the final PR comment when the permanent record still needs one, close resolved linked issues or add follow-up references for unresolved ones, sync local branches, and complete any final remote updates."},
+			{Command: strPtr("harness land complete"), Description: "Record required post-merge bookkeeping completion only after the required PR and issue bookkeeping is done."},
 		},
 	}
 	return s.finalizeMutation(result, func() []CommandError {
@@ -528,7 +528,7 @@ func (s Service) LandComplete() Result {
 		}})
 	}
 	if state == nil || state.Land == nil || strings.TrimSpace(state.Land.LandedAt) == "" {
-		return errorResult("land complete", "Land cleanup cannot complete before land entry.", []CommandError{{
+		return errorResult("land complete", "Required post-merge bookkeeping cannot complete before land entry.", []CommandError{{
 			Path:    "state.land",
 			Message: "run `harness land --pr <url>` before `harness land complete`",
 		}})
@@ -559,7 +559,7 @@ func (s Service) LandComplete() Result {
 	result := Result{
 		OK:      true,
 		Command: "land complete",
-		Summary: fmt.Sprintf("Recorded post-merge cleanup completion for %s.", filepath.Base(currentPath)),
+		Summary: fmt.Sprintf("Recorded required post-merge bookkeeping completion for %s.", filepath.Base(currentPath)),
 		State: State{
 			CurrentNode: "idle",
 		},
@@ -1060,7 +1060,7 @@ func (s Service) landReadinessIssues(state *runstate.State, prURL string) []Comm
 	if publish == nil || publish.Status != "recorded" || strings.TrimSpace(publish.PRURL) == "" {
 		issues = append(issues, CommandError{
 			Path:    "state.latest_evidence.publish",
-			Message: "record publish evidence with a PR URL before entering land cleanup",
+			Message: "record publish evidence with a PR URL before entering required post-merge bookkeeping",
 		})
 	} else if strings.TrimSpace(publish.PRURL) != prURL {
 		issues = append(issues, CommandError{
@@ -1076,7 +1076,7 @@ func (s Service) landReadinessIssues(state *runstate.State, prURL string) []Comm
 	if ciRecord == nil || (ciRecord.Status != "success" && ciRecord.Status != "not_applied") {
 		issues = append(issues, CommandError{
 			Path:    "state.latest_evidence.ci",
-			Message: "record passing or explicit not_applied CI evidence before entering land cleanup",
+			Message: "record passing or explicit not_applied CI evidence before entering required post-merge bookkeeping",
 		})
 	}
 
@@ -1087,7 +1087,7 @@ func (s Service) landReadinessIssues(state *runstate.State, prURL string) []Comm
 	if syncRecord == nil || (syncRecord.Status != "fresh" && syncRecord.Status != "not_applied") {
 		issues = append(issues, CommandError{
 			Path:    "state.latest_evidence.sync",
-			Message: "record fresh or explicit not_applied sync evidence before entering land cleanup",
+			Message: "record fresh or explicit not_applied sync evidence before entering required post-merge bookkeeping",
 		})
 	}
 

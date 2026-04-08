@@ -87,7 +87,7 @@ func (s Service) Read() Result {
 		return Result{
 			OK:       true,
 			Resource: "review",
-			Summary:  "Review data is hidden once land cleanup begins.",
+			Summary:  "Review data is hidden once required post-merge bookkeeping begins.",
 			Artifacts: &Artifacts{
 				PlanPath:       relPlanPath,
 				LocalStatePath: statePath,
