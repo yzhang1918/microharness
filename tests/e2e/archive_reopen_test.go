@@ -86,7 +86,7 @@ finalize repair without adding a new step.
 
 ### Out of Scope
 
-- Publish evidence, merge approval, and land cleanup.
+- Publish evidence, merge approval, and required post-merge bookkeeping.
 
 ## Acceptance Criteria
 

@@ -176,8 +176,8 @@ Resolution rules:
 
 ## High-Level Resolution Order
 
-1. If merge has been confirmed and land cleanup is still incomplete, resolve
-   `land`.
+1. If merge has been confirmed and the required post-merge bookkeeping is still
+   incomplete, resolve `land`.
 2. Otherwise, if no current work exists, resolve `idle`.
 3. Otherwise, if the current active plan exists but execution-start has not
    been recorded, resolve `plan`.
@@ -251,8 +251,9 @@ marked `not_applied`.
 
 ### `land`
 
-Merge is confirmed and post-merge cleanup is in progress. Cleanup remains in
-`land` until `harness land complete` intentionally restores `idle`.
+Merge is confirmed and required post-merge bookkeeping is in progress. This
+work remains in `land` until `harness land complete` intentionally restores
+`idle`.
 
 ## Step and Review Rules
 
@@ -354,7 +355,7 @@ Land is explicit and two-stage:
 - `harness land --pr <url> [--commit <sha>]`
   - records merge confirmation and enters `land`
 - `harness land complete`
-  - records cleanup completion and restores `idle`
+  - records required post-merge bookkeeping completion and restores `idle`
 
 The PR URL is required for land entry in v0.2. Commit SHA is optional because
 merge strategy may produce a different landed commit shape across merge-commit,

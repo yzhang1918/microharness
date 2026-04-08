@@ -270,8 +270,8 @@ the lightweight path, create or update a tracked standard plan under
 record publish, CI, and sync facts for the archived candidate through
 `harness evidence submit` until status reaches
 `execution/finalize/await_merge`. After merge, enter `land` with
-`harness land --pr <url> [--commit <sha>]`, finish post-merge cleanup, then
-run `harness land complete` so status returns to `idle`.
+`harness land --pr <url> [--commit <sha>]`, finish the required post-merge
+bookkeeping, then run `harness land complete` so status returns to `idle`.
 
 For narrow low-risk work, `harness` may instead use a tracked active plan under
 `docs/plans/active/` with the same schema plus `workflow_profile: lightweight`.

@@ -58,7 +58,7 @@ the normative transition matrix.
 | `execution/finalize/await_merge` | `land` | `harness land --pr <url> [--commit <sha>]` | Human approval exists, merge happened outside harness, and land entry records the PR URL | Optional commit SHA enriches the record but is not required because merge strategies vary. |
 | `execution/finalize/await_merge` | `execution/finalize/fix` | `harness reopen --mode finalize-fix` | Merge-ready archived candidate has been invalidated without justifying a new step | Reopen preserves audit history instead of blanking archive-time text. |
 | `execution/finalize/await_merge` | `execution/finalize/fix` | `harness reopen --mode new-step` | Merge-ready archived candidate has been invalidated and the change deserves a new unfinished step | Status stays in finalize-scope repair until the first new unfinished step is actually added. |
-| `land` | `idle` | `harness land complete` | Merge cleanup is done and land completion is intentionally recorded | `idle` is restored only by an explicit command-owned completion. |
+| `land` | `idle` | `harness land complete` | Required post-merge bookkeeping is done and land completion is intentionally recorded | `idle` is restored only by an explicit command-owned completion. |
 
 ## State-Preserving Updates
 
@@ -85,7 +85,7 @@ advancing it:
   - new publish, CI, or sync evidence arrives but the archived candidate is
     still not merge-ready
 - `land -> land`
-  - post-merge cleanup continues before `harness land complete`
+  - required post-merge bookkeeping continues before `harness land complete`
 
 ## Invalid Shortcuts
 

@@ -810,7 +810,7 @@ func buildSummary(node string, facts *Facts, reviewCtx *reviewContext, blockers 
 	case "execution/finalize/await_merge":
 		return "Plan is archived, published, and merge-ready; waiting for human merge approval."
 	case "land":
-		return "Merge has been recorded and post-merge cleanup is still in progress."
+		return "Merge has been recorded and required post-merge bookkeeping is still in progress."
 	}
 
 	if strings.HasSuffix(node, "/review") {
@@ -946,7 +946,7 @@ func buildNextActions(node string, facts *Facts, reviewCtx *reviewContext, block
 		if facts != nil && strings.TrimSpace(facts.PRURL) != "" {
 			actions = append(actions, NextAction{
 				Command:     strPtr(fmt.Sprintf("harness land --pr %s [--commit <sha>]", facts.PRURL)),
-				Description: "After the PR is merged outside harness and the worktree is synced, record merge confirmation and enter post-merge cleanup.",
+				Description: "After the PR is merged outside harness and the worktree is synced, record merge confirmation and enter required post-merge bookkeeping.",
 			})
 		}
 		actions = append(actions, NextAction{
@@ -956,8 +956,8 @@ func buildNextActions(node string, facts *Facts, reviewCtx *reviewContext, block
 		return actions
 	case "land":
 		return []NextAction{
-			{Command: nil, Description: "Finish post-merge cleanup such as comments, issue updates, and other closeout tasks while the plan is in land."},
-			{Command: strPtr("harness land complete"), Description: "Record cleanup completion and restore the worktree to idle."},
+			{Command: nil, Description: "Finish required post-merge bookkeeping and cleanup while the plan is in land: add the final PR comment when the permanent record still needs one, close resolved linked issues or add follow-up references for unresolved ones, and complete the remaining closeout tasks."},
+			{Command: strPtr("harness land complete"), Description: "Record required post-merge bookkeeping completion only after the required PR and issue bookkeeping is done, then restore the worktree to idle."},
 		}
 	}
 

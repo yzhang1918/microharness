@@ -148,7 +148,7 @@ step execution after a new unfinished step is added to the tracked plan.
 
 ### Out of Scope
 
-- Publish evidence, merge approval, and land cleanup.
+- Publish evidence, merge approval, and required post-merge bookkeeping.
 
 ## Acceptance Criteria
 
