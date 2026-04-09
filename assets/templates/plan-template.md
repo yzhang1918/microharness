@@ -7,6 +7,9 @@ source_refs: []
 
 # Replace With Plan Title
 
+<!-- If this plan uses supplements/<plan-stem>/, keep the markdown concise and
+record archive-time supplement absorption in Archive Summary or Outcome Summary. -->
+
 ## Goal
 
 Describe the intended outcome in one or two short paragraphs.

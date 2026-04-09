@@ -37,8 +37,15 @@ Use this skill to create or update the tracked plan that will drive execution.
 5. Make the plan self-contained. Fold in decisions from discovery or prior
    discussion so another agent can execute from the plan plus repository state
    alone.
+   - when durable execution detail would bloat the markdown plan, persist it in
+     the matching `supplements/<plan-stem>/` package directory under the same
+     active or archived root and treat that material as part of the approved
+     plan package
 6. Keep execution detail concise. Push runtime mechanics into skills and CLI
    contracts instead of bloating the plan.
+   - use the markdown plan as the main review entrypoint and use supplements
+     only for bulky durable detail such as spec drafts, formulas, or structured
+     design notes
 7. Reread the plan as if the chat history were unavailable. Fix anything that
    still depends on hidden context.
 8. Run `harness plan lint <plan-path>`.
@@ -77,3 +84,5 @@ The plan is ready when:
   command or spec already defines them.
 - Do not let deferred work float without being named clearly in the plan.
 - Do not leave key decisions only in discovery chat or session memory.
+- Do not treat `supplements/` as optional scratch space once the plan is up for
+  approval; if it matters for execution, it belongs in the approved package.

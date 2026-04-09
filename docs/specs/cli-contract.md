@@ -172,6 +172,10 @@ artifact paths or IDs worth returning.
 tracked standard archive under `docs/plans/archived/`, or a lightweight local
 archive under `.local/harness/plans/archived/<plan-stem>.md`.
 
+When a matching `supplements/<plan-stem>/` directory exists for that markdown
+plan, commands may also surface it through command-specific `artifacts`
+without changing the markdown path's role as the primary plan handle.
+
 `next_actions` should be short, concrete, non-empty, and ordered from the most
 likely next step to less common alternatives.
 
@@ -216,6 +220,7 @@ help explain the node:
 `artifacts` may include stable pointers such as:
 
 - `plan_path`
+- `supplements_path`
 - `local_state_path`
 - `review_round_id`
 - latest evidence record IDs
@@ -729,6 +734,8 @@ Contract:
   - `docs/plans/active/` -> `docs/plans/archived/` for `standard`
   - `docs/plans/active/` ->
     `.local/harness/plans/archived/<plan-stem>.md` for `lightweight`
+- when a matching `supplements/<plan-stem>/` directory exists, move it with
+  the markdown plan to the corresponding archived root
 - update `.local/harness/current-plan.json` to the archived plan path
 - keep publish, CI, and sync follow-up out of the archive gate; those belong to
   `execution/finalize/publish`
@@ -776,6 +783,8 @@ Purpose:
 Contract:
 
 - move the plan from its archived path back to the matching active path
+- when a matching `supplements/<plan-stem>/` directory exists, move it with
+  the markdown plan back to the active root
 - increment command-owned revision state
 - require an explicit mode such as `finalize-fix` or `new-step`
 - preserve archive audit history via explicit update-required placeholders

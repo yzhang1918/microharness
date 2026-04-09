@@ -285,9 +285,13 @@ reporting layered lifecycle or step-state fields. Common nodes include
 
 For medium or large work, or any change that is not explicitly eligible for
 the lightweight path, create or update a tracked standard plan under
-`docs/plans/active/`, execute against that plan, archive it under
-`docs/plans/archived/` once the candidate is ready for local freeze, then
-record publish, CI, and sync facts for the archived candidate through
+`docs/plans/active/`, keeping bulky approved execution detail under the
+matching `supplements/<plan-stem>/` package directory when the markdown alone
+would be too cramped. Execute against that plan package, archive it under
+`docs/plans/archived/` once the candidate is ready for local freeze, moving
+the markdown plan and any matching `supplements/<plan-stem>/` directory
+together as one package, then record publish, CI, and sync facts for the
+archived candidate through
 `harness evidence submit` until status reaches
 `execution/finalize/await_merge`. After merge, enter `land` with
 `harness land --pr <url> [--commit <sha>]`, finish the required post-merge
@@ -322,9 +326,10 @@ standard tracked-plan path instead.
 If an archived candidate becomes invalid before merge, reopen it with
 `harness reopen --mode finalize-fix` for narrow repair or
 `harness reopen --mode new-step` when the change deserves a new unfinished
-step. If a repository has not been bootstrapped yet, run `harness install`
-first so the managed `AGENTS.md` block and repo-local skills exist before the
-workflow starts.
+step. Reopen moves the markdown plan and any matching `supplements/` directory
+back to the active root together. If a repository has not been bootstrapped
+yet, run `harness install` first so the managed `AGENTS.md` block and
+repo-local skills exist before the workflow starts.
 
 High-level guidance lives in [AGENTS.md](./AGENTS.md). The durable contracts
 for plans and CLI behavior live in [docs/specs/index.md](./docs/specs/index.md).
@@ -337,7 +342,8 @@ canonical bootstrap assets under `assets/bootstrap/`.
 - `internal/`: CLI implementation
 - `assets/bootstrap/`: canonical source for packaged bootstrap assets that this
   repository dogsfoods
-- `docs/plans/`: tracked active plans for both profiles plus archived standard plans
+- `docs/plans/`: tracked active plans for both profiles, archived standard
+  plans, and any matching `supplements/<plan-stem>/` package directories
 - `docs/specs/`: durable repo contracts
 - `.agents/skills/`: tracked materialized repo-local workflow skills generated
   from `assets/bootstrap/`
