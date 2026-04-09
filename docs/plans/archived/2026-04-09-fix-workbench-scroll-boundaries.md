@@ -43,15 +43,15 @@ compatibility shims or page-specific exceptions.
 
 ## Acceptance Criteria
 
-- [ ] On desktop, `harness ui` does not rely on document/body scrolling for
+- [x] On desktop, `harness ui` does not rely on document/body scrolling for
       normal browsing inside the workbench.
-- [ ] When Timeline history is long, the Explorer column scrolls independently
+- [x] When Timeline history is long, the Explorer column scrolls independently
       without dragging the whole page with it.
-- [ ] When Inspector content is long, the Inspector pane scrolls independently
+- [x] When Inspector content is long, the Inspector pane scrolls independently
       without dragging the whole page with it.
-- [ ] The same shared scroll contract holds for `Status` and `Review`, not just
+- [x] The same shared scroll contract holds for `Status` and `Review`, not just
       `Timeline`.
-- [ ] Frontend validation and any required rebuilt embedded assets reflect the
+- [x] Frontend validation and any required rebuilt embedded assets reflect the
       final layout contract.
 
 ## Deferred Items
@@ -214,26 +214,66 @@ as a separate step-only review.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+Validated the shared workbench scroll fix with `pnpm --dir web check`,
+`pnpm --dir web build`, `go test ./internal/ui`, and direct Playwright probes
+against a seeded local UI fixture. The retained local evidence includes
+cross-page document-vs-pane scroll results under
+`output/playwright/manual-scroll-check/cross-page-scroll-contract.json`,
+covering `Status`, `Timeline`, and `Review`. `scripts/ui-playwright-smoke` was
+also updated to carry the same scroll-contract assertions forward in the repo's
+browser smoke path, and the script still passes `bash -n`.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+Finalize review converged through three full rounds. `review-001-full`
+requested changes because the first scroll regression only exercised
+`Timeline`. `review-002-full` then requested changes because the generalized
+cross-page helper lacked recorded rerun evidence after broadening the smoke
+coverage. Those findings were fixed by extending the shared browser probe to
+`Status` and `Review` and recording direct cross-page evidence. The final
+candidate passed `review-003-full` with no blocking or non-blocking findings.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-09T21:42:43+08:00
+- Revision: 1
+This candidate fixes the shared workbench scroll boundary bug by locking the
+desktop shell to a fixed-height grid, giving Explorer and Inspector panes owned
+overflow, and restoring proper left-pane sizing with
+`.workbench-explorer-body { flex: 1; }`. The shipped browser validation now
+checks the scroll contract across `Status`, `Timeline`, and `Review` instead of
+proving it only on the original Timeline repro.
+
+- PR: NONE. The candidate has not been pushed or opened as a PR yet.
+- Ready: Acceptance criteria are satisfied, finalize review is clean, and the
+  retained validation evidence matches the shared workbench change.
+- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
+  summary updates, push branch `codex/fix-workbench-scroll-boundaries`, open or
+  refresh the PR, and record publish/CI/sync evidence until `harness status`
+  reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Shared shell and pane overflow fixes in `web/src/styles.css` so the desktop
+  workbench no longer falls back to document/body scrolling.
+- Corrected Explorer sizing with `flex: 1` on `.workbench-explorer-body`,
+  which restores independent left-pane scrolling when history is long.
+- Rebuilt embedded UI assets and refreshed the repo-local `harness` binary so
+  `harness ui` serves the repaired layout.
+- Cross-page scroll-contract validation in `scripts/ui-playwright-smoke` plus
+  retained local Playwright evidence for `Status`, `Timeline`, and `Review`.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Fine-grained scroll polish such as sticky subheaders or custom scrollbar
+  styling.
+- Broader mobile/tablet interaction redesign beyond preserving a sane desktop
+  vs narrow-screen scroll model.
 
 ### Follow-Up Issues
 
-NONE
+- No new follow-up issue was created in this slice. The deferred scroll polish
+  and broader mobile/tablet redesign items above remain intentionally out of
+  scope and can be reconsidered in a future UI pass.
