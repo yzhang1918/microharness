@@ -390,6 +390,17 @@ export function reviewAggregateFindingSource(finding: ReviewAggregateFinding): s
   return null;
 }
 
+export function reviewAggregateFindingLabels(finding: ReviewAggregateFinding): string[] {
+  const labels: string[] = [];
+  const dimension = finding.dimension?.trim() ? humanizeLabel(finding.dimension) : "";
+  const slot = finding.slot?.trim() ? humanizeLabel(finding.slot) : "";
+  if (dimension) labels.push(dimension);
+  if (slot && slot.toLowerCase() !== dimension.toLowerCase()) {
+    labels.push(`slot ${slot}`);
+  }
+  return labels;
+}
+
 export function reviewArtifactLabel(artifact: ReviewArtifact): string {
   return artifact.label?.trim() || "Artifact";
 }
@@ -423,6 +434,11 @@ export function formatPlanError(result: PlanResult | null, statusCode?: number):
   if (details.length > 0) return details.join("; ");
   if (statusCode) return `GET /api/plan failed with ${statusCode}`;
   return "Unable to load plan";
+}
+
+export function reviewRawSubmissionText(value: unknown): string {
+  if (typeof value === "string") return value;
+  return jsonStringify(value);
 }
 
 export function formatReviewError(result: ReviewResult | null, statusCode?: number): string {
