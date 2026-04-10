@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/catu-ai/easyharness/tests/support"
@@ -131,6 +132,68 @@ func TestInstallDevHarnessGlobalDefaultsToUserLocalBinAndRefreshesFallback(t *te
 	support.RequireContains(t, refreshResult.Stdout, "Updated global fallback binary at "+expectedGlobalFallback)
 }
 
+func TestInstallDevHarnessGlobalRefreshReplacesFallbackFileObject(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("installer smoke tests require a POSIX shell")
+	}
+
+	repoRoot := copyInstallerFixture(t)
+	tempHome := t.TempDir()
+
+	initialResult := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t, filepath.Join(tempHome, ".local", "bin")),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--global",
+	)
+	if initialResult.ExitCode != 0 {
+		t.Fatalf("initial install-dev-harness --global failed with exit %d\nstdout:\n%s\nstderr:\n%s", initialResult.ExitCode, initialResult.Stdout, initialResult.Stderr)
+	}
+
+	globalFallback := filepath.Join(tempHome, ".local", "share", "easyharness", "dev", "harness")
+	initialInode := fileInode(t, globalFallback)
+	writeFixtureFile(t, globalFallback, "#!/bin/sh\nprintf 'stale-global\\n'\n", 0o755)
+
+	refreshResult := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t, filepath.Join(tempHome, ".local", "bin")),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--global",
+	)
+	if refreshResult.ExitCode != 0 {
+		t.Fatalf("refresh install-dev-harness --global failed with exit %d\nstdout:\n%s\nstderr:\n%s", refreshResult.ExitCode, refreshResult.Stdout, refreshResult.Stderr)
+	}
+
+	refreshedInode := fileInode(t, globalFallback)
+	if refreshedInode == initialInode {
+		t.Fatalf("expected --global refresh to replace the fallback file object, but inode stayed %d", refreshedInode)
+	}
+
+	versionResult := runCommand(
+		t,
+		t.TempDir(),
+		envWithOverrides(t, map[string]string{
+			"PATH": installerPath(t),
+		}),
+		globalFallback,
+		"--version",
+	)
+	if versionResult.ExitCode != 0 {
+		t.Fatalf("refreshed fallback version failed with exit %d\nstdout:\n%s\nstderr:\n%s", versionResult.ExitCode, versionResult.Stdout, versionResult.Stderr)
+	}
+	support.RequireContains(t, versionResult.Stdout, "mode: dev")
+}
+
 func TestInstallDevHarnessGlobalRejectsWrapperInstallDirConflict(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("installer smoke tests require a POSIX shell")
@@ -168,6 +231,54 @@ func TestInstallDevHarnessGlobalRejectsWrapperInstallDirConflict(t *testing.T) {
 	}
 	if string(fallbackContents) != "#!/bin/sh\nprintf 'old-global\\n'\n" {
 		t.Fatalf("expected failed install to leave existing fallback untouched, got:\n%s", string(fallbackContents))
+	}
+}
+
+func TestInstallDevHarnessRepairsInvalidExistingGlobalFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("installer smoke tests require a POSIX shell")
+	}
+
+	repoRoot := copyInstallerFixture(t)
+	tempHome := t.TempDir()
+	globalFallback := filepath.Join(tempHome, ".local", "share", "easyharness", "dev", "harness")
+	if err := os.MkdirAll(filepath.Dir(globalFallback), 0o755); err != nil {
+		t.Fatalf("mkdir global fallback dir: %v", err)
+	}
+	writeFixtureFile(t, globalFallback, "#!/bin/sh\nkill -9 $$\n", 0o755)
+
+	result := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": tempHome,
+			"PATH": installerPath(t, filepath.Join(tempHome, ".local", "bin")),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("install-dev-harness failed with exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+
+	wrapperPath := filepath.Join(tempHome, ".local", "bin", "harness")
+	support.RequireContains(t, result.Stdout, "Repaired invalid global fallback binary at "+globalFallback)
+
+	versionResult := runCommand(
+		t,
+		t.TempDir(),
+		envWithOverrides(t, map[string]string{
+			"PATH": installerPath(t),
+		}),
+		wrapperPath,
+		"--version",
+	)
+	if versionResult.ExitCode != 0 {
+		t.Fatalf("wrapper version failed with exit %d\nstdout:\n%s\nstderr:\n%s", versionResult.ExitCode, versionResult.Stdout, versionResult.Stderr)
+	}
+	support.RequireContains(t, versionResult.Stdout, "mode: dev")
+	if strings.Contains(versionResult.CombinedOutput(), "killed") {
+		t.Fatalf("expected repaired fallback to avoid killed output\nstdout:\n%s\nstderr:\n%s", versionResult.Stdout, versionResult.Stderr)
 	}
 }
 
@@ -789,6 +900,20 @@ func writeFixtureFile(t *testing.T, path, contents string, mode os.FileMode) {
 	if err := os.WriteFile(path, []byte(contents), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func fileInode(t *testing.T, path string) uint64 {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		t.Fatalf("expected syscall.Stat_t for %s, got %T", path, info.Sys())
+	}
+	return stat.Ino
 }
 
 func envWithOverrides(t *testing.T, overrides map[string]string) []string {
