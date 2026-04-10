@@ -1286,6 +1286,35 @@ assert_has_text "${output_dir}/review-invalid-submission.yml" "Submission valida
 assert_has_text "${output_dir}/review-invalid-submission.yml" "Waiting for aggregation"
 assert_has_text "${output_dir}/review-invalid-submission.yml" "All reviewer submissions are present, but the aggregate artifact is still missing."
 
+invalid_artifacts_ref="$(button_ref_from_snapshot "Artifacts" "${output_dir}/review-invalid-submission.yml")"
+if [[ -z "$invalid_artifacts_ref" ]]; then
+  echo "Could not find invalid-submission Artifacts button." >&2
+  cat "${output_dir}/review-invalid-submission.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$invalid_artifacts_ref" >/dev/null
+"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission-artifacts.yml"
+assert_has_text "${output_dir}/review-invalid-submission-artifacts.yml" "Round artifacts and supporting metadata"
+assert_has_text "${output_dir}/review-invalid-submission-artifacts.yml" "Submission: Risk"
+
+invalid_submission_ref="$(tab_ref_from_snapshot "Submission: Risk" "${output_dir}/review-invalid-submission-artifacts.yml")"
+if [[ -z "$invalid_submission_ref" ]]; then
+  echo "Could not find invalid submission artifact tab." >&2
+  cat "${output_dir}/review-invalid-submission-artifacts.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$invalid_submission_ref" >/dev/null
+"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission-artifact.yml"
+assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "Available"
+assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "review-009-delta"
+invalid_artifacts_close_ref="$(button_ref_from_snapshot "Close" "${output_dir}/review-invalid-submission-artifact.yml")"
+if [[ -z "$invalid_artifacts_close_ref" ]]; then
+  echo "Could not find invalid-submission Artifacts close button." >&2
+  cat "${output_dir}/review-invalid-submission-artifact.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$invalid_artifacts_close_ref" >/dev/null
+
 damaged_ref="$(button_ref_from_snapshot "Step 2 closeout Degraded Delta · step 2 · rev 2 Apr 2, 2026, 7:00 PM 2/2 submitted" "${output_dir}/review-invalid-submission.yml")"
 if [[ -z "$damaged_ref" ]]; then
   damaged_ref="$(button_ref_from_snapshot "Step 2 closeout" "${output_dir}/review-invalid-submission.yml")"
@@ -1302,6 +1331,34 @@ assert_has_text "${output_dir}/review-damaged-round.yml" "Degraded"
 assert_has_text "${output_dir}/review-damaged-round.yml" "Ledger is not valid JSON."
 assert_has_text "${output_dir}/review-damaged-round.yml" "malformed"
 assert_not_has_text "${output_dir}/review-damaged-round.yml" "Aggregate review passed cleanly."
+
+damaged_artifacts_ref="$(button_ref_from_snapshot "Artifacts" "${output_dir}/review-damaged-round.yml")"
+if [[ -z "$damaged_artifacts_ref" ]]; then
+  echo "Could not find damaged-round Artifacts button." >&2
+  cat "${output_dir}/review-damaged-round.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$damaged_artifacts_ref" >/dev/null
+"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-damaged-artifacts.yml"
+assert_has_text "${output_dir}/review-damaged-artifacts.yml" "Round artifacts and supporting metadata"
+assert_has_text "${output_dir}/review-damaged-artifacts.yml" "Ledger"
+damaged_ledger_ref="$(tab_ref_from_snapshot "Ledger" "${output_dir}/review-damaged-artifacts.yml")"
+if [[ -z "$damaged_ledger_ref" ]]; then
+  echo "Could not find damaged-round Ledger artifact tab." >&2
+  cat "${output_dir}/review-damaged-artifacts.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$damaged_ledger_ref" >/dev/null
+"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-damaged-ledger-artifact.yml"
+assert_has_text "${output_dir}/review-damaged-ledger-artifact.yml" "Invalid"
+assert_has_text "${output_dir}/review-damaged-ledger-artifact.yml" "Ledger is not valid JSON."
+damaged_artifacts_close_ref="$(button_ref_from_snapshot "Close" "${output_dir}/review-damaged-ledger-artifact.yml")"
+if [[ -z "$damaged_artifacts_close_ref" ]]; then
+  echo "Could not find damaged-round Artifacts close button." >&2
+  cat "${output_dir}/review-damaged-ledger-artifact.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$damaged_artifacts_close_ref" >/dev/null
 
 risk_ref="$(tab_ref_from_snapshot "Risk" "${output_dir}/review-damaged-round.yml")"
 if [[ -z "$risk_ref" ]]; then
