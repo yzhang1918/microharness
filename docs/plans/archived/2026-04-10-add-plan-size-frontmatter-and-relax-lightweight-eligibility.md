@@ -383,14 +383,14 @@ with the schema, template, and lint changes in the final candidate review.
 
 - Archived At: 2026-04-11T00:13:20+08:00
 - Revision: 1
-- PR: Not opened yet; publish should create or refresh a PR from branch
-  `codex/plan-size-frontmatter`.
-- Ready: The candidate has a clean full finalize review (`review-005-full`),
-  active-plan lint is green, focused plus broader validation passed, and the
-  remaining deferred scope is handed off to issues `#136` and `#137`.
-- Merge Handoff: Archive the revision-1 candidate, commit the archive move and
-  closeout summaries, push branch `codex/plan-size-frontmatter`, open or
-  update the PR, and record publish, CI, and sync evidence until
+- PR: `#138` (`https://github.com/catu-ai/easyharness/pull/138`)
+- Ready: The archived candidate is published to PR `#138`, has a clean full
+  finalize review (`review-005-full`), active-plan lint is green, focused plus
+  broader validation passed, and the remaining deferred scope is handed off to
+  issues `#136` and `#137`.
+- Merge Handoff: Record publish evidence for PR `#138`, wait for the
+  post-archive checks on branch `codex/plan-size-frontmatter`, refresh sync
+  against `origin/main`, and keep the candidate in publish handoff until
   `harness status` advances to `execution/finalize/await_merge`.
 
 ## Outcome Summary
