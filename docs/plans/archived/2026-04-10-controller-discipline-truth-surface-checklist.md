@@ -226,8 +226,10 @@ actually matches the source and the accepted discovery direction.
 
 - `assets/bootstrap/skills/harness-execute/SKILL.md`
 - `assets/bootstrap/skills/harness-execute/references/`
+- `assets/bootstrap/skills/harness-land/SKILL.md`
 - `.agents/skills/harness-execute/SKILL.md`
 - `.agents/skills/harness-execute/references/`
+- `.agents/skills/harness-land/SKILL.md`
 
 #### Validation
 
@@ -286,6 +288,9 @@ finalize review of the packaged result.
 - Verified packaged sync with `scripts/sync-bootstrap-assets --check`.
 - Verified the tracked plan remained valid with `harness plan lint
   docs/plans/active/2026-04-10-controller-discipline-truth-surface-checklist.md`.
+- After reopening for revision 2 because `origin/main` advanced, merged
+  `origin/main` into the branch and reran focused validation with `go test
+  ./internal/lifecycle ./internal/plan ./internal/status`.
 
 ## Review Summary
 
@@ -300,19 +305,33 @@ finalize review of the packaged result.
   evidence submission, then a later `await_merge` status check.
 - `review-003-full` passed clean with no blocking or non-blocking findings
   after those two follow-up fixes.
+- Revision 2 reopened the archived candidate after `origin/main` advanced by
+  four commits and overlapped this slice's bootstrap and plan files.
+  `review-004-full` then found three blocking drift issues: stale revision-1
+  archive facts still left in the reopened active plan, a runtime archive next
+  action that still permitted merge before explicit human approval, and a small
+  Step 3 expected-files mismatch around the touched `harness-land` files.
+- `review-005-full` found two remaining revision-2 correctness drifts: the
+  reopened active plan still exposed archive-era facts as current state, and
+  the archive runtime next actions still skipped the publish-phase
+  publish/CI/sync evidence handoff.
+- `review-006-full` passed clean with no blocking or non-blocking findings
+  after those revision-2 plan and runtime truth-surface fixes.
 
 ## Archive Summary
 
-- Archived At: 2026-04-10T09:19:51+08:00
-- Revision: 1
-- PR: NONE
-- Ready: The candidate now packages a lean controller-only truth-surface
-  checklist, matching execute/land guidance, synchronized `.agents` outputs,
-  clean finalize review, and validation proving the review/archive/publish
-  sequence is internally consistent.
-- Merge Handoff: Archive this candidate, commit and push the archive move, open
-  or update the PR, record publish/CI/sync evidence for the archived
-  candidate, and then wait for explicit human merge approval before land.
+- Archived At: 2026-04-10T09:36:35+08:00
+- Revision: 2
+- Reopen History: Revision 1 was archived at `2026-04-10T09:19:51+08:00`, then
+  invalidated by remote drift from `origin/main` and reopened into revision 2.
+- PR: [#129](https://github.com/catu-ai/easyharness/pull/129)
+- Ready: Revision 2 now has a clean finalize full review after merging
+  `origin/main`, refreshing the active plan truth surfaces, tightening the
+  archive runtime next actions, and rerunning focused validation plus bootstrap
+  sync checks.
+- Merge Handoff: Commit and push the refreshed revision-2 archive plus
+  runtime/test updates, update PR #129, then record fresh publish, CI, and
+  sync evidence before waiting for explicit human merge approval.
 
 ## Outcome Summary
 
@@ -330,6 +349,9 @@ finalize review of the packaged result.
 - Synced the packaged `.agents` outputs and iterated through three finalize
   review rounds until the controller-discipline story was internally
   consistent.
+- Reopened the candidate for revision 2 after remote drift from `origin/main`,
+  merged the latest mainline changes, and completed the runtime and plan
+  truth-surface refresh needed for a clean re-archive.
 
 ### Not Delivered
 
