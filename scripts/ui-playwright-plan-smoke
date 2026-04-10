@@ -62,6 +62,20 @@ sys.exit(completed.returncode)
 PY
 }
 
+pwcli_retry() {
+  local attempts=0
+  while true; do
+    if pwcli "$@"; then
+      return 0
+    fi
+    attempts=$((attempts + 1))
+    if (( attempts >= 2 )); then
+      return 1
+    fi
+    sleep 1
+  done
+}
+
 pwcli_close() {
   local session="$1"
   local workdir
@@ -444,33 +458,49 @@ if [[ -z "$scope_ref" ]]; then
   exit 1
 fi
 pwcli "$main_session" click "$scope_ref" >/dev/null
-sleep 0.4
+sleep 0.8
 capture_snapshot "$main_session" "plan-scope"
 capture_screenshot "$main_session" "plan-scope"
 assert_has_text "plan-scope" "Scope"
-pwcli "$main_session" run-code '
+pwcli_retry "$main_session" run-code '
 async (page) => {
   return await page.evaluate(() => {
     const reader = document.querySelector(".plan-reader");
+    const goal = document.querySelector("#goal");
     const scope = document.querySelector("#scope");
-    if (!reader || !scope) {
-      throw new Error("missing plan reader or #scope anchor");
+    const acceptance = document.querySelector("#acceptance-criteria");
+    if (!reader || !goal || !scope || !acceptance) {
+      throw new Error("missing plan reader or expected heading anchors");
     }
     if (reader.scrollTop < 10) {
       throw new Error(`expected plan reader to scroll after selecting Scope, got ${reader.scrollTop}`);
     }
-    return { scrollTop: reader.scrollTop };
+    const readerText = reader.textContent || "";
+    if (!readerText.includes("Goal") || !readerText.includes("Acceptance Criteria")) {
+      throw new Error("expected full markdown reader content to remain mounted after heading navigation");
+    }
+    return {
+      scrollTop: reader.scrollTop,
+      headingOrder: [
+        goal.getBoundingClientRect().top,
+        scope.getBoundingClientRect().top,
+        acceptance.getBoundingClientRect().top,
+      ],
+    };
   });
 }
 ' >/dev/null
 
 nested_toggle_ref="$(button_ref_from_snapshot "Expand nested" "${output_dir}/plan-scope.yml")"
-if [[ -n "$nested_toggle_ref" ]]; then
-  pwcli "$main_session" click "$nested_toggle_ref" >/dev/null
-  sleep 0.3
-  capture_snapshot "$main_session" "plan-nested-expanded"
-  assert_has_text "plan-nested-expanded" "config.yaml"
+if [[ -z "$nested_toggle_ref" ]]; then
+  echo "Could not find nested directory toggle." >&2
+  cat "${output_dir}/plan-scope.yml" >&2
+  exit 1
 fi
+pwcli "$main_session" click "$nested_toggle_ref" >/dev/null
+sleep 0.3
+capture_snapshot "$main_session" "plan-nested-expanded"
+assert_has_text "plan-nested-expanded" "config.yaml"
 
 log_phase "validating supplement previews"
 design_ref="$(button_ref_from_snapshot "design.md" "${output_dir}/plan-scope.yml")"

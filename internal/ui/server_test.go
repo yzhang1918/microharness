@@ -175,6 +175,60 @@ func TestNewHandlerServesPlanJSON(t *testing.T) {
 	}
 }
 
+func TestNewHandlerHidesArchivedCurrentPlanFromPlanJSON(t *testing.T) {
+	workdir := t.TempDir()
+	relPlanPath := "docs/plans/archived/2026-04-10-archived-ui-plan.md"
+	path := filepath.Join(workdir, filepath.FromSlash(relPlanPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir archived dir: %v", err)
+	}
+	rendered, err := plan.RenderTemplate(plan.TemplateOptions{Title: "Archived UI Plan"})
+	if err != nil {
+		t.Fatalf("render archived plan: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(rendered), 0o644); err != nil {
+		t.Fatalf("write archived plan: %v", err)
+	}
+	if _, err := runstate.SaveCurrentPlan(workdir, relPlanPath); err != nil {
+		t.Fatalf("save current plan: %v", err)
+	}
+
+	handler, err := NewHandler(workdir)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/plan", nil)
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload struct {
+		OK        bool   `json:"ok"`
+		Document  any    `json:"document"`
+		Artifacts any    `json:"artifacts"`
+		Summary   string `json:"summary"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v\n%s", err, recorder.Body.String())
+	}
+	if !payload.OK {
+		t.Fatalf("expected ok=true, got %#v", payload)
+	}
+	if payload.Document != nil {
+		t.Fatalf("expected archived pointer to return no document, got %#v", payload.Document)
+	}
+	if payload.Artifacts != nil {
+		t.Fatalf("expected archived pointer to return no artifacts, got %#v", payload.Artifacts)
+	}
+	if !strings.Contains(payload.Summary, "No current active plan") {
+		t.Fatalf("unexpected summary: %q", payload.Summary)
+	}
+}
+
 func TestNewHandlerServesTimelineJSON(t *testing.T) {
 	workdir := t.TempDir()
 	relPlanPath := "docs/plans/active/2026-04-01-ui-timeline-plan.md"

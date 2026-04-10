@@ -156,7 +156,10 @@ func TestServiceReadHidesArchivedCurrentPlanFromBrowser(t *testing.T) {
 	if !result.OK || result.Document != nil {
 		t.Fatalf("expected archived plan to return empty browser state, got %#v", result)
 	}
-	if !strings.Contains(result.Summary, "only shows the current active tracked plan") {
+	if result.Artifacts != nil {
+		t.Fatalf("expected archived pointer to suppress plan artifacts, got %#v", result.Artifacts)
+	}
+	if !strings.Contains(result.Summary, "No current active plan") {
 		t.Fatalf("unexpected archived summary: %q", result.Summary)
 	}
 }

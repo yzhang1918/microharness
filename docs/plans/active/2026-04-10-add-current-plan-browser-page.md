@@ -293,7 +293,14 @@ assertion so the repo's existing review-hidden wording matches the live UI.
 Ran `scripts/ui-playwright-plan-smoke` and `scripts/ui-playwright-smoke`, then
 performed a headed interactive Playwright pass against the current worktree's
 `Plan` page, capturing screenshots under `output/playwright/manual-plan-review/`
-for the main document view plus markdown and YAML supplement previews.
+for the main document view plus markdown and YAML supplement previews. After
+finalize review surfaced gaps in the archived-pointer empty state and the
+Plan smoke assertions, tightened `/api/plan` so archived current-plan pointers
+return the same empty-browser state as idle worktrees, made the nested
+supplement tree check mandatory, and strengthened the heading-navigation
+assertion so it proves the full markdown reader stays mounted while adding a
+retry around the Playwright `run-code` probe. Focused rerun after the repair:
+`go test ./internal/planui ./internal/ui` and `scripts/ui-playwright-plan-smoke`.
 
 #### Review Notes
 
