@@ -34,10 +34,10 @@ the same workflow on direct pushes.
 
 ## Acceptance Criteria
 
-- [ ] Pull request updates trigger the `CI / Go Test` workflow once rather
+- [x] Pull request updates trigger the `CI / Go Test` workflow once rather
       than once for `push` and once for `pull_request`.
-- [ ] Direct pushes to `main` still trigger the existing CI workflow.
-- [ ] The workflow continues to run `go test ./...` with no additional job
+- [x] Direct pushes to `main` still trigger the existing CI workflow.
+- [x] The workflow continues to run `go test ./...` with no additional job
       behavior changes.
 
 ## Deferred Items
@@ -90,7 +90,7 @@ before archive.
 
 ### Step 2: Revalidate the workflow change
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -114,11 +114,18 @@ regressions before the branch is pushed.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Validated the workflow locally after the trigger change with:
+`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci.yml"); puts "yaml-ok"'`
+
+Re-read the workflow and diff to confirm the job body still runs
+`go test ./...` unchanged and that the only behavior adjustment is narrowing
+`push` to `main`.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: This step records local validation and closeout notes
+for the same trigger-only slice. Finalize review will cover the full
+candidate before archive.
 
 ## Validation Strategy
 
@@ -138,25 +145,47 @@ PENDING_STEP_REVIEW
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- Local YAML parsing passed for `.github/workflows/ci.yml` via:
+  `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci.yml"); puts "yaml-ok"'`
+- Manual diff review confirmed the only workflow change is narrowing the
+  `push` trigger to the `main` branch while preserving the existing
+  `pull_request` trigger and `go test ./...` job body.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Finalize review `review-001-full` passed with no blocking or non-blocking
+  findings.
+- The reviewer confirmed the candidate keeps the change bounded to workflow
+  trigger scope and found no missing closeout details for the slice.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-10T23:06:09+08:00
+- Revision: 1
+- PR: NONE
+- Ready: The candidate has a clean finalize review and local validation for
+  the trigger-only workflow change; remote publish, CI, and sync handoff still
+  need to be recorded before merge-ready wait state.
+- Merge Handoff: Archive the plan, commit the archive move and summary
+  updates, push `codex/deduplicate-pr-ci-triggers`, open or update a PR, and
+  record publish, CI, and sync evidence until the candidate reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Narrowed the CI workflow so `push` runs only on `main` while
+  `pull_request` continues to validate PRs.
+- Removed the redundant PR double-run path without changing the existing
+  `go test ./...` job body.
+- Recorded the implementation, validation, and finalize review outcome in the
+  tracked plan for archive handoff.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- No new CI jobs, branch protection changes, or release workflow adjustments
+  were added in this slice.
 
 ### Follow-Up Issues
 
