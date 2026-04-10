@@ -322,7 +322,7 @@ global_fallback_repaired=0
 refresh_global_fallback=0
 if [[ "${install_global_fallback}" -eq 1 ]]; then
   refresh_global_fallback=1
-elif [[ -n "${global_fallback_path}" && -e "${global_fallback_path}" ]] && ! global_fallback_healthy "${global_fallback_path}"; then
+elif [[ -n "${global_fallback_path}" && ( -e "${global_fallback_path}" || -L "${global_fallback_path}" ) ]] && ! global_fallback_healthy "${global_fallback_path}"; then
   refresh_global_fallback=1
   global_fallback_repaired=1
 fi
