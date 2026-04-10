@@ -236,6 +236,34 @@ func TestLintFileRejectsSupplementsPathWhenItIsAFile(t *testing.T) {
 	assertHasError(t, result, "supplements")
 }
 
+func TestLintFileRejectsSupplementsParentPathWhenItIsAFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "docs/plans/active/2026-03-17-has-supplements.md")
+	content := mustRenderTemplate(t, "Supplements Parent Must Be Directory")
+	writeFile(t, path, content)
+	writeFile(t, filepath.Join(root, "docs/plans/active/supplements"), "not a directory")
+
+	result := plan.LintFile(path)
+	if result.OK {
+		t.Fatalf("expected lint failure, got %#v", result)
+	}
+	assertHasError(t, result, "supplements")
+}
+
+func TestLintFileRejectsArchivedSupplementsParentPathWhenItIsAFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "docs/plans/active/2026-03-17-has-supplements.md")
+	content := mustRenderTemplate(t, "Archived Supplements Parent Must Be Directory")
+	writeFile(t, path, content)
+	writeFile(t, filepath.Join(root, "docs/plans/archived/supplements"), "not a directory")
+
+	result := plan.LintFile(path)
+	if result.OK {
+		t.Fatalf("expected lint failure, got %#v", result)
+	}
+	assertHasError(t, result, "supplements")
+}
+
 func TestLintFileAcceptsMatchingSupplementsDirectory(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "docs/plans/active/2026-03-17-has-supplements.md")

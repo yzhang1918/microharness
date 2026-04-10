@@ -296,6 +296,9 @@ archived candidate through
 `execution/finalize/await_merge`. After merge, enter `land` with
 `harness land --pr <url> [--commit <sha>]`, finish the required post-merge
 bookkeeping, then run `harness land complete` so status returns to `idle`.
+Anything the repository should still depend on after archive should be absorbed
+into formal tracked locations such as `docs/specs/`, code, tests, or other
+durable docs rather than left only in archived `supplements/`.
 
 For narrow low-risk work, `harness` may instead use a tracked active plan under
 `docs/plans/active/` with the same schema plus `workflow_profile: lightweight`.
@@ -307,6 +310,10 @@ stay explicitly in-bounds, and must leave a small repo-visible breadcrumb such
 as a PR body note explaining why the lightweight path was used. If any
 lightweight candidate stops looking low-risk, it should escalate back to the
 standard tracked-plan path.
+Lightweight plans should normally avoid `supplements/`; if one does exist, it
+must still archive only to `.local/harness/plans/archived/supplements/` and
+post-archive correctness should not depend on that local snapshot remaining
+available.
 
 Use `lightweight` only when all of these are true:
 

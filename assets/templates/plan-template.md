@@ -7,8 +7,11 @@ source_refs: []
 
 # Replace With Plan Title
 
-<!-- If this plan uses supplements/<plan-stem>/, keep the markdown concise and
-record archive-time supplement absorption in Archive Summary or Outcome Summary. -->
+<!-- If this plan uses supplements/<plan-stem>/, keep the markdown concise,
+absorb any repository-facing normative content into formal tracked locations
+before archive, and record archive-time supplement absorption in Archive
+Summary or Outcome Summary. Lightweight plans should normally avoid
+supplements. -->
 
 ## Goal
 

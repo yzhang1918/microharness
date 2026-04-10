@@ -147,6 +147,9 @@ func TestArchiveLightweightMovesLocalPlanAndPromptsBreadcrumb(t *testing.T) {
 	if result.Artifacts == nil || result.Artifacts.ToPlanPath != archivedRelPath {
 		t.Fatalf("expected archived artifact path %q, got %#v", archivedRelPath, result.Artifacts)
 	}
+	if result.Artifacts.FromSupplementsPath != "" || result.Artifacts.ToSupplementsPath != "" {
+		t.Fatalf("expected no supplements artifacts for lightweight archive without supplements, got %#v", result.Artifacts)
+	}
 	if len(result.NextAction) == 0 || !strings.Contains(result.NextAction[0].Description, "repo-visible breadcrumb") {
 		t.Fatalf("expected breadcrumb guidance first, got %#v", result.NextAction)
 	}

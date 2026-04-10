@@ -47,12 +47,16 @@ Command-owned local artifacts live under:
 
 Tracked plans remain durable repository history for active work and standard
 archives. Their optional `supplements/` directories are execution input during
-active work and cold-backup context after archive; the markdown plan remains
-the default reading entrypoint. Lightweight archived snapshots are
-command-owned local execution artifacts. `.local` is still disposable
-execution support and trajectory; lightweight workflow use must therefore leave
-a small repo-visible breadcrumb outside the local archive path, as defined by
-the CLI and agent guidance contracts.
+active work and cold-backup context after archive, not a durable dependency
+surface that later execution should keep relying on. Before archive, any
+normative or reusable material that the repository must still depend on should
+be absorbed into formal durable locations such as `docs/specs/`, code, tests,
+or other tracked docs. The markdown plan remains the default reading
+entrypoint. Lightweight archived snapshots are command-owned local execution
+artifacts. `.local` is still disposable execution support and trajectory;
+lightweight workflow use must therefore leave a small repo-visible breadcrumb
+outside the local archive path, as defined by the CLI and agent guidance
+contracts.
 
 ## Source of Truth
 
@@ -79,6 +83,10 @@ Rules:
 - bulky but durable execution detail that should survive context compaction may
   live in supplements, such as spec drafts, formulas, design notes, or other
   structured reasoning that is too large or awkward for the main markdown
+- supplements are a staging area for approved execution detail, not the final
+  durable home for repository-facing normative content; before archive, anything
+  the repository should keep depending on must be absorbed into formal tracked
+  locations
 - supplements are not free-form scratch space; they share the same governance
   boundary as the markdown plan
 - the markdown file stays concise and remains the main review and archive
@@ -375,6 +383,8 @@ The lightweight profile is eligible only when all of these are true:
     behavior, state transitions, or command semantics
 - the controller can explain the lightweight choice in one small repo-visible
   breadcrumb such as a PR body note
+- the plan can stay clear and reviewable without depending on supplements as a
+  default authoring pattern
 
 The lightweight profile is not eligible when any of these are true:
 
@@ -385,6 +395,12 @@ The lightweight profile is not eligible when any of these are true:
 - the change spans multiple risk areas or would make a reviewer reasonably ask
   for a tracked archive record
 - the controller is unsure whether the slice is truly low-risk
+
+Lightweight plans should normally avoid `supplements/`. If a lightweight plan
+temporarily needs one, keep it minimal, treat it with the same approval
+governance as the markdown plan, and ensure archive writes it only to
+`.local/harness/plans/archived/supplements/<plan-stem>/` rather than treating
+it as durable tracked history.
 
 When there is any doubt, escalate to the standard tracked-plan workflow.
 
@@ -406,6 +422,9 @@ An active plan must satisfy all of these:
   a reopen
 - when a matching `docs/plans/active/supplements/<plan-stem>/` directory
   exists, it is part of the same approved package
+- when the active plan uses `workflow_profile: lightweight`, supplements are
+  supported but should be exceptional rather than the default way to carry plan
+  detail
 
 ## Archived Plan Rules
 
@@ -430,8 +449,14 @@ An archived plan must satisfy all of these:
 - if `Deferred Items` contains real items, `Follow-Up Issues` must not be
   `NONE`
 - when a matching archived `supplements/<plan-stem>/` directory exists, it is
-  retained as cold-backup context rather than becoming the primary reading
-  entrypoint
+  retained only as cold-backup context rather than becoming the primary reading
+  entrypoint or a durable correctness dependency
+- archive-time correctness must not depend on archived supplements continuing to
+  exist; content that still matters after archive must already be absorbed into
+  formal tracked locations outside the supplements tree
+- when the archived plan is `lightweight`, any supplements snapshot lives only
+  under `.local/harness/plans/archived/supplements/<plan-stem>/` and must not
+  be treated as tracked repository history
 
 ### Required Archive Summary Contents
 
@@ -448,6 +473,9 @@ also note the important absorption result at a human-readable level, such as:
 
 - which supplement drafts became formal specs or code
 - which supplement files remain only as archived backup context
+
+Those summaries should make it clear that archive-time correctness no longer
+depends on the supplements remaining available verbatim.
 
 `Revision` is command-owned runtime history that must be stamped into the
 tracked archive summary. It is no longer tracked as frontmatter.

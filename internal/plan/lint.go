@@ -547,6 +547,21 @@ func validatePathRules(ctx *lintContext) []LintIssue {
 
 func validateSupplementsRules(ctx *lintContext) []LintIssue {
 	supplementsPath := SupplementsDirForPlanPath(ctx.path)
+	for _, root := range candidateSupplementsRoots(ctx.path) {
+		info, err := os.Stat(root)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return []LintIssue{{Path: "supplements", Message: err.Error()}}
+		}
+		if !info.IsDir() {
+			return []LintIssue{{
+				Path:    "supplements",
+				Message: fmt.Sprintf("supplements parent path must be a directory when present: %s", filepath.ToSlash(filepath.Clean(root))),
+			}}
+		}
+	}
 	info, err := os.Stat(supplementsPath)
 	if err != nil && !os.IsNotExist(err) {
 		return []LintIssue{{Path: "supplements", Message: err.Error()}}
@@ -574,6 +589,14 @@ func validateSupplementsRules(ctx *lintContext) []LintIssue {
 	}
 
 	return nil
+}
+
+func candidateSupplementsRoots(path string) []string {
+	roots := []string{filepath.Dir(SupplementsDirForPlanPath(path))}
+	for _, alternate := range AlternateSupplementsDirsForPlanPath(path) {
+		roots = append(roots, filepath.Dir(alternate))
+	}
+	return slices.Compact(roots)
 }
 
 func validateArchivedRules(ctx *lintContext) []LintIssue {

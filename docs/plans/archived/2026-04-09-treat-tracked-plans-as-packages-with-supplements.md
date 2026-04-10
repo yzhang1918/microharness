@@ -143,7 +143,10 @@ so tracked plans may own matching `supplements/<plan-stem>/` directories under
 the same active or archived root. Added package path helpers and lint rules in
 `internal/plan/` to reject plan markdown stored under `supplements/`, accept
 matching supplement directories, and require present supplement paths to be
-directories. Focused validation: `go test ./internal/plan`.
+directories. Revision 2 tightened the contract so archive-time correctness must
+not depend on supplements remaining available verbatim, and lightweight plans
+now explicitly avoid supplements by default even though the archive/reopen
+mechanics still support them. Focused validation: `go test ./internal/plan`.
 
 #### Review Notes
 
@@ -258,6 +261,9 @@ refreshed generated schemas with `scripts/sync-contract-artifacts`. Validation:
 `scripts/sync-bootstrap-assets --check`,
 `scripts/sync-contract-artifacts --check`, and
 `harness plan lint docs/plans/active/2026-04-09-treat-tracked-plans-as-packages-with-supplements.md`.
+Revision 2 also updated the authoring guidance to say that repository-facing
+normative content must be absorbed out of supplements before archive, and that
+lightweight plans should only use supplements exceptionally.
 
 #### Review Notes
 
@@ -299,39 +305,42 @@ same contract slice and will be covered by the final full review.
 
 ## Validation Summary
 
-- `go test ./internal/plan ./internal/lifecycle ./internal/status ./internal/timeline ./internal/reviewui ./internal/contractsync`
-  passed after the package-aware lifecycle, lint, status, and read-model
-  updates landed.
+- `go test ./internal/plan ./internal/lifecycle ./internal/status` passed
+  after revision 2 fixed the review-reported gaps around blocking supplements
+  parent paths and lightweight no-supplements regression assertions.
 - `scripts/sync-bootstrap-assets --check` and
   `scripts/sync-contract-artifacts --check` passed after refreshing the
-  bootstrap-managed skill pack and generated contract artifacts.
+  bootstrap-managed skill pack and generated contract artifacts for the
+  tightened supplements guidance.
 - `harness plan lint docs/plans/archived/2026-04-09-treat-tracked-plans-as-packages-with-supplements.md`
-  passed after archive, confirming the archived tracked plan package remains
-  valid from the plan validator's perspective.
+  passed after archive, confirming the archived tracked plan remains valid from
+  the plan validator's perspective.
 
 ## Review Summary
 
-- Finalize full review `review-006-full` passed on 2026-04-10 with zero
-  blocking and zero non-blocking findings for the package-contract candidate.
-- Earlier finalize review rounds drove the follow-up repairs that now protect
-  supplement ownership checks, archive/reopen rollback safety, lightweight
-  archived supplement movement, and status artifact coverage for package-aware
-  plans.
+- Finalize full review `review-007-full` requested changes on revision 2 for
+  two blocking gaps: missing lint validation for blocking `supplements` parent
+  paths, and missing negative assertions that lightweight archive/status keep
+  supplements absent by default when no supplements directory exists.
+- Follow-up repairs added the parent-path lint guard plus the lightweight
+  archive/status regression assertions, then finalize full review
+  `review-008-full` passed on 2026-04-10 with zero blocking and zero
+  non-blocking findings.
 
 ## Archive Summary
 
-- Archived At: 2026-04-10T00:23:53+08:00
-- Revision: 1
-- PR: NONE. Commit the archive move, push the current branch, open or refresh
-  the PR, then record the PR URL through publish evidence.
-- Ready: The archived candidate contains the tracked-plan package contract,
-  lifecycle movement, status artifacts, specs/docs/bootstrap guidance, and
-  focused regression coverage, and finalize full review `review-006-full`
-  passed cleanly before archive.
-- Merge Handoff: Commit the tracked archive move plus closeout summaries, push
-  the branch, open or update the PR, record publish/CI/sync evidence, and
-  wait for explicit human merge approval once `harness status` reaches
-  `execution/finalize/await_merge`.
+- Archived At: 2026-04-10T08:46:46+08:00
+- Revision: 2
+- PR: https://github.com/catu-ai/easyharness/pull/127
+- Ready: Revision 2 keeps supplements as approved execution input during active
+  work but makes archive-time correctness independent from archived supplements
+  remaining present, requires normative content to be absorbed into formal
+  tracked locations before archive, keeps lightweight supplements exceptional
+  and local-only, and passed finalize full review `review-008-full`.
+- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
+  revision 2 closeout summaries, push the branch, refresh PR #127, record
+  updated publish/CI/sync evidence, and wait for explicit human merge approval
+  once `harness status` reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
@@ -346,6 +355,14 @@ same contract slice and will be covered by the final full review.
 - Updated the normative specs, checked-in schemas, plan template guidance, and
   bootstrap-managed workflow docs so future agents treat supplements as part
   of the approved plan package and record archive-time absorption clearly.
+- Tightened the supplements contract so anything the repository must still
+  depend on after archive gets absorbed into formal tracked locations, while
+  lightweight plans avoid supplements by default and keep any archived
+  companion snapshot under `.local/` only.
+- Added regression coverage for the revision 2 guardrails by asserting that
+  blocking `supplements` parent paths fail lint and that lightweight
+  archive/status flows keep supplements artifacts absent when no supplements
+  directory exists.
 
 ### Not Delivered
 
@@ -353,6 +370,8 @@ same contract slice and will be covered by the final full review.
   this slice.
 - No taxonomy inside `supplements/` beyond the shared root and per-plan stem
   ownership contract was introduced.
+- No automatic pruning or deletion policy for archived supplements was added in
+  this slice; archived supplements remain cold backup context when they exist.
 
 ### Follow-Up Issues
 

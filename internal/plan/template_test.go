@@ -84,7 +84,15 @@ func TestRenderTemplateIncludesSupplementsArchiveGuidance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderTemplate returned error: %v", err)
 	}
-	if !strings.Contains(rendered, "supplements/<plan-stem>/") || !strings.Contains(rendered, "Archive Summary or Outcome Summary") {
-		t.Fatalf("expected supplements archive guidance in rendered template, got:\n%s", rendered)
+	for _, want := range []string{
+		"supplements/<plan-stem>/",
+		"supplement absorption in Archive",
+		"Summary or Outcome Summary",
+		"formal tracked locations",
+		"Lightweight plans should normally avoid",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected supplements archive guidance %q in rendered template, got:\n%s", want, rendered)
+		}
 	}
 }

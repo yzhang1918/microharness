@@ -145,6 +145,9 @@ func TestStatusLightweightPublishPromptsForBreadcrumb(t *testing.T) {
 	if len(result.NextAction) == 0 || !strings.Contains(result.NextAction[0].Description, "repo-visible breadcrumb") {
 		t.Fatalf("expected breadcrumb guidance first, got %#v", result.NextAction)
 	}
+	if result.Artifacts == nil || result.Artifacts.SupplementsPath != "" {
+		t.Fatalf("expected no lightweight supplements path when no supplements directory exists, got %#v", result.Artifacts)
+	}
 	foundCommitPush := false
 	for _, action := range result.NextAction {
 		if strings.Contains(action.Description, "Commit and push the tracked plan change created by archiving") {
