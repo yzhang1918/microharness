@@ -401,6 +401,27 @@ sub_three_a.write_text(
     ),
     encoding="utf-8",
 )
+sub_three_b.write_text(
+    json.dumps(
+        {
+            "round_id": "review-003-full",
+            "slot": "ux",
+            "dimension": "UX",
+            "summary": "",
+            "findings": [],
+            "worklog": {
+                "full_plan_read": False,
+                "checked_areas": ["web/src/styles.css"],
+                "open_questions": ["Should the review summary stay unchanged?"],
+                "candidate_findings": [],
+            },
+            "coverage": {
+                "review_kind": "full",
+            },
+        }
+    ),
+    encoding="utf-8",
+)
 
 review_four = review_root / "review-004-full"
 sub_four = review_four / "submissions" / "correctness" / "submission.json"
@@ -565,7 +586,7 @@ sub_seven.write_text(
 
 review_eight = review_root / "review-008-full"
 sub_eight_correctness = review_eight / "submissions" / "correctness" / "submission.json"
-sub_eight_risk = review_eight / "submissions" / "risk" / "submission.json"
+sub_eight_risk = review_eight / "submissions" / "risk_slot" / "submission.json"
 sub_eight_correctness.parent.mkdir(parents=True, exist_ok=True)
 sub_eight_risk.parent.mkdir(parents=True, exist_ok=True)
 (review_eight / "manifest.json").write_text(
@@ -590,7 +611,7 @@ sub_eight_risk.parent.mkdir(parents=True, exist_ok=True)
                 },
                 {
                     "name": "Risk",
-                    "slot": "risk",
+                    "slot": "risk_slot",
                     "instructions": "Check residual workflow risk.",
                     "submission_path": str(sub_eight_risk),
                 },
@@ -615,7 +636,7 @@ sub_eight_risk.parent.mkdir(parents=True, exist_ok=True)
                 },
                 {
                     "name": "Risk",
-                    "slot": "risk",
+                    "slot": "risk_slot",
                     "status": "submitted",
                     "submitted_at": "2026-04-02T13:04:00Z",
                     "submission_path": str(sub_eight_risk),
@@ -642,7 +663,7 @@ sub_eight_risk.write_text(
     json.dumps(
         {
             "round_id": "review-008-full",
-            "slot": "risk",
+            "slot": "risk_slot",
             "dimension": "Risk",
             "submitted_at": "2026-04-02T13:04:00Z",
             "summary": "No additional risk.",
@@ -672,7 +693,7 @@ sub_eight_risk.write_text(
             ],
             "non_blocking_findings": [
                 {
-                    "slot": "risk",
+                    "slot": "risk_slot",
                     "dimension": "Risk",
                     "severity": "minor",
                     "title": "Minor follow-up",
@@ -1150,9 +1171,13 @@ fi
 capture_screenshot "$session_name" "${output_dir}/review-ux.png"
 capture_locator_screenshot "$session_name" ".review-tab-panel" "${output_dir}/reviewer-panel.png"
 assert_has_text "${output_dir}/review-ux.yml" "Assigned task"
+assert_has_text "${output_dir}/review-ux.yml" "Review context"
+assert_has_text "${output_dir}/review-ux.yml" "Covered areas"
+assert_has_text "${output_dir}/review-ux.yml" "Open questions"
 assert_has_text "${output_dir}/review-ux.yml" "Returned result"
 assert_has_text "${output_dir}/review-ux.yml" "Check hierarchy, density, and visual polish."
 assert_has_text "${output_dir}/review-ux.yml" "This reviewer has not submitted a result yet."
+assert_has_text "${output_dir}/review-ux.yml" "Show raw JSON"
 run_code_checked "$session_name" '
 async (page) => await page.evaluate(() => {
   const sections = [...document.querySelectorAll(".fold-section")];
@@ -1169,6 +1194,44 @@ async (page) => await page.evaluate(() => {
   return true;
 })
 ' >/dev/null
+run_code_checked "$session_name" '
+async (page) => await page.evaluate(() => {
+  const panel = document.querySelector(".review-tab-panel");
+  if (!panel) {
+    throw new Error("missing reviewer detail panel");
+  }
+  const text = panel.textContent || "";
+  for (const expected of [
+    "Not yet confirmed",
+    "web/src/styles.css",
+    "Should the review summary stay unchanged?",
+    "No candidate findings recorded."
+  ]) {
+    if (!text.includes(expected)) {
+      throw new Error(`missing normalized reviewer worklog text: ${expected}`);
+    }
+  }
+  return true;
+})
+' >/dev/null
+
+ux_raw_ref="$(button_ref_from_snapshot "Show raw JSON" "${output_dir}/review-ux.yml")"
+if [[ -z "$ux_raw_ref" ]]; then
+  echo "Could not find UX raw JSON button." >&2
+  cat "${output_dir}/review-ux.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$ux_raw_ref" >/dev/null
+"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-ux-raw.yml"
+assert_has_text "${output_dir}/review-ux-raw.yml" "Raw reviewer submission payload"
+assert_has_text "${output_dir}/review-ux-raw.yml" "Should the review summary stay unchanged?"
+ux_raw_close_ref="$(button_ref_from_snapshot "Close" "${output_dir}/review-ux-raw.yml")"
+if [[ -z "$ux_raw_close_ref" ]]; then
+  echo "Could not find UX raw JSON close button." >&2
+  cat "${output_dir}/review-ux-raw.yml" >&2
+  exit 1
+fi
+"$PWCLI" --session "$session_name" click "$ux_raw_close_ref" >/dev/null
 
 assert_has_text "${output_dir}/review-ux.yml" "Supporting evidence"
 
@@ -1184,7 +1247,23 @@ fi
 "$PWCLI" --session "$session_name" click "$positive_ref" >/dev/null
 "$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-positive-round.yml"
 assert_has_text "${output_dir}/review-positive-round.yml" "Minor follow-up"
-assert_has_text "${output_dir}/review-positive-round.yml" "from Risk"
+run_code_checked "$session_name" '
+async (page) => await page.evaluate(() => {
+  const findings = [...document.querySelectorAll(".review-finding")];
+  const target = findings.find((item) => (item.textContent || "").includes("Minor follow-up"));
+  if (!target) {
+    throw new Error("missing Minor follow-up finding card");
+  }
+  const pills = [...target.querySelectorAll(".provenance-pill")].map((item) => (item.textContent || "").trim());
+  if (!pills.includes("Risk")) {
+    throw new Error(`expected provenance pill for Risk, got ${JSON.stringify(pills)}`);
+  }
+  if (!pills.includes("slot Risk Slot")) {
+    throw new Error(`expected slot provenance pill, got ${JSON.stringify(pills)}`);
+  }
+  return true;
+})
+' >/dev/null
 
 submission_gap_ref="$(button_ref_from_snapshot "Submission validation gap Waiting for submissions Delta · step 5 · rev 2 Apr 2, 2026, 9:20 PM 0/1 submitted" "${output_dir}/review-positive-round.yml")"
 if [[ -z "$submission_gap_ref" ]]; then
@@ -1198,8 +1277,8 @@ fi
 "$PWCLI" --session "$session_name" click "$submission_gap_ref" >/dev/null
 "$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission.yml"
 assert_has_text "${output_dir}/review-invalid-submission.yml" "Submission validation gap"
-assert_has_text "${output_dir}/review-invalid-submission.yml" "Waiting for submissions"
-assert_has_text "${output_dir}/review-invalid-submission.yml" "Ledger marks this reviewer as submitted, but the submission artifact is unavailable."
+assert_has_text "${output_dir}/review-invalid-submission.yml" "Waiting for aggregation"
+assert_has_text "${output_dir}/review-invalid-submission.yml" "All reviewer submissions are present, but the aggregate artifact is still missing."
 
 invalid_support_ref="$(button_ref_from_snapshot "Supporting evidence 4" "${output_dir}/review-invalid-submission.yml")"
 if [[ -z "$invalid_support_ref" ]]; then
@@ -1221,8 +1300,8 @@ if [[ -z "$invalid_submission_ref" ]]; then
 fi
 "$PWCLI" --session "$session_name" click "$invalid_submission_ref" >/dev/null
 "$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission-artifact.yml"
-assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "Invalid"
-assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "Artifact JSON is missing required fields."
+assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "Available"
+assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "review-009-delta"
 
 damaged_ref="$(button_ref_from_snapshot "Step 2 closeout Degraded Delta · step 2 · rev 2 Apr 2, 2026, 7:00 PM 2/2 submitted" "${output_dir}/review-invalid-submission-artifact.yml")"
 if [[ -z "$damaged_ref" ]]; then

@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import {
@@ -6,7 +7,7 @@ import {
   formatValue,
   humanizeLabel,
   pickDefaultTimelineEvent,
-  reviewAggregateFindingSource,
+  reviewAggregateFindingLabels,
   reviewArtifactKey,
   reviewArtifactLabel,
   reviewArtifactText,
@@ -20,6 +21,7 @@ import {
   reviewRoundCompactMeta,
   reviewRoundCompactStatusLabel,
   reviewRoundListLabel,
+  reviewRawSubmissionText,
   reviewRoundStatusLabel,
   reviewRoundStatusTone,
   reviewRoundSubtitle,
@@ -37,6 +39,7 @@ import type {
   ReviewFinding,
   ReviewRound,
   ReviewReviewer,
+  ReviewWorklog,
   TimelineEvent,
 } from "./types";
 import {
@@ -51,18 +54,80 @@ import {
   WorkbenchFrame,
 } from "./workbench";
 
-function ReviewFindingCard(props: { finding: ReviewFinding; provenance?: string | null }) {
-  const { finding, provenance } = props;
+function ReviewFindingCard(props: { finding: ReviewFinding; provenance?: string | null; provenanceLabels?: string[] }) {
+  const { finding, provenance, provenanceLabels = [] } = props;
   return (
     <article class="review-finding">
       <div class="review-finding-head">
         <strong>{finding.title}</strong>
         <StatusBadge tone={reviewFindingBadgeTone(finding.severity)}>{humanizeLabel(finding.severity)}</StatusBadge>
       </div>
+      {provenanceLabels.length > 0 ? (
+        <div class="review-finding-provenance">
+          {provenanceLabels.map((label) => (
+            <span key={label} class="provenance-pill">
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {provenance ? <div class="review-finding-meta">from {provenance}</div> : null}
       <p>{finding.details}</p>
       {Array.isArray(finding.locations) && finding.locations.length > 0 ? <div class="review-finding-locations">{finding.locations.join("\n")}</div> : null}
     </article>
+  );
+}
+
+function ReviewCollapsibleSection(props: {
+  title: string;
+  meta?: ComponentChildren;
+  defaultOpen?: boolean;
+  children: ComponentChildren;
+}) {
+  const { title, meta, defaultOpen = true, children } = props;
+  return (
+    <details class="review-collapsible" open={defaultOpen}>
+      <summary class="review-collapsible-summary">
+        <span>{title}</span>
+        {meta ? <span class="review-collapsible-meta">{meta}</span> : null}
+      </summary>
+      <div class="review-collapsible-body">{children}</div>
+    </details>
+  );
+}
+
+function RawSubmissionOverlay(props: {
+  title: string;
+  value: unknown;
+  onClose: () => void;
+}) {
+  const { title, value, onClose } = props;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div class="raw-json-overlay" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div class="raw-json-dialog" onClick={(event) => event.stopPropagation()}>
+        <div class="raw-json-header">
+          <div>
+            <div class="inspector-title">{title}</div>
+            <div class="inspector-subtitle">Raw reviewer submission payload</div>
+          </div>
+          <button type="button" class="secondary-button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <pre class="inspector-json raw-json-pre">{reviewRawSubmissionText(value)}</pre>
+      </div>
+    </div>
   );
 }
 
@@ -582,7 +647,11 @@ export function ReviewWorkspace(props: {
                 {blockingFindings.length > 0 ? (
                   <div class="review-finding-list">
                     {blockingFindings.map((finding, index) => (
-                      <ReviewFindingCard key={reviewFindingKey(finding, index)} finding={finding} provenance={reviewAggregateFindingSource(finding as ReviewAggregateFinding)} />
+                      <ReviewFindingCard
+                        key={reviewFindingKey(finding, index)}
+                        finding={finding}
+                        provenanceLabels={reviewAggregateFindingLabels(finding as ReviewAggregateFinding)}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -598,7 +667,11 @@ export function ReviewWorkspace(props: {
                 {nonBlockingFindings.length > 0 ? (
                   <div class="review-finding-list">
                     {nonBlockingFindings.map((finding, index) => (
-                      <ReviewFindingCard key={reviewFindingKey(finding, index)} finding={finding} provenance={reviewAggregateFindingSource(finding as ReviewAggregateFinding)} />
+                      <ReviewFindingCard
+                        key={reviewFindingKey(finding, index)}
+                        finding={finding}
+                        provenanceLabels={reviewAggregateFindingLabels(finding as ReviewAggregateFinding)}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -689,6 +762,18 @@ function ReviewerInspector(props: {
   warningCount: number;
 }) {
   const { reviewer, selectedRound, blockingFindings, warningCount } = props;
+  const [showRawSubmission, setShowRawSubmission] = useState(false);
+  const worklog: ReviewWorklog | null = reviewer.worklog ?? null;
+  const checkedAreas = Array.isArray(worklog?.checked_areas) ? worklog?.checked_areas ?? [] : [];
+  const openQuestions = Array.isArray(worklog?.open_questions) ? worklog?.open_questions ?? [] : [];
+  const candidateFindings = Array.isArray(worklog?.candidate_findings) ? worklog?.candidate_findings ?? [] : [];
+  const reviewKind = worklog?.review_kind?.trim() || selectedRound.kind?.trim() || "";
+  const anchorSHA = selectedRound.anchor_sha?.trim() || worklog?.anchor_sha?.trim() || "";
+  const hasRawSubmission = reviewer.raw_submission !== undefined;
+  const findings = Array.isArray(reviewer.findings) ? reviewer.findings ?? [] : [];
+  const fullPlanReadLabel =
+    worklog?.full_plan_read === true ? "Confirmed" : worklog?.full_plan_read === false ? "Not yet confirmed" : "Unknown";
+
   return (
     <div class="review-tab-panel">
       <section class="content-section">
@@ -725,26 +810,101 @@ function ReviewerInspector(props: {
       </section>
 
       <section class="content-section fold-section">
-        <div class="section-head">
-          <h2>Returned result</h2>
-          <span class="muted">
-            {reviewer.summary?.trim() ? `${Array.isArray(reviewer.findings) ? reviewer.findings.length : 0} finding(s)` : reviewReviewerStatusLabel(reviewer)}
-          </span>
+        <div class="reviewer-toolbar">
+          <span class="muted">Progressive review detail</span>
+          {hasRawSubmission ? (
+            <button type="button" class="secondary-button" onClick={() => setShowRawSubmission(true)}>
+              Show raw JSON
+            </button>
+          ) : null}
         </div>
-        {reviewer.summary?.trim() ? (
-          <>
-            <p class="detail-copy">{reviewer.summary}</p>
-            <div class="review-finding-list">
-              {Array.isArray(reviewer.findings) && reviewer.findings.length > 0 ? (
-                reviewer.findings.map((finding, index) => <ReviewFindingCard key={reviewFindingKey(finding, index)} finding={finding} />)
-              ) : (
-                <EmptyState>No findings recorded for this reviewer.</EmptyState>
-              )}
+        <ReviewCollapsibleSection
+          title="Review context"
+          defaultOpen={true}
+          meta={reviewKind ? humanizeLabel(reviewKind) : reviewReviewerStatusLabel(reviewer)}
+        >
+          <dl class="kv-list">
+            <div>
+              <dt>Review kind</dt>
+              <dd>{reviewKind ? humanizeLabel(reviewKind) : "Unknown"}</dd>
             </div>
-          </>
-        ) : (
-          <EmptyState>This reviewer has not submitted a result yet.</EmptyState>
-        )}
+            <div>
+              <dt>Anchor</dt>
+              <dd>{anchorSHA || "Not recorded"}</dd>
+            </div>
+            <div>
+              <dt>Full plan read</dt>
+              <dd>{fullPlanReadLabel}</dd>
+            </div>
+            <div>
+              <dt>Submitted</dt>
+              <dd>{reviewer.submitted_at ? formatTimestamp(reviewer.submitted_at) : "Not submitted"}</dd>
+            </div>
+          </dl>
+        </ReviewCollapsibleSection>
+
+        <ReviewCollapsibleSection title="Covered areas" defaultOpen={true} meta={`${checkedAreas.length} item(s)`}>
+          {checkedAreas.length > 0 ? (
+            <ul class="compact-list">
+              {checkedAreas.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState>No covered areas recorded yet.</EmptyState>
+          )}
+        </ReviewCollapsibleSection>
+
+        <ReviewCollapsibleSection title="Open questions" defaultOpen={openQuestions.length > 0} meta={`${openQuestions.length} item(s)`}>
+          {openQuestions.length > 0 ? (
+            <ul class="compact-list">
+              {openQuestions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState>No open questions recorded.</EmptyState>
+          )}
+        </ReviewCollapsibleSection>
+
+        <ReviewCollapsibleSection
+          title="Candidate findings"
+          defaultOpen={candidateFindings.length > 0}
+          meta={`${candidateFindings.length} item(s)`}
+        >
+          {candidateFindings.length > 0 ? (
+            <ul class="compact-list">
+              {candidateFindings.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState>No candidate findings recorded.</EmptyState>
+          )}
+        </ReviewCollapsibleSection>
+      </section>
+
+      <section class="content-section fold-section">
+        <ReviewCollapsibleSection
+          title="Returned result"
+          defaultOpen={true}
+          meta={reviewer.summary?.trim() ? `${findings.length} finding(s)` : reviewReviewerStatusLabel(reviewer)}
+        >
+          {reviewer.summary?.trim() ? (
+            <>
+              <p class="detail-copy">{reviewer.summary}</p>
+              <div class="review-finding-list">
+                {findings.length > 0 ? (
+                  findings.map((finding, index) => <ReviewFindingCard key={reviewFindingKey(finding, index)} finding={finding} />)
+                ) : (
+                  <EmptyState>No findings recorded for this reviewer.</EmptyState>
+                )}
+              </div>
+            </>
+          ) : (
+            <EmptyState>This reviewer has not submitted a result yet.</EmptyState>
+          )}
+        </ReviewCollapsibleSection>
       </section>
 
       {Array.isArray(reviewer.warnings) && reviewer.warnings.length > 0 ? (
@@ -761,6 +921,10 @@ function ReviewerInspector(props: {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {showRawSubmission ? (
+        <RawSubmissionOverlay title={`${reviewReviewerLabel(reviewer)} raw submission`} value={reviewer.raw_submission} onClose={() => setShowRawSubmission(false)} />
       ) : null}
     </div>
   );
