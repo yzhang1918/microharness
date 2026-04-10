@@ -145,12 +145,27 @@ Expanded installer smoke coverage with a new inode-replacement assertion for
 `--global` refresh and an invalid-fallback self-heal case for ordinary installs.
 The repair path passed
 `go test ./tests/smoke -run TestInstallDevHarnessRepairsInvalidExistingGlobalFallback -count=1`.
+After step-closeout review surfaced symlink edge cases, added focused smoke
+coverage for both broken symlink and directory-symlink global fallbacks. Those
+repairs passed
+`go test ./tests/smoke -run TestInstallDevHarnessRepairsBrokenSymlinkGlobalFallback -count=1`,
+`go test ./tests/smoke -run TestInstallDevHarnessRepairsDirectorySymlinkGlobalFallback -count=1`,
+and a focused regression run over the fallback-repair smoke subset.
 No README change was needed because the user-facing install contract stayed the
 same; the repair only changes how the fallback file is replaced and validated.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-001-delta` requested one blocking correctness fix because ordinary
+installs still skipped self-healing when the fallback path was a broken symlink.
+The repair broadened the invalid-fallback gate to include symlink paths and
+added `TestInstallDevHarnessRepairsBrokenSymlinkGlobalFallback`.
+`review-002-delta` then requested one blocking correctness fix because a
+directory-symlink fallback still caused `mv -f` to write into the linked
+directory instead of replacing the symlink entry. The repair now removes
+symlink targets before the final rename and adds
+`TestInstallDevHarnessRepairsDirectorySymlinkGlobalFallback`.
+`review-003-delta` passed cleanly after those fixes.
 
 ## Validation Strategy
 
