@@ -622,6 +622,12 @@ body.is-resizing-workbench .workbench-divider::before {
   gap: 0.75rem;
 }
 
+.section-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .section-head h2,
 .section-head h3 {
   margin: 0;
@@ -883,36 +889,6 @@ body.is-resizing-workbench .workbench-divider::before {
   white-space: pre-wrap;
 }
 
-.supporting-section {
-  margin-top: 1rem;
-}
-
-.supporting-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.52rem 0;
-  border: 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-
-.supporting-toggle.is-open {
-  color: var(--text-strong);
-  border-top-color: rgba(255, 255, 255, 0.14);
-}
-
-.supporting-stack {
-  display: grid;
-  gap: 0.78rem;
-}
-
 .artifact-panel {
   display: grid;
   gap: 0.68rem;
@@ -931,16 +907,19 @@ body.is-resizing-workbench .workbench-divider::before {
   font-size: 0.64rem;
 }
 
-.fold-section {
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
-  padding-left: 0.78rem;
+.subtle-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.reviewer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+.subtle-button:hover {
+  color: var(--text-strong);
 }
 
 .secondary-button {
@@ -961,20 +940,20 @@ body.is-resizing-workbench .workbench-divider::before {
 }
 
 .review-collapsible {
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
 }
 
 .review-collapsible + .review-collapsible {
-  margin-top: 0.72rem;
+  margin-top: 0;
 }
 
 .review-collapsible-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.62rem 0.72rem;
+  padding: 0.7rem 0;
   cursor: pointer;
   list-style: none;
   color: var(--text-strong);
@@ -986,14 +965,20 @@ body.is-resizing-workbench .workbench-divider::before {
   display: none;
 }
 
-.review-collapsible-summary::before {
-  content: "▾";
-  margin-right: 0.45rem;
-  color: var(--text-muted);
+.review-collapsible-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
 }
 
-.review-collapsible:not([open]) .review-collapsible-summary::before {
-  content: "▸";
+.review-collapsible-caret {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.review-collapsible:not([open]) .review-collapsible-caret {
+  transform: rotate(-90deg);
 }
 
 .review-collapsible-meta {
@@ -1005,8 +990,7 @@ body.is-resizing-workbench .workbench-divider::before {
 }
 
 .review-collapsible-body {
-  padding: 0 0.72rem 0.72rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 0 0.72rem 1.05rem;
 }
 
 .compact-list {
@@ -1025,6 +1009,10 @@ body.is-resizing-workbench .workbench-divider::before {
 .compact-list li:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.review-process-section {
+  gap: 0.15rem;
 }
 
 .raw-json-overlay {
@@ -1047,6 +1035,10 @@ body.is-resizing-workbench .workbench-divider::before {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 }
 
+.artifact-overlay-dialog {
+  width: min(960px, calc(100vw - 2rem));
+}
+
 .raw-json-header {
   display: flex;
   align-items: flex-start;
@@ -1059,6 +1051,16 @@ body.is-resizing-workbench .workbench-divider::before {
 .raw-json-pre {
   margin: 0;
   padding: 0.85rem 0.95rem 1rem;
+}
+
+.artifact-overlay-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.85rem 0.95rem 1rem;
+}
+
+.artifact-overlay-section {
+  margin-top: 0.95rem;
 }
 
 .sr-only {
@@ -1167,7 +1169,8 @@ body.is-resizing-workbench .workbench-divider::before {
   .inspector-head,
   .review-finding-head,
   .artifact-meta,
-  .reviewer-toolbar,
+  .section-head,
+  .section-head-actions,
   .raw-json-header {
     flex-direction: column;
     align-items: flex-start;

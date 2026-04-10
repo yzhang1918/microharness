@@ -1059,7 +1059,6 @@ assert_has_text "${output_dir}/review-initial.yml" "review-005-full"
 assert_has_text "${output_dir}/review-initial.yml" "Core review artifacts are missing."
 assert_has_text "${output_dir}/review-initial.yml" "Degraded"
 assert_has_text "${output_dir}/review-initial.yml" "Summary"
-assert_has_text "${output_dir}/review-initial.yml" "Supporting evidence"
 if grep -Fq -- "WIP" "${output_dir}/review-initial.yml"; then
   echo "Review snapshot still contains WIP placeholder text." >&2
   cat "${output_dir}/review-initial.yml" >&2
@@ -1177,19 +1176,28 @@ assert_has_text "${output_dir}/review-ux.yml" "Open questions"
 assert_has_text "${output_dir}/review-ux.yml" "Returned result"
 assert_has_text "${output_dir}/review-ux.yml" "Check hierarchy, density, and visual polish."
 assert_has_text "${output_dir}/review-ux.yml" "This reviewer has not submitted a result yet."
-assert_has_text "${output_dir}/review-ux.yml" "Show raw JSON"
+assert_has_text "${output_dir}/review-ux.yml" "Raw JSON"
 run_code_checked "$session_name" '
 async (page) => await page.evaluate(() => {
-  const sections = [...document.querySelectorAll(".fold-section")];
-  const task = sections[0];
-  const result = sections[1];
-  if (!task || !result) {
-    throw new Error("missing reviewer sections");
+  const sectionTitles = [...document.querySelectorAll(".review-tab-panel .section-head h2")].map((node) => node.textContent?.trim() || "");
+  const assignedIndex = sectionTitles.indexOf("Assigned task");
+  const resultIndex = sectionTitles.indexOf("Returned result");
+  const processIndex = sectionTitles.indexOf("Review process");
+  if (assignedIndex === -1 || resultIndex === -1 || processIndex === -1) {
+    throw new Error(`missing reviewer section headings: ${sectionTitles.join(" | ")}`);
   }
-  const taskRect = task.getBoundingClientRect();
-  const resultRect = result.getBoundingClientRect();
-  if (resultRect.top <= taskRect.bottom - 4) {
-    throw new Error(`reviewer sections are not vertically stacked: ${taskRect.bottom} vs ${resultRect.top}`);
+  if (!(assignedIndex < resultIndex && resultIndex < processIndex)) {
+    throw new Error(`unexpected reviewer section order: ${sectionTitles.join(" | ")}`);
+  }
+  const rawButton = [...document.querySelectorAll(".subtle-button")].find((node) => node.textContent?.includes("Raw JSON"));
+  const processHeading = [...document.querySelectorAll(".review-tab-panel .section-head h2")].find((node) => node.textContent?.trim() === "Review process");
+  if (!rawButton || !processHeading) {
+    throw new Error("missing raw JSON button or review process heading");
+  }
+  const rawRect = rawButton.getBoundingClientRect();
+  const processRect = processHeading.getBoundingClientRect();
+  if (rawRect.top >= processRect.top) {
+    throw new Error(`raw JSON control was not promoted above the process section: ${rawRect.top} vs ${processRect.top}`);
   }
   return true;
 })
@@ -1215,7 +1223,7 @@ async (page) => await page.evaluate(() => {
 })
 ' >/dev/null
 
-ux_raw_ref="$(button_ref_from_snapshot "Show raw JSON" "${output_dir}/review-ux.yml")"
+ux_raw_ref="$(button_ref_from_snapshot "Raw JSON" "${output_dir}/review-ux.yml")"
 if [[ -z "$ux_raw_ref" ]]; then
   echo "Could not find UX raw JSON button." >&2
   cat "${output_dir}/review-ux.yml" >&2
@@ -1232,8 +1240,6 @@ if [[ -z "$ux_raw_close_ref" ]]; then
   exit 1
 fi
 "$PWCLI" --session "$session_name" click "$ux_raw_close_ref" >/dev/null
-
-assert_has_text "${output_dir}/review-ux.yml" "Supporting evidence"
 
 positive_ref="$(button_ref_from_snapshot "Positive findings round Changes requested Full · rev 2 Apr 2, 2026, 9:06 PM 2/2 submitted" "${output_dir}/review-ux.yml")"
 if [[ -z "$positive_ref" ]]; then
@@ -1258,7 +1264,7 @@ async (page) => await page.evaluate(() => {
   if (!pills.includes("Risk")) {
     throw new Error(`expected provenance pill for Risk, got ${JSON.stringify(pills)}`);
   }
-  if (!pills.includes("slot Risk Slot")) {
+  if (!pills.includes("slot Risk slot")) {
     throw new Error(`expected slot provenance pill, got ${JSON.stringify(pills)}`);
   }
   return true;
@@ -1280,36 +1286,13 @@ assert_has_text "${output_dir}/review-invalid-submission.yml" "Submission valida
 assert_has_text "${output_dir}/review-invalid-submission.yml" "Waiting for aggregation"
 assert_has_text "${output_dir}/review-invalid-submission.yml" "All reviewer submissions are present, but the aggregate artifact is still missing."
 
-invalid_support_ref="$(button_ref_from_snapshot "Supporting evidence 4" "${output_dir}/review-invalid-submission.yml")"
-if [[ -z "$invalid_support_ref" ]]; then
-  invalid_support_ref="$(button_ref_from_snapshot "Supporting evidence" "${output_dir}/review-invalid-submission.yml")"
-fi
-if [[ -z "$invalid_support_ref" ]]; then
-  echo "Could not find invalid-submission supporting evidence toggle." >&2
-  cat "${output_dir}/review-invalid-submission.yml" >&2
-  exit 1
-fi
-"$PWCLI" --session "$session_name" click "$invalid_support_ref" >/dev/null
-"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission-support.yml"
-
-invalid_submission_ref="$(tab_ref_from_snapshot "Submission: Risk" "${output_dir}/review-invalid-submission-support.yml")"
-if [[ -z "$invalid_submission_ref" ]]; then
-  echo "Could not find invalid submission artifact tab." >&2
-  cat "${output_dir}/review-invalid-submission-support.yml" >&2
-  exit 1
-fi
-"$PWCLI" --session "$session_name" click "$invalid_submission_ref" >/dev/null
-"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-invalid-submission-artifact.yml"
-assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "Available"
-assert_has_text "${output_dir}/review-invalid-submission-artifact.yml" "review-009-delta"
-
-damaged_ref="$(button_ref_from_snapshot "Step 2 closeout Degraded Delta · step 2 · rev 2 Apr 2, 2026, 7:00 PM 2/2 submitted" "${output_dir}/review-invalid-submission-artifact.yml")"
+damaged_ref="$(button_ref_from_snapshot "Step 2 closeout Degraded Delta · step 2 · rev 2 Apr 2, 2026, 7:00 PM 2/2 submitted" "${output_dir}/review-invalid-submission.yml")"
 if [[ -z "$damaged_ref" ]]; then
-  damaged_ref="$(button_ref_from_snapshot "Step 2 closeout" "${output_dir}/review-invalid-submission-artifact.yml")"
+  damaged_ref="$(button_ref_from_snapshot "Step 2 closeout" "${output_dir}/review-invalid-submission.yml")"
 fi
 if [[ -z "$damaged_ref" ]]; then
   echo "Could not find damaged historical round." >&2
-  cat "${output_dir}/review-invalid-submission-artifact.yml" >&2
+  cat "${output_dir}/review-invalid-submission.yml" >&2
   exit 1
 fi
 "$PWCLI" --session "$session_name" click "$damaged_ref" >/dev/null
@@ -1334,51 +1317,6 @@ assert_has_text "${output_dir}/review-damaged-risk.yml" "Returned result"
 assert_has_text "${output_dir}/review-damaged-risk.yml" "Check for hidden workflow or data risks."
 assert_has_text "${output_dir}/review-damaged-risk.yml" "Recovered while the ledger is malformed."
 assert_has_text "${output_dir}/review-damaged-risk.yml" "No findings recorded for this reviewer."
-
-damaged_support_ref="$(button_ref_from_snapshot "Supporting evidence 9" "${output_dir}/review-damaged-risk.yml")"
-if [[ -z "$damaged_support_ref" ]]; then
-  damaged_support_ref="$(button_ref_from_snapshot "Supporting evidence" "${output_dir}/review-damaged-risk.yml")"
-fi
-if [[ -z "$damaged_support_ref" ]]; then
-  echo "Could not find damaged-round supporting evidence toggle." >&2
-  cat "${output_dir}/review-damaged-risk.yml" >&2
-  exit 1
-fi
-"$PWCLI" --session "$session_name" click "$damaged_support_ref" >/dev/null
-"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-damaged-support.yml"
-capture_screenshot "$session_name" "${output_dir}/review-damaged-support.png"
-
-run_code_checked "$session_name" '
-async (page) => await page.evaluate(() => {
-  const scroller = document.querySelector(".workbench-body");
-  if (!scroller) {
-    throw new Error("missing workbench-body scroller");
-  }
-  if (getComputedStyle(scroller).overflowY !== "auto") {
-    throw new Error(`unexpected overflow mode: ${getComputedStyle(scroller).overflowY}`);
-  }
-  if (scroller.scrollHeight <= scroller.clientHeight + 1) {
-    return true;
-  }
-  const before = scroller.scrollTop;
-  scroller.scrollTop = scroller.scrollHeight;
-  if (scroller.scrollTop <= before) {
-    throw new Error("workbench-body did not scroll after expanded support evidence");
-  }
-  return true;
-})
-' >/dev/null
-
-damaged_submission_ref="$(tab_ref_from_snapshot "Submission: Risk" "${output_dir}/review-damaged-support.yml")"
-if [[ -z "$damaged_submission_ref" ]]; then
-  echo "Could not find damaged-round risk submission artifact tab." >&2
-  cat "${output_dir}/review-damaged-support.yml" >&2
-  exit 1
-fi
-"$PWCLI" --session "$session_name" click "$damaged_submission_ref" >/dev/null
-"$PWCLI" --session "$session_name" snapshot | snapshot_to_file "${output_dir}/review-damaged-submission.yml"
-assert_has_text "${output_dir}/review-damaged-submission.yml" "Available"
-assert_has_text "${output_dir}/review-damaged-submission.yml" "Recovered while the ledger is malformed."
 
 manifest_ref="$(button_ref_from_snapshot "review-006-delta Degraded Delta Apr 2, 2026, 8:42 PM 1/1 submitted" "${output_dir}/review-damaged-round.yml")"
 if [[ -z "$manifest_ref" ]]; then

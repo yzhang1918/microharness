@@ -287,6 +287,8 @@ finalize review rather than a separate step-local pass.
 
 ## Validation Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - Ran the focused contract, backend, and frontend validation path for the
   landed slice:
   `scripts/sync-contract-artifacts`,
@@ -314,6 +316,8 @@ finalize review rather than a separate step-local pass.
 
 ## Review Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - `review-001-full`
   - `changes_requested` after the `tests` reviewer found that the Playwright
     smoke was not yet pinning normalized reviewer worklog values from the main
@@ -336,6 +340,8 @@ finalize review rather than a separate step-local pass.
 
 ## Archive Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - Archived At: 2026-04-10T09:54:13+08:00
 - Revision: 1
 - PR: NONE. The candidate has not been committed, pushed, or opened as a PR yet.
@@ -350,6 +356,8 @@ finalize review rather than a separate step-local pass.
 ## Outcome Summary
 
 ### Delivered
+
+UPDATE_REQUIRED_AFTER_REOPEN
 
 - Extended the read-only review UI contract and service so reviewer detail
   pages receive normalized progressive-worklog fields, round/review context,
@@ -369,6 +377,8 @@ finalize review rather than a separate step-local pass.
 
 ### Not Delivered
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - No heuristic or explicit linking between progressive candidate findings and
   final findings was added beyond simple co-display in the reviewer detail pane.
 - The round summary page did not gain progressive reviewer-worklog digests or
@@ -378,5 +388,8 @@ finalize review rather than a separate step-local pass.
 
 ### Follow-Up Issues
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - #130 Track follow-up review UI work after reviewer worklog detail landing
   (`https://github.com/catu-ai/easyharness/issues/130`)
+
