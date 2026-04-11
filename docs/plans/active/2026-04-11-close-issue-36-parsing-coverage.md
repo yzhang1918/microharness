@@ -136,7 +136,7 @@ to continue linting and loading cleanly, then reran
 
 ### Step 2: Cover schema-driven input decoding and keep issue closeout bounded
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -188,7 +188,11 @@ and `go test ./internal/inputschema ./internal/evidence`.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-002-delta` passed cleanly with no findings after inspecting the new
+`internal/inputschema` helper properties, schema-backed fuzz target, generated
+schemas, and the command-boundary evidence consumers. The round confirmed this
+step materially advances `#36` while staying bounded away from `reviewui`,
+`tests/resilience`, `tests/support`, and historical evidence-reader hardening.
 
 ## Validation Strategy
 
