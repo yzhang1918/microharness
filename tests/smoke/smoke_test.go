@@ -445,6 +445,8 @@ func TestInitSupportsExplicitOverrideTargetsViaCLI(t *testing.T) {
 	skillPath := workspace.Path(".claude/skills/harness-discovery/SKILL.md")
 	support.RequireFileExists(t, instructionsPath)
 	support.RequireFileExists(t, skillPath)
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
 
 	instructionsData, err := os.ReadFile(instructionsPath)
 	if err != nil {
@@ -486,6 +488,8 @@ func TestInitSupportsExplicitOverrideTargetsViaCLI(t *testing.T) {
 	if strings.Contains(string(refreshedSkill), "easyharness-version: stale-") {
 		t.Fatalf("expected custom skill refresh to replace stale version marker, got:\n%s", refreshedSkill)
 	}
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
 }
 
 func TestSkillsAndInstructionsInstallSupportUserScopeViaCLI(t *testing.T) {
@@ -505,6 +509,8 @@ func TestSkillsAndInstructionsInstallSupportUserScopeViaCLI(t *testing.T) {
 		t.Fatalf("unexpected user-scope skills payload: %#v", skillsPayload)
 	}
 	support.RequireFileExists(t, filepath.Join(codexHome, "skills/harness-discovery/SKILL.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
 
 	instructionsResult := support.RunWithOptions(t, support.RunOptions{
 		Workdir: workspace.Root,
@@ -519,6 +525,26 @@ func TestSkillsAndInstructionsInstallSupportUserScopeViaCLI(t *testing.T) {
 		t.Fatalf("unexpected user-scope instructions payload: %#v", instructionsPayload)
 	}
 	support.RequireFileExists(t, filepath.Join(codexHome, "AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+
+	skillsUninstall := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"skills", "uninstall", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, skillsUninstall)
+	support.RequireNoStderr(t, skillsUninstall)
+
+	instructionsUninstall := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"instructions", "uninstall", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, instructionsUninstall)
+	support.RequireNoStderr(t, instructionsUninstall)
+	support.RequireFileMissing(t, filepath.Join(codexHome, "skills/harness-discovery/SKILL.md"))
+	support.RequireFileMissing(t, filepath.Join(codexHome, "AGENTS.md"))
 }
 
 func TestSkillsAndInstructionsInstallSupportExplicitOverrideTargetsViaCLI(t *testing.T) {
@@ -532,6 +558,8 @@ func TestSkillsAndInstructionsInstallSupportExplicitOverrideTargetsViaCLI(t *tes
 	support.RequireSuccess(t, skillsInstall)
 	support.RequireNoStderr(t, skillsInstall)
 	support.RequireFileExists(t, skillPath)
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
 
 	instructionsInstall := support.Run(t, workspace.Root, "instructions", "install", "--agent", "claude", "--file", instructionsFile, "--dir", skillsDir)
 	support.RequireSuccess(t, instructionsInstall)
@@ -581,6 +609,18 @@ func TestSkillsAndInstructionsInstallSupportExplicitOverrideTargetsViaCLI(t *tes
 	if strings.Contains(string(refreshedInstructions), `version="stale-`) {
 		t.Fatalf("expected override instructions refresh to replace stale version marker, got:\n%s", refreshedInstructions)
 	}
+
+	skillsUninstall := support.Run(t, workspace.Root, "skills", "uninstall", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsUninstall)
+	support.RequireNoStderr(t, skillsUninstall)
+
+	instructionsUninstall := support.Run(t, workspace.Root, "instructions", "uninstall", "--agent", "claude", "--file", instructionsFile)
+	support.RequireSuccess(t, instructionsUninstall)
+	support.RequireNoStderr(t, instructionsUninstall)
+	support.RequireFileMissing(t, skillPath)
+	support.RequireFileMissing(t, instructionsPath)
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
 }
 
 func TestSupportRunUsesBuiltBinaryInsteadOfPATH(t *testing.T) {

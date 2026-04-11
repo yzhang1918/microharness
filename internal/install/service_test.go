@@ -371,6 +371,41 @@ func TestInstructionsUserScopePreservesUserOwnedContent(t *testing.T) {
 	}
 }
 
+func TestInstallSkillsRefreshesLegacyManagedSkillWithCRLFLineEndings(t *testing.T) {
+	root := t.TempDir()
+	svc := testService(root)
+	if result := svc.InstallSkills(Options{}); !result.OK {
+		t.Fatalf("initial install failed: %#v", result)
+	}
+
+	skillPath := filepath.Join(root, ".agents/skills/harness-discovery/SKILL.md")
+	managed, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read managed skill: %v", err)
+	}
+	legacy, err := stripManagedSkillMetadata(string(managed))
+	if err != nil {
+		t.Fatalf("strip managed metadata: %v", err)
+	}
+	legacy = strings.ReplaceAll(legacy, "\n", "\r\n")
+	if err := os.WriteFile(skillPath, []byte(legacy), 0o644); err != nil {
+		t.Fatalf("write CRLF legacy skill: %v", err)
+	}
+
+	result := svc.InstallSkills(Options{})
+	if !result.OK {
+		t.Fatalf("refresh install failed: %#v", result)
+	}
+
+	refreshed, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read refreshed skill: %v", err)
+	}
+	if !strings.Contains(string(refreshed), "easyharness-managed: \"true\"") {
+		t.Fatalf("expected refreshed managed metadata, got:\n%s", refreshed)
+	}
+}
+
 func TestInitSupportsExplicitOverrideTargetsForUnknownAgents(t *testing.T) {
 	root := t.TempDir()
 	result := testService(root).Init(Options{
@@ -386,6 +421,12 @@ func TestInitSupportsExplicitOverrideTargetsForUnknownAgents(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".claude/skills/harness-discovery/SKILL.md")); err != nil {
 		t.Fatalf("expected explicit skills dir install, err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "AGENTS.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected default repo instructions target to remain untouched, err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".agents/skills")); !os.IsNotExist(err) {
+		t.Fatalf("expected default repo skills target to remain untouched, err=%v", err)
 	}
 }
 

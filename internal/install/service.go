@@ -855,20 +855,39 @@ func pruneEmptyParents(dir, stop string) {
 }
 
 func splitFrontmatter(content string) (string, string, error) {
-	if !strings.HasPrefix(content, "---\n") && !strings.HasPrefix(content, "---\r\n") {
+	var rest string
+	switch {
+	case strings.HasPrefix(content, "---\r\n"):
+		rest = content[len("---\r\n"):]
+	case strings.HasPrefix(content, "---\n"):
+		rest = content[len("---\n"):]
+	default:
 		return "", "", fmt.Errorf("file must start with YAML frontmatter delimited by ---")
 	}
-	rest := content[4:]
-	closeIndex := strings.Index(rest, "\n---")
-	if closeIndex < 0 {
-		closeIndex = strings.Index(rest, "\r\n---")
+
+	for i := 0; i < len(rest); {
+		lineEnd := strings.IndexAny(rest[i:], "\r\n")
+		if lineEnd < 0 {
+			if rest[i:] == "---" {
+				return strings.Trim(rest[:i], "\r\n"), "", nil
+			}
+			break
+		}
+		lineEnd += i
+		if rest[i:lineEnd] == "---" {
+			sepLen := 1
+			if rest[lineEnd] == '\r' && lineEnd+1 < len(rest) && rest[lineEnd+1] == '\n' {
+				sepLen = 2
+			}
+			return strings.Trim(rest[:i], "\r\n"), rest[lineEnd+sepLen:], nil
+		}
+		if rest[lineEnd] == '\r' && lineEnd+1 < len(rest) && rest[lineEnd+1] == '\n' {
+			i = lineEnd + 2
+			continue
+		}
+		i = lineEnd + 1
 	}
-	if closeIndex < 0 {
-		return "", "", fmt.Errorf("frontmatter is missing a closing --- delimiter")
-	}
-	raw := rest[:closeIndex]
-	body := rest[closeIndex+4:]
-	return strings.Trim(raw, "\r\n"), body, nil
+	return "", "", fmt.Errorf("frontmatter is missing a closing --- delimiter")
 }
 
 type skillFrontmatter struct {

@@ -211,8 +211,7 @@ bootstrap install engine to support repo/user scopes, codex defaults plus
 explicit overrides, versioned managed-block rendering, standards-aligned skill
 frontmatter metadata, safe uninstall flows, stale managed-skill cleanup, and
 conflict errors when same-path skills are not recognized as easyharness-
-managed. Preserved refresh behavior for legacy installs by recognizing older
-packaged skills that predate the new metadata markers.
+managed.
 
 #### Review Notes
 
