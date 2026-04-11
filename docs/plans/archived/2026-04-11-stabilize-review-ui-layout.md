@@ -122,7 +122,7 @@ review `review-002-delta` then exposed that the saved explorer evidence path
 was still carrying an older screenshot and that the longer `submitted` copy was
 using too much space; the repair compacted the metadata label to `a/b` and
 refreshed the tracked supplement screenshot
-`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
+`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
 from the rebuilt UI.
 Delta review `review-003-delta` then caught one more real containment gap: the
 row's outer button still had `scrollWidth > clientWidth` because
@@ -132,7 +132,7 @@ measurement now shows the button, main column, row, and subtitle all fully
 contained while the long title text alone truncates by ellipsis. The exact
 candidate commit, screenshot paths, and width measurements are now durably
 recorded in
-`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/containment-validation.md`.
+`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/containment-validation.md`.
 
 #### Review Notes
 
@@ -182,9 +182,9 @@ be proved first with a narrow failing unit test. After `review-001-full`
 requested stronger evidence for populated review data, the repair loop used the
 current worktree's real review round to capture browser evidence at the minimum
 review explorer width in
-`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
+`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
 and
-`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-header-meta.png`.
+`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-header-meta.png`.
 
 #### Review Notes
 
@@ -218,31 +218,72 @@ does not benefit from a synthetic intermediate review boundary.
 - Risk: A code-only verification pass could miss a browser-only visual
   regression in the populated review state.
   - Mitigation: Keep the DOM structure narrowly aligned to the agreed layout,
-    run the real UI shell locally, and document that a populated review-state
-    screenshot was not available in this worktree for direct replay.
+    run the real UI shell locally, and keep the tracked screenshot evidence and
+    220px DOM measurements in the containment supplement so archive-time review
+    does not depend on ephemeral local output.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `pnpm --dir web check`, `pnpm --dir web build`, and `git diff --check`
+  passed for the final candidate.
+- Browser validation at the true 220px review explorer width confirmed the
+  selected row container, title row, and subtitle row all stayed contained
+  while the long title text alone truncated by ellipsis.
+- Tracked browser evidence now lives under
+  `docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/`,
+  including `review-explorer-row-220.png`, `review-header-meta.png`, and the
+  exact measurements recorded in `containment-validation.md`.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Finalize review started with `review-001-full`, which found the initial
+  narrow-width containment and validation gaps in the explorer metadata layout.
+- Follow-up delta rounds `review-002-delta` through `review-005-delta`
+  tightened the subtitle containment, compacted the metadata copy, and moved
+  the validation story from mutable local screenshots into tracked supplement
+  evidence.
+- `review-006-delta` passed cleanly after the tracked evidence repair, and the
+  required archive-gate `review-007-full` then passed with one non-blocking
+  note about stale plan wording that this archive closeout resolves.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-12T00:16:38+08:00
+- Revision: 1
+- PR: NONE. Open or refresh the PR after the archive move is committed and
+  pushed, then record the lightweight breadcrumb in that PR body.
+- Ready: Acceptance criteria are satisfied, `review-006-delta` passed for the
+  final evidence repair, `review-007-full` passed as the required archive gate,
+  and the tracked plan plus supplement now tell a consistent browser-validation
+  story for this UI-only slice.
+- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
+  the closeout summaries, push branch `codex/review-ui-layout-polish`, open or
+  refresh the PR, and record publish, CI, and sync evidence until `harness
+  status` reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Reflowed review explorer items so the title owns the first line while the
+  second line carries compact `Step x · a/b · STATUS` metadata.
+- Removed the redundant review status dot from explorer rows and hardened the
+  row layout so the narrow 220px explorer width no longer lets the row content
+  push past the container.
+- Demoted the selected-round header timestamp onto its own second metadata line
+  beneath `Artifacts` and the status badge.
+- Rebuilt the embedded UI bundle and recorded durable tracked evidence for the
+  final narrow-width browser validation.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- No broader review explorer redesign was attempted beyond the agreed layout
+  polish.
+- No additional populated-review browser fixture coverage was added in this
+  lightweight slice.
 
 ### Follow-Up Issues
 
-NONE
+- [#146](https://github.com/catu-ai/easyharness/issues/146) tracks the deferred
+  broader review UI polish and stronger populated-review browser fixture
+  coverage.
