@@ -521,6 +521,68 @@ func TestSkillsAndInstructionsInstallSupportUserScopeViaCLI(t *testing.T) {
 	support.RequireFileExists(t, filepath.Join(codexHome, "AGENTS.md"))
 }
 
+func TestSkillsAndInstructionsInstallSupportExplicitOverrideTargetsViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	skillsDir := ".claude/skills"
+	instructionsFile := "CLAUDE.md"
+	skillPath := workspace.Path(filepath.Join(skillsDir, "harness-discovery/SKILL.md"))
+	instructionsPath := workspace.Path(instructionsFile)
+
+	skillsInstall := support.Run(t, workspace.Root, "skills", "install", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsInstall)
+	support.RequireNoStderr(t, skillsInstall)
+	support.RequireFileExists(t, skillPath)
+
+	instructionsInstall := support.Run(t, workspace.Root, "instructions", "install", "--agent", "claude", "--file", instructionsFile, "--dir", skillsDir)
+	support.RequireSuccess(t, instructionsInstall)
+	support.RequireNoStderr(t, instructionsInstall)
+	support.RequireFileExists(t, instructionsPath)
+
+	skillData, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read override skill file: %v", err)
+	}
+	instructionsData, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read override instructions file: %v", err)
+	}
+	support.RequireContains(t, string(skillData), "easyharness-version:")
+	support.RequireContains(t, string(instructionsData), `<!-- easyharness:begin version="`)
+
+	staleSkill := strings.Replace(string(skillData), "easyharness-version:", "easyharness-version: stale-", 1)
+	if err := os.WriteFile(skillPath, []byte(staleSkill), 0o644); err != nil {
+		t.Fatalf("write stale override skill file: %v", err)
+	}
+	staleInstructions := strings.Replace(string(instructionsData), `<!-- easyharness:begin version="`, `<!-- easyharness:begin version="stale-`, 1)
+	if err := os.WriteFile(instructionsPath, []byte(staleInstructions), 0o644); err != nil {
+		t.Fatalf("write stale override instructions file: %v", err)
+	}
+
+	skillsRefresh := support.Run(t, workspace.Root, "skills", "install", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsRefresh)
+	support.RequireNoStderr(t, skillsRefresh)
+
+	instructionsRefresh := support.Run(t, workspace.Root, "instructions", "install", "--agent", "claude", "--file", instructionsFile, "--dir", skillsDir)
+	support.RequireSuccess(t, instructionsRefresh)
+	support.RequireNoStderr(t, instructionsRefresh)
+
+	refreshedSkill, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read refreshed override skill file: %v", err)
+	}
+	if strings.Contains(string(refreshedSkill), "easyharness-version: stale-") {
+		t.Fatalf("expected override skill refresh to replace stale version marker, got:\n%s", refreshedSkill)
+	}
+
+	refreshedInstructions, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read refreshed override instructions file: %v", err)
+	}
+	if strings.Contains(string(refreshedInstructions), `version="stale-`) {
+		t.Fatalf("expected override instructions refresh to replace stale version marker, got:\n%s", refreshedInstructions)
+	}
+}
+
 func TestSupportRunUsesBuiltBinaryInsteadOfPATH(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	poisonDir := workspace.Path("tmp/poison-bin")

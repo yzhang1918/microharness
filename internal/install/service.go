@@ -69,6 +69,7 @@ type plannedWrite struct {
 	kind    string
 	details string
 	content []byte
+	pruneTo string
 }
 
 func (s Service) Init(opts Options) Result {
@@ -384,6 +385,7 @@ func (s Service) planInstructionsUninstall(targetFile string) ([]plannedWrite, [
 			path:    targetFile,
 			kind:    ActionDelete,
 			details: "Remove the instructions file because it only contained easyharness-managed bootstrap content.",
+			pruneTo: filepath.Dir(targetFile),
 		}}, nil
 	}
 
@@ -504,6 +506,7 @@ func (s Service) planSkillsInstall(targetDir string) ([]plannedWrite, []CommandE
 				path:    existing,
 				kind:    ActionDelete,
 				details: "Remove stale file from the easyharness-managed skill directory.",
+				pruneTo: targetDir,
 			})
 		}
 	}
@@ -585,7 +588,7 @@ func (s Service) applyWrites(writes []plannedWrite, dryRun bool) *CommandError {
 			if err := os.Remove(write.path); err != nil && !os.IsNotExist(err) {
 				return &CommandError{Path: pathLabel(s.Workdir, write.path), Message: fmt.Sprintf("remove path: %v", err)}
 			}
-			pruneEmptyParents(filepath.Dir(write.path))
+			pruneEmptyParents(filepath.Dir(write.path), write.pruneTo)
 		default:
 			if err := os.MkdirAll(filepath.Dir(write.path), 0o755); err != nil {
 				return &CommandError{Path: pathLabel(s.Workdir, write.path), Message: fmt.Sprintf("create parent directory: %v", err)}
@@ -821,18 +824,20 @@ func planDeleteTree(root, details string) ([]plannedWrite, error) {
 		return nil, err
 	}
 	writes := make([]plannedWrite, 0, len(files))
+	pruneTo := filepath.Dir(root)
 	for i := len(files) - 1; i >= 0; i-- {
 		writes = append(writes, plannedWrite{
 			path:    files[i],
 			kind:    ActionDelete,
 			details: details,
+			pruneTo: pruneTo,
 		})
 	}
 	return writes, nil
 }
 
-func pruneEmptyParents(dir string) {
-	stop := filepath.Clean(filepath.Dir(dir))
+func pruneEmptyParents(dir, stop string) {
+	stop = filepath.Clean(stop)
 	for {
 		cleanDir := filepath.Clean(dir)
 		if cleanDir == stop || cleanDir == filepath.Dir(cleanDir) {

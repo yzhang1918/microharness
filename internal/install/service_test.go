@@ -174,6 +174,9 @@ func TestUninstallInstructionsDeletesFileWhenOnlyManagedContentRemains(t *testin
 	if _, err := os.Stat(filepath.Join(root, "AGENTS.md")); !os.IsNotExist(err) {
 		t.Fatalf("expected AGENTS.md deletion, err=%v", err)
 	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		t.Fatalf("expected containing directory to survive, err=%v info=%v", err, info)
+	}
 }
 
 func TestUninstallInstructionsPreservesUserContentAroundManagedBlock(t *testing.T) {
@@ -273,6 +276,31 @@ func TestSkillsUserScopeUsesCodexHomeAndUninstallsManagedPackages(t *testing.T) 
 	}
 }
 
+func TestSkillsUserScopeRejectsNonManagedConflicts(t *testing.T) {
+	root := t.TempDir()
+	conflictPath := filepath.Join(root, "home/.codex/skills/harness-discovery/SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(conflictPath), 0o755); err != nil {
+		t.Fatalf("mkdir user-scope conflict skill dir: %v", err)
+	}
+	conflictBody := strings.Join([]string{
+		"---",
+		"name: harness-discovery",
+		"description: User-owned user-scope skill.",
+		"---",
+		"",
+		"# Custom",
+		"",
+	}, "\n")
+	if err := os.WriteFile(conflictPath, []byte(conflictBody), 0o644); err != nil {
+		t.Fatalf("write user-scope conflict skill: %v", err)
+	}
+
+	result := testService(root).InstallSkills(Options{Scope: ScopeUser})
+	if result.OK {
+		t.Fatalf("expected user-scope conflict failure, got %#v", result)
+	}
+}
+
 func TestInstructionsUserScopeUsesCodexHomeAndUninstallsManagedBlock(t *testing.T) {
 	root := t.TempDir()
 	svc := testService(root)
@@ -296,6 +324,50 @@ func TestInstructionsUserScopeUsesCodexHomeAndUninstallsManagedBlock(t *testing.
 	}
 	if _, err := os.Stat(userAgents); !os.IsNotExist(err) {
 		t.Fatalf("expected managed user-scope instructions removal, err=%v", err)
+	}
+	if info, err := os.Stat(filepath.Join(root, "home/.codex")); err != nil || !info.IsDir() {
+		t.Fatalf("expected CODEX_HOME directory to survive, err=%v info=%v", err, info)
+	}
+}
+
+func TestInstructionsUserScopePreservesUserOwnedContent(t *testing.T) {
+	root := t.TempDir()
+	svc := testService(root)
+	userAgents := filepath.Join(root, "home/.codex/AGENTS.md")
+	if err := os.MkdirAll(filepath.Dir(userAgents), 0o755); err != nil {
+		t.Fatalf("mkdir user-scope AGENTS parent: %v", err)
+	}
+	initial := strings.Join([]string{
+		"# AGENTS.md",
+		"",
+		"User-owned intro.",
+		"",
+		"User-owned footer.",
+		"",
+	}, "\n")
+	if err := os.WriteFile(userAgents, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write user-owned AGENTS.md: %v", err)
+	}
+
+	installResult := svc.InstallInstructions(Options{Scope: ScopeUser})
+	if !installResult.OK {
+		t.Fatalf("user-scope instructions install failed: %#v", installResult)
+	}
+	uninstallResult := svc.UninstallInstructions(Options{Scope: ScopeUser})
+	if !uninstallResult.OK {
+		t.Fatalf("user-scope instructions uninstall failed: %#v", uninstallResult)
+	}
+
+	rendered, err := os.ReadFile(userAgents)
+	if err != nil {
+		t.Fatalf("read preserved user-scope AGENTS.md: %v", err)
+	}
+	body := string(rendered)
+	if !strings.Contains(body, "User-owned intro.") || !strings.Contains(body, "User-owned footer.") {
+		t.Fatalf("expected user-owned instructions to survive, got:\n%s", body)
+	}
+	if strings.Contains(body, "<!-- easyharness:begin") || strings.Contains(body, "<!-- easyharness:end -->") {
+		t.Fatalf("expected managed block removal, got:\n%s", body)
 	}
 }
 
