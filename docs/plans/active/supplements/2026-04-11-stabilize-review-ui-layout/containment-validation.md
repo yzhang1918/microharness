@@ -1,6 +1,6 @@
 # Review Explorer Containment Validation
 
-Current validated head: `bca2720`
+Latest validated code head: `4f1757a`
 Original containment fix commit: `ef1b89a`
 
 This note records the direct 220px-width validation used to close the final
@@ -21,11 +21,13 @@ the clean `origin/main` sync merge.
 
 The 220px containment screenshots were captured from the rebuilt embedded
 `harness ui` binary with `harness-ui:explorer-width:review=220` in browser
-local storage. Revision 2 then reran `scripts/ui-playwright-review-smoke`
-successfully on merged head `bca2720` and copied two representative smoke
-screenshots into this tracked supplement. The sync merge from `920deea` to
-`bca2720` did not touch `web/src` or `internal/ui`, so the direct 220px
-containment captures remain the current UI-specific evidence for this slice.
+local storage. Revision 2 reran `scripts/ui-playwright-review-smoke`
+successfully on code head `4f1757a`, which contains the review-smoke selector
+repair, and copied two representative smoke screenshots into this tracked
+supplement. The sync merge from `920deea` through code head `4f1757a` did not
+touch `web/src` or `internal/ui`, so the direct 220px containment captures
+remain the current UI-specific evidence for this slice; the remaining
+follow-up after `4f1757a` is documentation-only evidence bookkeeping.
 
 ## DOM Measurements
 

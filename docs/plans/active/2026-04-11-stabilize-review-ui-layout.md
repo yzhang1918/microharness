@@ -240,10 +240,13 @@ UPDATE_REQUIRED_AFTER_REOPEN
   including `review-explorer-row-220.png`, `review-header-meta.png`,
   `review-smoke-rev2-initial.png`, `review-smoke-rev2-row-active.png`, and the
   exact measurements recorded in `containment-validation.md`.
-- The sync merge from revision 1's archived commit to head `bca2720` did not
-  change `web/src` or `internal/ui`, so the 220px containment captures remain
-  the current UI-specific evidence while the fresh review smoke covers the
-  merged revision-2 browser path.
+- The latest passing review smoke reran on code head `4f1757a`, the commit that
+  contains the review-smoke selector repair. The sync merge from revision 1's
+  archived commit through `4f1757a` did not change `web/src` or `internal/ui`,
+  so the 220px containment captures remain the current UI-specific evidence
+  while the fresh review smoke covers the merged revision-2 browser path. The
+  remaining follow-up after `4f1757a` is documentation-only evidence
+  bookkeeping.
 
 ## Review Summary
 
