@@ -328,15 +328,17 @@ candidate level.
 
 ## Archive Summary
 
-PR: Branch-local candidate is ready for publish handoff; no PR metadata was
-recorded during this local execution loop.
-
-Ready: The candidate reached a passing finalize review state after one full
-review and two narrow delta follow-ups, with no blocking findings remaining.
-
-Merge Handoff: After archive, refresh publish/CI/sync evidence and then wait
-for human merge approval once the archived candidate has current publish, CI,
-and sync evidence recorded.
+- Archived At: 2026-04-11T16:53:16+08:00
+- Revision: 1
+- PR: Branch-local candidate is ready for publish handoff; no PR metadata was
+  recorded during this local execution loop.
+- Ready: The candidate reached a passing finalize review state after one full
+  review and multiple narrow delta follow-ups, with no blocking findings
+  remaining after `review-008-full`.
+- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
+  closeout summaries, refresh publish/CI/sync evidence for this branch-local
+  candidate, and wait for human merge approval once `harness status` reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
