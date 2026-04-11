@@ -71,6 +71,49 @@ func TestBuildReleaseProducesSupportedAlphaArchivesAndVersionedBinary(t *testing
 	}
 }
 
+func TestBuildReleaseProducesStableArchiveAndVersionedBinary(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	outputDir := newReleaseOutputDir(t, "supported-stable")
+
+	hostPlatform := runtime.GOOS + "/" + runtime.GOARCH
+	if !isSupportedAlphaPlatform(hostPlatform) {
+		t.Skipf("host platform %s is outside the supported release target set", hostPlatform)
+	}
+
+	version := "v0.2.0"
+	expectedCommit := gitHeadCommit(t, support.RepoRoot(t))
+	expectedArchiveTime := gitCommitTimestampUTC(t, support.RepoRoot(t), expectedCommit)
+
+	runReleaseBuildForPlatforms(t, version, outputDir, hostPlatform)
+
+	goos, goarch := splitPlatform(t, hostPlatform)
+	archiveName := "easyharness_" + version + "_" + goos + "_" + goarch + ".zip"
+	archivePath := filepath.Join(outputDir, archiveName)
+	if _, err := os.Stat(archivePath); err != nil {
+		t.Fatalf("expected stable archive %s: %v", archivePath, err)
+	}
+
+	checksums := parseChecksums(t, readFile(t, filepath.Join(outputDir, "SHA256SUMS")))
+	if got := checksums[archiveName]; got != checksumFile(t, archivePath) {
+		t.Fatalf("expected checksum for %s to match file contents, got %q", archiveName, got)
+	}
+
+	verifyArchiveContents(t, workspace, archivePath, version, goos, goarch, expectedCommit, expectedArchiveTime)
+}
+
+func TestBuildReleaseHelpUsesStableExampleVersion(t *testing.T) {
+	cmd := exec.Command("scripts/build-release", "--help")
+	cmd.Dir = support.RepoRoot(t)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build-release --help: %v\n%s", err, output)
+	}
+
+	if !strings.Contains(string(output), "for example v0.2.0") {
+		t.Fatalf("expected stable example version in build-release help, got:\n%s", output)
+	}
+}
+
 func TestBuildReleaseCleansReusedOutputDirectory(t *testing.T) {
 	outputDir := newReleaseOutputDir(t, "reuse-output")
 
