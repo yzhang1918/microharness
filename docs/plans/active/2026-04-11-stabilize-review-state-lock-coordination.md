@@ -208,6 +208,8 @@ rather than widening into repository-level orchestration work.
 #### Expected Files
 
 - `internal/review/service_test.go`
+- `internal/cli/app.go`
+- `internal/cli/app_test.go`
 - optional focused tests in `internal/runstate/state_test.go`
 - optional nearby spec or comment touch-ups if the tests reveal an ambiguity
 
@@ -224,8 +226,12 @@ rather than widening into repository-level orchestration work.
 
 Extended `internal/review/service_test.go` with focused lock-contract tests:
 `review start` and `review aggregate` now prove they prefer the review lock
-when both locks are held, and `review submit` now proves it still succeeds
-while the state mutation lock is held.
+when both locks are held, and the initial service-level `review submit` test
+proved the intended lock boundary. Finalize review then caught a real CLI-layer
+gap in `internal/cli/app.go`: the wrapper was still taking a locked pre-submit
+status snapshot. The repair switched that snapshot to the unlocked status path
+and added a CLI regression test in `internal/cli/app_test.go` so the runtime
+boundary now matches the documented contract.
 
 #### Review Notes
 
