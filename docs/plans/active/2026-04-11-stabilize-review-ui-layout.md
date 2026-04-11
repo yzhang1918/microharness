@@ -122,7 +122,7 @@ review `review-002-delta` then exposed that the saved explorer evidence path
 was still carrying an older screenshot and that the longer `submitted` copy was
 using too much space; the repair compacted the metadata label to `a/b` and
 refreshed the tracked supplement screenshot
-`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
+`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
 from the rebuilt UI.
 Delta review `review-003-delta` then caught one more real containment gap: the
 row's outer button still had `scrollWidth > clientWidth` because
@@ -132,7 +132,7 @@ measurement now shows the button, main column, row, and subtitle all fully
 contained while the long title text alone truncates by ellipsis. The exact
 candidate commit, screenshot paths, and width measurements are now durably
 recorded in
-`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/containment-validation.md`.
+`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/containment-validation.md`.
 
 #### Review Notes
 
@@ -182,9 +182,9 @@ be proved first with a narrow failing unit test. After `review-001-full`
 requested stronger evidence for populated review data, the repair loop used the
 current worktree's real review round to capture browser evidence at the minimum
 review explorer width in
-`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
+`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-explorer-row-220.png`
 and
-`docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/review-header-meta.png`.
+`docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/review-header-meta.png`.
 
 #### Review Notes
 
@@ -224,18 +224,34 @@ does not benefit from a synthetic intermediate review boundary.
 
 ## Validation Summary
 
-- `pnpm --dir web check`, `pnpm --dir web build`, and `git diff --check`
-  passed for the final candidate.
+UPDATE_REQUIRED_AFTER_REOPEN
+
+- Revision 2 reopens the archived candidate only for a clean `origin/main`
+  sync repair after publish evidence showed revision 1 was stale against the
+  merge base.
+- `pnpm --dir web check`, `pnpm --dir web build`,
+  `scripts/ui-playwright-review-smoke`, and `git diff --check` now pass for
+  the reopened revision-2 candidate.
 - Browser validation at the true 220px review explorer width confirmed the
   selected row container, title row, and subtitle row all stayed contained
   while the long title text alone truncated by ellipsis.
 - Tracked browser evidence now lives under
-  `docs/plans/archived/supplements/2026-04-11-stabilize-review-ui-layout/`,
-  including `review-explorer-row-220.png`, `review-header-meta.png`, and the
+  `docs/plans/active/supplements/2026-04-11-stabilize-review-ui-layout/`,
+  including `review-explorer-row-220.png`, `review-header-meta.png`,
+  `review-smoke-rev2-initial.png`, `review-smoke-rev2-row-active.png`, and the
   exact measurements recorded in `containment-validation.md`.
+- The sync merge from revision 1's archived commit to head `bca2720` did not
+  change `web/src` or `internal/ui`, so the 220px containment captures remain
+  the current UI-specific evidence while the fresh review smoke covers the
+  merged revision-2 browser path.
 
 ## Review Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
+- Revision 2 reopens the previously archived candidate only because publish
+  handoff recorded `sync_status=stale`; the repair itself is a clean merge of
+  `origin/main` plus fresh validation before a new finalize review.
 - Finalize review started with `review-001-full`, which found the initial
   narrow-width containment and validation gaps in the explorer metadata layout.
 - Follow-up delta rounds `review-002-delta` through `review-005-delta`
@@ -248,22 +264,26 @@ does not benefit from a synthetic intermediate review boundary.
 
 ## Archive Summary
 
-- Archived At: 2026-04-12T00:16:38+08:00
-- Revision: 1
-- PR: NONE. Open or refresh the PR after the archive move is committed and
-  pushed, then record the lightweight breadcrumb in that PR body.
-- Ready: Acceptance criteria are satisfied, `review-006-delta` passed for the
-  final evidence repair, `review-007-full` passed as the required archive gate,
-  and the tracked plan plus supplement now tell a consistent browser-validation
-  story for this UI-only slice.
-- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
-  the closeout summaries, push branch `codex/review-ui-layout-polish`, open or
-  refresh the PR, and record publish, CI, and sync evidence until `harness
-  status` reaches `execution/finalize/await_merge`.
+UPDATE_REQUIRED_AFTER_REOPEN
+
+- Revision 1 archived at `2026-04-12T00:16:38+08:00`, then reopened as
+  revision 2 solely because publish handoff recorded `sync_status=stale`
+  against `origin/main`.
+- PR: Existing PR [#147](https://github.com/catu-ai/easyharness/pull/147)
+  remains open for the revision-2 repair candidate.
+- Ready: Not yet. Revision 2 has merged `origin/main` cleanly and refreshed
+  local validation, but it still needs a fresh finalize review and rearchive
+  before merge handoff can resume.
+- Merge Handoff: After the repaired revision-2 candidate passes finalize
+  review, rearchive the plan, push the refreshed branch to PR `#147`, and
+  record updated publish, CI, and sync evidence until `harness status` reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
+
+UPDATE_REQUIRED_AFTER_REOPEN
 
 - Reflowed review explorer items so the title owns the first line while the
   second line carries compact `Step x · a/b · STATUS` metadata.
@@ -277,12 +297,16 @@ does not benefit from a synthetic intermediate review boundary.
 
 ### Not Delivered
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - No broader review explorer redesign was attempted beyond the agreed layout
   polish.
 - No additional populated-review browser fixture coverage was added in this
   lightweight slice.
 
 ### Follow-Up Issues
+
+UPDATE_REQUIRED_AFTER_REOPEN
 
 - [#146](https://github.com/catu-ai/easyharness/issues/146) tracks the deferred
   broader review UI polish and stronger populated-review browser fixture
