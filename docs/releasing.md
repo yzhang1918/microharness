@@ -1,7 +1,7 @@
 # Releasing
 
-`easyharness` ships its first public alpha as GitHub Release archives built
-from the tracked release workflow at
+`easyharness` ships as GitHub Release archives built from the tracked release
+workflow at
 [catu-ai/easyharness](https://github.com/catu-ai/easyharness).
 
 The release archive name follows the project name, while the unpacked
@@ -11,7 +11,7 @@ install as `catu-ai/tap/easyharness`.
 
 ## Release Checklist
 
-1. Decide the next release version, such as `0.1.0-alpha.6`, and update the
+1. Decide the next release version, such as `0.2.0`, and update the
    root `VERSION` file in a dedicated release PR.
 2. Make sure `main` is up to date and run `go test ./...` in the release PR
    before merge.
@@ -19,7 +19,7 @@ install as `catu-ai/tap/easyharness`.
    `scripts/build-release --version "v$(cat VERSION)"`.
 4. Merge the release PR to `main`.
 5. Confirm the `Tag Release From VERSION` workflow created the matching git
-   tag, for example `v0.1.0-alpha.6`, and then dispatched the `Release`
+   tag, for example `v0.2.0`, and then dispatched the `Release`
    workflow for that tag.
 6. Confirm the `Release` workflow uploaded the release archives and
    `SHA256SUMS` file.
@@ -33,7 +33,7 @@ install as `catu-ai/tap/easyharness`.
 
 `VERSION` intentionally stores the bare release version without the leading
 `v`. The auto-tag workflow adds that prefix when it creates the git tag, so
-`VERSION=0.1.0-alpha.6` maps to the release tag `v0.1.0-alpha.6`.
+`VERSION=0.2.0` maps to the release tag `v0.2.0`.
 
 Release PR separation is a team convention rather than a repository-enforced
 rule. The expected path is that a release PR contains the `VERSION` bump and
@@ -61,7 +61,8 @@ files look like they came from `2000-01-01 00:00`.
   tagged revision, subject to ZIP's 2-second precision, rather than the
   wall-clock publish time.
 - The default Homebrew formula `easyharness` tracks the current public release
-  line: alpha today, stable later if stable tags are introduced.
+  line. Stable tags become the default install path; prerelease tags remain
+  available through GitHub Releases when needed.
 
 ## Homebrew Tap Publishing
 

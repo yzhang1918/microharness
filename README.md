@@ -1,258 +1,110 @@
 # easyharness
 
-`easyharness` is a thin, git-native harness CLI plus repository contract for
-human-steered, agent-executed work.
+Harnesses matter. Building one shouldn't be the project.
 
-GitHub home: [catu-ai/easyharness](https://github.com/catu-ai/easyharness)
+`easyharness` is a git-native, agent-first harness for human-steered,
+agent-executed work. It packages repo-local instructions, plans, workflow
+state, review, and archive paths into a thin system that coding agents can
+actually follow, so humans can steer work without maintaining a heavy custom
+harness from scratch.
 
 The project is named `easyharness`. The CLI executable remains `harness`.
 
-The goal is to keep the harness legible and maintainable:
+## Why easyharness
 
-- standard plans live in git
-- lightweight low-risk active plans still live in git
-- lightweight archived snapshots live in `.local/harness/`
-- runtime trajectory lives in `.local/`
-- the CLI helps agents understand state and next actions
-- skills teach agents how to run the workflow without a pile of fragile shell
-  scripts
+Long-running agent work gets fragile when plans, state, and rules live only in
+chat history or ad hoc shell scripts. Agents lose coherence, humans end up
+micromanaging implementation details, and the workflow becomes hard to inspect
+or teach to the next run.
 
-The repository is still in dogfood mode. The current cutover focuses on the
-v0.2 command surface, command-owned evidence artifacts, and the canonical
-`current_node` runtime model.
+`easyharness` keeps the important parts of the workflow in the repository:
 
-`easyharness` is also in a rapid development phase, so external users should
-expect breaking changes between releases. Compatibility guarantees and
-migration support are not the current priority.
+- repo-local instructions and skills that tell the agent how to work here
+- git-tracked plans and durable summaries that survive context loss
+- command-owned workflow state, review artifacts, and evidence under `.local/`
+- a steering surface built around plans, status, and execution summaries
 
-Field-level contract artifacts now live in:
+The goal is not to make humans read every diff by default. The goal is to make
+it easy for humans to set direction, approve intent, inspect high-signal
+artifacts, and intervene when judgment is needed.
 
-- `schema/index.json` for the checked-in JSON Schema registry
-- `docs/specs/contract.md` for the normative guide to what that registry covers
+## Quickstart
 
-The field-level source of truth is the Go-owned contract module under
-`internal/contracts/`. We intentionally do not render one markdown page per
-schema because that was mostly duplicating the schema files themselves.
-`docs/specs/contract.md` also distinguishes the stable public command surface
-from CLI-owned runtime artifacts such as `.local/harness/*`.
-Refresh or verify the checked-in registry with:
-
-```bash
-scripts/sync-contract-artifacts
-scripts/sync-contract-artifacts --check
-```
-
-## Development Setup
-
-Use the development installer to build a repo-local binary and expose
-`harness` as a direct command:
-
-```bash
-scripts/install-dev-harness
-```
-
-By default the installer:
-
-- builds the binary at `.local/bin/harness`
-- installs a small worktree-aware `harness` wrapper in a user-local bin dir
-- uses `~/.local/bin` by default
-- keeps parallel worktrees isolated by dispatching to the current worktree's
-  `.local/bin/harness`
-- only refreshes a healthy outside-source-tree fallback when you install with
-  `--global`
-- self-heals an invalid outside-source-tree fallback during a normal install so
-  unrelated repositories stop dispatching to a broken fallback binary
-
-Useful options:
-
-```bash
-scripts/install-dev-harness --help
-scripts/install-dev-harness --global
-scripts/install-dev-harness --install-dir "$HOME/.local/bin"
-scripts/install-dev-harness --force
-```
-
-Development installs expect `~/.local/bin` to be on `PATH` so the wrapper can
-be called directly:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-When you want a checkout to provide the fallback used outside easyharness
-source trees, refresh it explicitly:
-
-```bash
-cd ~/Workspace/superharness
-scripts/install-dev-harness --global
-```
-
-Inside any easyharness source tree, the wrapper still dispatches to that
-checkout's local `.local/bin/harness` and does not silently fall back to the
-global binary.
-
-Verify the command is available:
-
-```bash
-command -v harness
-harness --help
-harness --version
-```
-
-After changing Go CLI code, rerun `scripts/install-dev-harness` so the direct
-`harness` command stays in sync with the working tree.
-
-When changing the embedded UI shell under `web/`, rebuild the production UI
-assets before relying on `harness ui` or rerunning Go builds/tests that embed
-the UI:
-
-```bash
-pnpm --dir web install
-pnpm --dir web build
-```
-
-For browser-level validation of the embedded shell, use the repo helper that
-drives the local UI through the
-[$playwright](/Users/yaozhang/.codex/skills/playwright/SKILL.md) wrapper:
-
-```bash
-scripts/ui-playwright-smoke
-scripts/ui-playwright-review-smoke
-```
-
-Use `scripts/ui-playwright-smoke` for the general shell, rail, and archived-plan
-browser path. Use `scripts/ui-playwright-review-smoke` whenever the `Review`
-page changes, or when you want the populated round-browser validation that
-exercises active-plan review data, degraded review artifacts, and review-only
-states such as empty active plans.
-
-For frontend development against the live backend, run the bundled backend dev
-command in one terminal so Vite's default `/api` proxy has a live target on
-`127.0.0.1:4310`, then start Vite in a second terminal:
-
-```bash
-pnpm --dir web dev:harness
-pnpm --dir web dev
-```
-
-or point Vite at the actual `harness ui` URL explicitly when you prefer the
-CLI default auto-selected port:
-
-```bash
-harness ui --no-open
-HARNESS_UI_API_TARGET=http://127.0.0.1:<actual-port> pnpm --dir web dev
-```
-
-When changing the harness-managed bootstrap contract that this repository
-dogsfoods, edit `assets/bootstrap/` instead of hand-editing `.agents/skills/`.
-The `.agents/skills/` tree and this repository's managed `AGENTS.md` block are
-tracked materialized outputs of those packaged bootstrap assets. Refresh them
-with:
-
-```bash
-scripts/sync-bootstrap-assets
-scripts/sync-bootstrap-assets --check
-```
-
-If the installer reports that `harness` still resolves to a different binary,
-either install into an earlier directory with `--install-dir` or move the
-chosen install directory earlier in `PATH`.
-
-## Public Alpha Release
-
-The public alpha remains GitHub Release-backed. External users can either
-install `easyharness` from the dedicated Homebrew tap or download a release
-archive directly from [GitHub
-Releases](https://github.com/catu-ai/easyharness/releases). In both cases, the
-installed executable is still named `harness`.
-
-Supported alpha release targets are:
-
-- `darwin/amd64`
-- `darwin/arm64`
-- `linux/amd64`
-- `linux/arm64`
-
-Contributors should use the Go toolchain recorded in `go.mod`, which is
-currently `go 1.25.0`.
-
-Typical verification flow:
-
-- macOS: `shasum -a 256 -c SHA256SUMS`
-- Linux: `sha256sum -c SHA256SUMS`
-
-Homebrew install flow:
+Install `easyharness` with Homebrew:
 
 ```bash
 brew tap catu-ai/tap
-brew install catu-ai/tap/easyharness
-harness --version
+brew install easyharness
 ```
 
-First-run repository bootstrap after installing the binary:
+Bootstrap a repository:
 
 ```bash
 cd /path/to/your-repo
-harness init --dry-run
 harness init
 ```
 
-`harness init` writes the minimum harness-managed repository bootstrap for a
-repo: a managed block inside `AGENTS.md` plus the repo-local skill pack under
-`.agents/skills/`. The command is safe to rerun after upgrades. Repeated runs
-either refresh the known managed assets in place or report a no-op when the
-repository is already current. User-owned instruction content outside the
-managed block is preserved.
+`harness init` installs the managed `AGENTS.md` block and repo-local
+`.agents/skills/` pack that tell your coding agent how to work in that
+repository. After running it, restart your coding agent so it picks up the new
+instructions and skills cleanly. In practice, that is the point where the
+repository starts telling the agent what it needs to know.
 
-Use the noun-first resource commands when you need finer control than the
-default repo bootstrap:
+When you or the agent need the current workflow position, use:
 
 ```bash
-harness skills install --scope user
-harness instructions install --scope user
-harness skills install --agent claude --dir .claude/skills
-harness instructions install --agent claude --file CLAUDE.md --dir .claude/skills
+harness status
 ```
 
-Those flags are mainly for non-default targets and future agent adapters. The
-default Codex repo flow is still `harness init`.
+## Stability
 
-Upgrade a Homebrew install with:
+`easyharness` is evolving quickly, and breaking changes may happen between
+releases.
 
-```bash
-brew update
-brew upgrade catu-ai/tap/easyharness
-```
+That does not mean the human operator needs to track every internal workflow
+detail by hand. The harness is designed so agents can recover the relevant
+context from repo-local instructions, plans, workflow state, and skills, then
+continue the work intentionally.
 
-The default Homebrew formula currently tracks the public alpha release line.
-If `easyharness` later starts shipping stable tags, the same default formula
-will move to the stable line rather than keeping alpha on a separate package
-name.
+The product should keep evolving in the same direction:
 
-If you prefer to inspect the release archive directly, unpack and inspect the
-binary:
+- reduce agent cognitive load
+- improve execution quality and legibility
+- help humans steer the work without micromanaging it
 
-```bash
-unzip easyharness_<version>_<goos>_<goarch>.zip
-cd easyharness_<version>_<goos>_<goarch>
-./harness --version
-./harness --help
-```
+## How Humans Steer
 
-The release binary reports the release version, build commit, and mode. The
-development installer remains available for contributors who are working from a
-checkout.
+In an `easyharness` repository, the human role is to steer the work, not to
+micromanage every implementation step.
 
-Maintainers cut releases from a dedicated release PR that updates the root
-`VERSION` file, plus any related release docs. `VERSION` stores the unprefixed
-release version such as `0.1.0-alpha.6`; after that PR merges to `main`,
-automation creates the matching `v*` tag and dispatches the existing `Release`
-workflow, which then publishes the release assets and Homebrew formula updates
-for that tag.
+In practice that means:
 
-## Current Command Surface
+- define intent, scope, constraints, and non-goals
+- approve or adjust plans before execution starts
+- review execution summaries, outcomes, and high-signal artifacts
+- step in when product, risk, or judgment calls matter
+- avoid treating success as manually reviewing every changed line by default
 
-`easyharness` currently ships these commands:
+The repository workflow is built around that posture:
+
+1. Discovery
+2. Plan
+3. Execute
+4. Archive / publish / await merge approval
+5. Land
+
+## Workflow Surface
+
+The current v0.2 harness surface centers on a few core ideas:
+
+- tracked plans live under `docs/plans/`
+- command-owned runtime state, reviews, and evidence live under
+  `.local/harness/`
+- the CLI reports one canonical `state.current_node`
+- agents use repo-local skills instead of reconstructing workflow from shell
+  history
+
+The root CLI currently ships:
 
 - `harness plan template`
 - `harness plan lint`
@@ -273,130 +125,54 @@ for that tag.
 - `harness land --pr <url> [--commit <sha>]`
 - `harness land complete`
 
-The root CLI also exposes `harness --version` as a plain-text debug flag for
-identifying the running binary. Unlike the stateful workflow commands above,
-it is not a JSON-first command surface.
+The root CLI also exposes `harness --version` as a plain-text binary identity
+probe.
 
-`harness ui` starts a local read-only workbench for the current repository.
-The currently delivered slices expose live `Status`, `Timeline`, and `Review`
-pages. `Timeline` is backed by the current plan's command-owned event index,
-and `Review` renders the active plan's read-only review rounds. The UI keeps
-an IDE-like steering surface, but it intentionally does not duplicate a
-general-purpose file browser or diff viewer that is already better served by
-external IDEs.
+## Releases
 
-## Workflow
+`easyharness` ships through GitHub Releases and a dedicated Homebrew tap.
+Supported release targets are:
 
-The repository currently uses this v0.2 workflow:
+- `darwin/amd64`
+- `darwin/arm64`
+- `linux/amd64`
+- `linux/arm64`
 
-1. Discovery
-2. Plan
-3. Execute
-4. Archive / publish / await merge approval
-5. Land
+Typical verification flow:
 
-`harness status` now resolves one canonical `state.current_node` rather than
-reporting layered lifecycle or step-state fields. Common nodes include
-`plan`, `execution/step-<n>/implement`, `execution/step-<n>/review`,
-`execution/finalize/review`, `execution/finalize/archive`,
-`execution/finalize/publish`, `execution/finalize/await_merge`, `land`, and
-`idle`.
+- macOS: `shasum -a 256 -c SHA256SUMS`
+- Linux: `sha256sum -c SHA256SUMS`
 
-For medium or large work, or any change that is not explicitly eligible for
-the lightweight path, create or update a tracked standard plan under
-`docs/plans/active/`, keeping bulky approved execution detail under the
-matching `supplements/<plan-stem>/` package directory when the markdown alone
-would be too cramped. Execute against that plan package, archive it under
-`docs/plans/archived/` once the candidate is ready for local freeze, moving
-the markdown plan and any matching `supplements/<plan-stem>/` directory
-together as one package, then record publish, CI, and sync facts for the
-archived candidate through
-`harness evidence submit` until status reaches
-`execution/finalize/await_merge`. After merge, enter `land` with
-`harness land --pr <url> [--commit <sha>]`, finish the required post-merge
-bookkeeping, then run `harness land complete` so status returns to `idle`.
-Anything the repository should still depend on after archive should be absorbed
-into formal tracked locations such as `docs/specs/`, code, tests, or other
-durable docs rather than left only in archived `supplements/`.
+To inspect a release archive directly:
 
-For narrow low-risk work, `harness` may instead use a tracked active plan under
-`docs/plans/active/` with the same schema plus `workflow_profile: lightweight`.
-The lightweight path reuses the same canonical nodes as standard work, but on
-archive it writes the archived snapshot to
-`.local/harness/plans/archived/<plan-stem>.md` instead of
-`docs/plans/archived/`. Lightweight work still requires human steering, must
-stay explicitly in-bounds, and must leave a small repo-visible breadcrumb such
-as a PR body note explaining why the lightweight path was used. If any
-lightweight candidate stops looking low-risk, it should escalate back to the
-standard tracked-plan path.
-Lightweight plans should normally avoid `supplements/`; if one does exist, it
-must still archive only to `.local/harness/plans/archived/supplements/` and
-post-archive correctness should not depend on that local snapshot remaining
-available.
+```bash
+unzip easyharness_<version>_<goos>_<goarch>.zip
+cd easyharness_<version>_<goos>_<goarch>
+./harness --version
+./harness --help
+```
 
-Use `lightweight` only when all of these are true:
+Maintainers cut releases from a dedicated release PR that updates the root
+`VERSION` file plus any related release docs. `VERSION` stores the unprefixed
+release version such as `0.2.0`; after that PR merges to `main`, automation
+creates the matching `v*` tag and dispatches the `Release` workflow, which
+publishes the release assets for that tag and updates the Homebrew formula when
+the tap token is configured.
 
-- the human explicitly approves using `workflow_profile: lightweight`
-- the plan is sized `XXS`
-- the whole slice is one bounded low-risk change
-- the edits stay within a narrow surface such as README/docs/comments/copy,
-  a small CI condition adjustment, a tiny helper-script fix, or another
-  similarly small change whose blast radius is easy to explain
-- no schema-meaning changes, core state/review/archive/evidence changes,
-  release-safety changes, or security-sensitive logic changes
-- if the boundary is unclear, default to `standard`
+## For Contributors
 
-In practice, lightweight is for explicitly approved `XXS` slices: tiny bounded
-low-risk changes such as README wording, doc clarification, comment cleanup, a
-very small CI condition tweak, or another narrowly scoped fix whose risk is
-easy to explain. Small size alone is not enough. If the change touches
-normative contract meaning, core runtime state, review or archive semantics,
-release safety, or another non-trivial risk surface, use the standard
-tracked-plan path instead.
+This repository is developed primarily through agents.
 
-When drafting a new plan, estimate `size` early. If the initial estimate is
-`XXL`, stop and confirm with the human whether the work should be split first;
-if the split is not obvious, go back through discovery to settle the split
-before execution approval. If the work still proceeds as `XXL`, move obvious
-spillover into `Deferred Items` or follow-up issues instead of letting the
-oversized plan quietly absorb extra scope. `XXL` is allowed for historical
-truth and rare coherent large slices, but it should not be the routine
-starting point for new work.
+Repo-specific operating guidance lives in [AGENTS.md](./AGENTS.md). Detailed
+local development and maintainer setup lives in
+[docs/development.md](./docs/development.md). Durable CLI and workflow
+contracts live in [docs/specs/index.md](./docs/specs/index.md), and the
+checked-in schema registry lives in [schema/index.json](./schema/index.json).
 
-If an archived candidate becomes invalid before merge, reopen it with
-`harness reopen --mode finalize-fix` for narrow repair or
-`harness reopen --mode new-step` when the change deserves a new unfinished
-step. Reopen moves the markdown plan and any matching `supplements/` directory
-back to the active root together. If a repository has not been bootstrapped
-yet, run `harness init` first so the managed `AGENTS.md` block and
-repo-local skills exist before the workflow starts.
+## Background
 
-High-level guidance lives in [AGENTS.md](./AGENTS.md). The durable contracts
-for plans and CLI behavior live in [docs/specs/index.md](./docs/specs/index.md).
-Execution detail for agents is materialized into `.agents/skills/` from the
-canonical bootstrap assets under `assets/bootstrap/`.
+These essays are good context for why harnesses matter and why
+`easyharness` exists:
 
-## Repository Layout
-
-- `cmd/harness/`: CLI entrypoint
-- `internal/`: CLI implementation
-- `assets/bootstrap/`: canonical source for packaged bootstrap assets that this
-  repository dogsfoods
-- `docs/plans/`: tracked active plans for both profiles, archived standard
-  plans, and any matching `supplements/<plan-stem>/` package directories
-- `docs/specs/`: durable repo contracts
-- `.agents/skills/`: tracked materialized repo-local workflow skills generated
-  from `assets/bootstrap/`
-- `AGENTS.md`: repo-specific guidance plus the harness-managed install block
-- `.local/harness/`: disposable runtime state, current-plan/last-landed
-  markers, archived lightweight plan snapshots, review artifacts, evidence
-  artifacts, and trajectory
-
-## Current Constraints
-
-- one active review round at a time
-- no web UI yet
-- development installer remains available for contributors; GitHub Release
-  packaging now exists for the public alpha binary
-- Homebrew tap publishing depends on the tap repo and cross-repo token being
-  configured for tagged releases
+- [Harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- [Harness engineering: leveraging Codex in an agent-first world](https://openai.com/index/harness-engineering/)
