@@ -86,7 +86,13 @@ func TestTrackedPlanCorpusKeepsLintAndLoadAligned(t *testing.T) {
 }
 
 func FuzzLintFileAndLoadFileAgreement(f *testing.F) {
+	canonicalByKey := map[canonicalFuzzKey]canonicalPlanSeed{}
 	for _, seed := range canonicalPlanSeeds(f) {
+		key := canonicalFuzzKey{
+			mode:    uint8(modeFromPlanPath(seed.relPath)),
+			content: seed.content,
+		}
+		canonicalByKey[key] = seed
 		f.Add(uint8(modeFromPlanPath(seed.relPath)), seed.content)
 	}
 	f.Add(uint8(0), "not a plan")
@@ -104,6 +110,14 @@ func FuzzLintFileAndLoadFileAgreement(f *testing.F) {
 
 		result := plan.LintFile(path)
 		doc, err := plan.LoadFile(path)
+		if seed, ok := canonicalByKey[canonicalFuzzKey{mode: mode % 3, content: content}]; ok {
+			if !result.OK {
+				t.Fatalf("canonical seed %q stopped linting cleanly: %#v", seed.name, result)
+			}
+			if err != nil {
+				t.Fatalf("canonical seed %q stopped loading cleanly: %v", seed.name, err)
+			}
+		}
 
 		if result.OK && err != nil {
 			t.Fatalf("lint succeeded but load failed: %v (result=%#v)", err, result)
@@ -127,6 +141,11 @@ func FuzzLintFileAndLoadFileAgreement(f *testing.F) {
 		_ = doc.HasPendingArchivePlaceholders()
 		_ = doc.CompletedStepsHavePendingPlaceholders()
 	})
+}
+
+type canonicalFuzzKey struct {
+	mode    uint8
+	content string
 }
 
 func canonicalPlanSeeds(tb testing.TB) []canonicalPlanSeed {

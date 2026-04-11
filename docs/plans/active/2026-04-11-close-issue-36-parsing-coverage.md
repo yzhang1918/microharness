@@ -82,7 +82,7 @@ available from a first fuzzing pass.
 
 ### Step 1: Add focused fuzz coverage for plan markdown parsing
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -121,10 +121,18 @@ target asserting `LintFile` success implies `LoadFile` success while document
 helper methods stay panic-free on arbitrary inputs. Validated with
 `go test ./internal/plan` and
 `go test -run=^$ -fuzz=FuzzLintFileAndLoadFileAgreement -fuzztime=2s ./internal/plan`.
+After `review-001-delta`, tightened the fuzz baseline so exact canonical seeds
+must continue linting and loading cleanly, closing the one-way alignment gap
+the reviewer called out.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-001-delta` passed with one non-blocking correctness finding: the
+original fuzz target only asserted `LintFile` success implied `LoadFile`
+success. Fixed that gap by requiring exact canonical seeds in the fuzz baseline
+to continue linting and loading cleanly, then reran
+`go test ./internal/plan` and
+`go test -run=^$ -fuzz=FuzzLintFileAndLoadFileAgreement -fuzztime=2s ./internal/plan`.
 
 ### Step 2: Cover schema-driven input decoding and keep issue closeout bounded
 
@@ -163,7 +171,20 @@ target needed to close `#36`.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Added `internal/inputschema/fuzz_test.go` in the package-under-test so the
+slice can exercise unexported normalization helpers directly. The new coverage
+adds deterministic helper properties for JSON-pointer rendering,
+quoted-property splitting, and parent-issue pruning, plus a schema-backed fuzz
+target that checks `Validate` never returns empty or de-normalized issue paths
+and never leaks parent-child path pairs after pruning. Kept `internal/evidence`
+unchanged and revalidated it only as a command-boundary consumer of the schema
+layer. This step intentionally did not deepen `internal/reviewui` or
+historical evidence-record fuzzing because existing deterministic malformed and
+partial-artifact tests already cover that recovery path more strongly than a
+first bounded fuzz pass would. Validated with
+`go test ./internal/inputschema`,
+`go test -run=^$ -fuzz=FuzzValidateNormalizesIssuePaths -fuzztime=2s ./internal/inputschema`,
+and `go test ./internal/inputschema ./internal/evidence`.
 
 #### Review Notes
 
