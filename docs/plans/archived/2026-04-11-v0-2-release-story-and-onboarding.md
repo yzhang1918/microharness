@@ -316,15 +316,15 @@ separate isolated reviewer round here.
 
 - Archived At: 2026-04-11T22:36:34+08:00
 - Revision: 1
-- PR: Not opened yet.
+- PR: https://github.com/catu-ai/easyharness/pull/143
 - Ready: The candidate now presents `easyharness` as a product-first `0.2.0`
   release, keeps the rapid-iteration and steer-not-micromanage posture clear,
   moves detailed maintainer setup into `docs/development.md`, updates stable
   release-facing examples, and passed finalize full review `review-004-full`.
-- Merge Handoff: Run `harness archive`, move the plan package into the tracked
-  archive, commit the archive move plus closeout summaries, push the branch,
-  open or refresh the PR, record publish/CI/sync evidence, and wait for merge
-  approval once status reaches `execution/finalize/await_merge`.
+- Merge Handoff: Branch `codex/v0-2-release-story-onboarding` is pushed and PR
+  #143 is open. Record publish, CI, and sync evidence for the archived
+  candidate, then wait for explicit merge approval once status reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
