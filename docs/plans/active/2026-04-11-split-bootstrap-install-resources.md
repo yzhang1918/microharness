@@ -60,27 +60,27 @@ already has custom skills or instruction files in place.
 
 ## Acceptance Criteria
 
-- [ ] `harness init` bootstraps the current repository using the default agent
+- [x] `harness init` bootstraps the current repository using the default agent
       profile, is safe to rerun idempotently, and can refresh managed assets
       after an easyharness version upgrade.
-- [ ] Resource-level commands exist for skills and instructions, with noun-first
+- [x] Resource-level commands exist for skills and instructions, with noun-first
       shapes such as `harness skills install|uninstall` and
       `harness instructions install|uninstall`.
-- [ ] Scope semantics are explicit and consistent for repository and user
+- [x] Scope semantics are explicit and consistent for repository and user
       targets, with agent-specific defaults plus `--dir` and `--file`
       overrides for non-default layouts.
-- [ ] A dedicated bootstrap install spec exists and is the primary normative
+- [x] A dedicated bootstrap install spec exists and is the primary normative
       reference for resource semantics, support boundaries, ownership/version
       rules, and external skill-format references.
-- [ ] Managed bootstrap skills install as valid skill packages and carry
+- [x] Managed bootstrap skills install as valid skill packages and carry
       easyharness release version metadata in standard `SKILL.md` frontmatter
       rather than private hidden manifest files.
-- [ ] The managed instructions block carries an in-band easyharness version so
+- [x] The managed instructions block carries an in-band easyharness version so
       refresh behavior can distinguish current content from stale content.
-- [ ] Installing or uninstalling managed skills/instructions never silently
+- [x] Installing or uninstalling managed skills/instructions never silently
       overwrites unrelated user-owned assets; collisions surface a clear error
       unless the target is already recognized as easyharness-managed.
-- [ ] Tests and docs cover the Codex default targets plus explicit alternate
+- [x] Tests and docs cover the Codex default targets plus explicit alternate
       path overrides that make the bootstrap flow usable for other agent
       ecosystems before full native profiles ship.
 
@@ -306,25 +306,57 @@ candidate level.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `go test ./internal/install ./internal/bootstrapsync ./internal/cli -count=1`
+  passed after the ownership-safety follow-up.
+- `go test ./tests/smoke -run 'TestHelpShowsTopLevelUsage|TestInit|TestSkills|TestInstructions' -count=1`
+  passed after adding user-scope and explicit-override smoke coverage.
+- `scripts/sync-bootstrap-assets --check` and
+  `scripts/sync-contract-artifacts --check` both passed after the final
+  contract and asset refresh.
+- Additional spot checks during repair work confirmed the new repo bootstrap,
+  version-refresh, user-scope, and explicit-target flows without relying on
+  backward-compatibility shims.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- `review-001-full` found 6 blocking findings across ownership safety and test
+  coverage; those drove the follow-up repair work.
+- `review-002-delta` passed after the ownership and service-test fixes, with 1
+  non-blocking finding about missing binary-level smoke coverage for user-scope
+  and explicit override paths.
+- `review-003-delta` passed after adding binary-level smoke coverage for
+  `harness init` explicit overrides plus user-scope resource installs. One
+  non-blocking residual remains: there is still no binary-level explicit
+  override smoke case on `harness skills install` or
+  `harness instructions install` themselves.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+Archived as a merge-ready candidate after one full finalize review and two
+narrow delta follow-ups. The final candidate has no blocking review findings
+and only one documented non-blocking smoke-coverage gap outside the core
+ownership/version contract addressed by this slice.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Replaced the monolithic bootstrap install flow with `harness init`,
+  `harness skills install|uninstall`, and
+  `harness instructions install|uninstall`.
+- Added a dedicated bootstrap install spec and aligned README, CLI contract,
+  bootstrap assets, and dogfood outputs with the new resource model.
+- Switched managed skills to standards-aligned package metadata in `SKILL.md`
+  and added in-band easyharness version markers to the managed instructions
+  block.
+- Implemented safer ownership detection so easyharness-managed assets refresh
+  cleanly while same-name user-owned skills or instructions fail closed.
+- Added targeted service, bootstrapsync, CLI, and smoke coverage for idempotent
+  reruns, version refreshes, user scope, and explicit override targets.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+None within the approved scope.
 
 ### Follow-Up Issues
 
