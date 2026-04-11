@@ -33,13 +33,16 @@ type lintResult struct {
 	} `json:"artifacts"`
 }
 
-type installResult struct {
-	OK      bool   `json:"ok"`
-	Command string `json:"command"`
-	Summary string `json:"summary"`
-	Mode    string `json:"mode"`
-	Scope   string `json:"scope"`
-	Actions []struct {
+type bootstrapResult struct {
+	OK        bool   `json:"ok"`
+	Command   string `json:"command"`
+	Summary   string `json:"summary"`
+	Mode      string `json:"mode"`
+	Resource  string `json:"resource"`
+	Operation string `json:"operation"`
+	Scope     string `json:"scope"`
+	Agent     string `json:"agent"`
+	Actions   []struct {
 		Path string `json:"path"`
 		Kind string `json:"kind"`
 	} `json:"actions"`
@@ -64,7 +67,9 @@ func TestHelpShowsTopLevelUsage(t *testing.T) {
 	support.RequireContains(t, result.CombinedOutput(), "archive         Freeze the current active plan")
 	support.RequireContains(t, result.CombinedOutput(), "reopen          Restore the current archived plan")
 	support.RequireContains(t, result.CombinedOutput(), "status          Summarize the current plan and local execution state")
-	support.RequireContains(t, result.CombinedOutput(), "install         Install or refresh the harness-managed repository bootstrap")
+	support.RequireContains(t, result.CombinedOutput(), "init            Install or refresh the managed bootstrap resources for the current repository")
+	support.RequireContains(t, result.CombinedOutput(), "skills          Manage easyharness skill packages")
+	support.RequireContains(t, result.CombinedOutput(), "instructions    Manage easyharness instruction files and managed blocks")
 }
 
 func TestLandHelpShowsRequiredBookkeepingContract(t *testing.T) {
@@ -167,19 +172,19 @@ func TestPlanTemplatePrintsToStdoutByDefault(t *testing.T) {
 	support.RequireContains(t, result.Stdout, "source_refs: [\"#6\"]")
 }
 
-func TestInstallBootstrapsFreshRepository(t *testing.T) {
+func TestInitBootstrapsFreshRepository(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 
-	result := support.Run(t, workspace.Root, "install")
+	result := support.Run(t, workspace.Root, "init")
 	support.RequireSuccess(t, result)
 	support.RequireNoStderr(t, result)
 
-	payload := support.RequireJSONResult[installResult](t, result)
-	if !payload.OK || payload.Command != "install" {
-		t.Fatalf("expected install payload, got %#v", payload)
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
+	if !payload.OK || payload.Command != "init" {
+		t.Fatalf("expected init payload, got %#v", payload)
 	}
-	if payload.Mode != "apply" || payload.Scope != "all" {
-		t.Fatalf("unexpected install mode/scope: %#v", payload)
+	if payload.Mode != "apply" || payload.Scope != "repo" || payload.Resource != "bootstrap" {
+		t.Fatalf("unexpected init mode/scope/resource: %#v", payload)
 	}
 
 	agentsPath := workspace.Path("AGENTS.md")
@@ -188,21 +193,21 @@ func TestInstallBootstrapsFreshRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read AGENTS.md: %v", err)
 	}
-	support.RequireContains(t, string(agentsData), "<!-- easyharness:begin -->")
+	support.RequireContains(t, string(agentsData), `<!-- easyharness:begin version="`)
 	support.RequireContains(t, string(agentsData), "<!-- easyharness:end -->")
 
 	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-execute/SKILL.md"))
 	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-reviewer/SKILL.md"))
 }
 
-func TestInstallDryRunDoesNotWriteRepositoryFiles(t *testing.T) {
+func TestInitDryRunDoesNotWriteRepositoryFiles(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 
-	result := support.Run(t, workspace.Root, "install", "--dry-run")
+	result := support.Run(t, workspace.Root, "init", "--dry-run")
 	support.RequireSuccess(t, result)
 	support.RequireNoStderr(t, result)
 
-	payload := support.RequireJSONResult[installResult](t, result)
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
 	if payload.Mode != "dry_run" {
 		t.Fatalf("expected dry_run mode, got %#v", payload)
 	}
@@ -214,18 +219,18 @@ func TestInstallDryRunDoesNotWriteRepositoryFiles(t *testing.T) {
 	support.RequireFileMissing(t, workspace.Path(".agents"))
 }
 
-func TestInstallRepeatRunReportsNoopActions(t *testing.T) {
+func TestInitRepeatRunReportsNoopActions(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 
-	first := support.Run(t, workspace.Root, "install")
+	first := support.Run(t, workspace.Root, "init")
 	support.RequireSuccess(t, first)
 	support.RequireNoStderr(t, first)
 
-	second := support.Run(t, workspace.Root, "install")
+	second := support.Run(t, workspace.Root, "init")
 	support.RequireSuccess(t, second)
 	support.RequireNoStderr(t, second)
 
-	payload := support.RequireJSONResult[installResult](t, second)
+	payload := support.RequireJSONResult[bootstrapResult](t, second)
 	if !strings.Contains(payload.Summary, "already up to date") {
 		t.Fatalf("expected no-op summary, got %#v", payload)
 	}
@@ -236,23 +241,23 @@ func TestInstallRepeatRunReportsNoopActions(t *testing.T) {
 	}
 }
 
-func TestInstallRejectsInvalidScopeViaCLI(t *testing.T) {
+func TestSkillsInstallRejectsInvalidScopeViaCLI(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 
-	result := support.Run(t, workspace.Root, "install", "--scope", "bogus")
+	result := support.Run(t, workspace.Root, "skills", "install", "--scope", "bogus")
 	support.RequireExitCode(t, result, 1)
 	support.RequireNoStderr(t, result)
 
-	payload := support.RequireJSONResult[installResult](t, result)
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
 	if payload.OK {
-		t.Fatalf("expected install failure payload, got %#v", payload)
+		t.Fatalf("expected skills install failure payload, got %#v", payload)
 	}
-	if payload.Command != "install" || payload.Scope != "bogus" {
+	if payload.Command != "skills install" || payload.Scope != "bogus" {
 		t.Fatalf("unexpected invalid-scope payload: %#v", payload)
 	}
 }
 
-func TestInstallRejectsDuplicateManagedBlocksViaCLI(t *testing.T) {
+func TestInstructionsInstallRejectsDuplicateManagedBlocksViaCLI(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	agentsPath := workspace.Path("AGENTS.md")
 	content := strings.Join([]string{
@@ -271,46 +276,46 @@ func TestInstallRejectsDuplicateManagedBlocksViaCLI(t *testing.T) {
 		t.Fatalf("write AGENTS.md: %v", err)
 	}
 
-	result := support.Run(t, workspace.Root, "install", "--scope", "agents")
+	result := support.Run(t, workspace.Root, "instructions", "install")
 	support.RequireExitCode(t, result, 1)
 	support.RequireNoStderr(t, result)
 
-	payload := support.RequireJSONResult[installResult](t, result)
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
 	if payload.OK {
-		t.Fatalf("expected duplicate-block install failure, got %#v", payload)
+		t.Fatalf("expected duplicate-block instructions failure, got %#v", payload)
 	}
-	if payload.Command != "install" || payload.Scope != "agents" {
+	if payload.Command != "instructions install" || payload.Scope != "repo" {
 		t.Fatalf("unexpected duplicate-block payload: %#v", payload)
 	}
 }
 
-func TestInstallSkillsScopeBootstrapsOnlySkills(t *testing.T) {
+func TestSkillsInstallBootstrapsOnlySkills(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 
-	result := support.Run(t, workspace.Root, "install", "--scope", "skills")
+	result := support.Run(t, workspace.Root, "skills", "install")
 	support.RequireSuccess(t, result)
 	support.RequireNoStderr(t, result)
 
-	payload := support.RequireJSONResult[installResult](t, result)
-	if !payload.OK || payload.Scope != "skills" {
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
+	if !payload.OK || payload.Scope != "repo" || payload.Resource != "skills" {
 		t.Fatalf("unexpected skills-scope payload: %#v", payload)
 	}
 	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-discovery/SKILL.md"))
 	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
 }
 
-func TestInstallSkillsScopeRecoversAfterApplyWriteFailure(t *testing.T) {
+func TestSkillsInstallRecoversAfterApplyWriteFailure(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	agentsRootPath := workspace.Path(".agents")
 	if err := os.WriteFile(agentsRootPath, []byte("not a directory"), 0o644); err != nil {
 		t.Fatalf("write blocking .agents file: %v", err)
 	}
 
-	failed := support.Run(t, workspace.Root, "install", "--scope", "skills")
+	failed := support.Run(t, workspace.Root, "skills", "install")
 	support.RequireExitCode(t, failed, 1)
 	support.RequireNoStderr(t, failed)
 
-	failedPayload := support.RequireJSONResult[installResult](t, failed)
+	failedPayload := support.RequireJSONResult[bootstrapResult](t, failed)
 	if failedPayload.OK {
 		t.Fatalf("expected apply-mode write failure, got %#v", failedPayload)
 	}
@@ -319,55 +324,63 @@ func TestInstallSkillsScopeRecoversAfterApplyWriteFailure(t *testing.T) {
 		t.Fatalf("remove blocking .agents file: %v", err)
 	}
 
-	retry := support.Run(t, workspace.Root, "install", "--scope", "skills")
+	retry := support.Run(t, workspace.Root, "skills", "install")
 	support.RequireSuccess(t, retry)
 	support.RequireNoStderr(t, retry)
 
-	retryPayload := support.RequireJSONResult[installResult](t, retry)
-	if !retryPayload.OK || retryPayload.Scope != "skills" {
+	retryPayload := support.RequireJSONResult[bootstrapResult](t, retry)
+	if !retryPayload.OK || retryPayload.Scope != "repo" {
 		t.Fatalf("expected successful retry payload, got %#v", retryPayload)
 	}
 	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-reviewer/SKILL.md"))
 }
 
-func TestInstallDefaultScopeRecoversAfterMidFlightFailure(t *testing.T) {
+func TestInitRecoversAfterMidFlightFailure(t *testing.T) {
 	workspace := support.NewWorkspace(t)
+	initial := support.Run(t, workspace.Root, "init")
+	support.RequireSuccess(t, initial)
+	support.RequireNoStderr(t, initial)
+
 	blockedSkillPath := workspace.Path(".agents/skills/harness-discovery/SKILL.md")
-	if err := os.MkdirAll(filepath.Dir(blockedSkillPath), 0o755); err != nil {
-		t.Fatalf("mkdir blocked skill dir: %v", err)
+	skillData, err := os.ReadFile(blockedSkillPath)
+	if err != nil {
+		t.Fatalf("read managed skill: %v", err)
 	}
-	if err := os.WriteFile(blockedSkillPath, []byte("stale skill"), 0o400); err != nil {
-		t.Fatalf("write blocked skill file: %v", err)
+	staleSkill := strings.Replace(string(skillData), "easyharness-version:", "easyharness-version: stale-", 1)
+	if err := os.WriteFile(blockedSkillPath, []byte(staleSkill), 0o644); err != nil {
+		t.Fatalf("write stale managed skill file: %v", err)
+	}
+	if err := os.Chmod(blockedSkillPath, 0o400); err != nil {
+		t.Fatalf("chmod blocked skill file: %v", err)
 	}
 
-	failed := support.Run(t, workspace.Root, "install")
+	failed := support.Run(t, workspace.Root, "init")
 	support.RequireExitCode(t, failed, 1)
 	support.RequireNoStderr(t, failed)
 
-	failedPayload := support.RequireJSONResult[installResult](t, failed)
+	failedPayload := support.RequireJSONResult[bootstrapResult](t, failed)
 	if failedPayload.OK {
-		t.Fatalf("expected default install failure, got %#v", failedPayload)
+		t.Fatalf("expected init failure, got %#v", failedPayload)
 	}
 	support.RequireFileExists(t, workspace.Path("AGENTS.md"))
-	support.RequireFileMissing(t, workspace.Path(".agents/skills/harness-reviewer/SKILL.md"))
 
 	if err := os.Chmod(blockedSkillPath, 0o644); err != nil {
 		t.Fatalf("chmod blocked skill file: %v", err)
 	}
 
-	retry := support.Run(t, workspace.Root, "install")
+	retry := support.Run(t, workspace.Root, "init")
 	support.RequireSuccess(t, retry)
 	support.RequireNoStderr(t, retry)
 
-	retryPayload := support.RequireJSONResult[installResult](t, retry)
-	if !retryPayload.OK || retryPayload.Scope != "all" {
-		t.Fatalf("expected successful default-scope retry payload, got %#v", retryPayload)
+	retryPayload := support.RequireJSONResult[bootstrapResult](t, retry)
+	if !retryPayload.OK || retryPayload.Scope != "repo" {
+		t.Fatalf("expected successful init retry payload, got %#v", retryPayload)
 	}
 	support.RequireFileExists(t, workspace.Path("AGENTS.md"))
 	support.RequireFileExists(t, workspace.Path(".agents/skills/harness-reviewer/SKILL.md"))
 }
 
-func TestInstallRefreshesExistingManagedWrapperAndThenNoops(t *testing.T) {
+func TestInstructionsInstallRefreshesExistingManagedBlockAndThenNoops(t *testing.T) {
 	workspace := support.NewWorkspace(t)
 	agentsPath := workspace.Path("AGENTS.md")
 	initial := strings.Join([]string{
@@ -388,7 +401,7 @@ func TestInstallRefreshesExistingManagedWrapperAndThenNoops(t *testing.T) {
 		t.Fatalf("write AGENTS.md: %v", err)
 	}
 
-	refresh := support.Run(t, workspace.Root, "install", "--scope", "agents")
+	refresh := support.Run(t, workspace.Root, "instructions", "install")
 	support.RequireSuccess(t, refresh)
 	support.RequireNoStderr(t, refresh)
 
@@ -404,16 +417,236 @@ func TestInstallRefreshesExistingManagedWrapperAndThenNoops(t *testing.T) {
 		t.Fatalf("expected refreshed managed block, got:\n%s", agentsBody)
 	}
 
-	second := support.Run(t, workspace.Root, "install", "--scope", "agents")
+	second := support.Run(t, workspace.Root, "instructions", "install")
 	support.RequireSuccess(t, second)
 	support.RequireNoStderr(t, second)
 
-	payload := support.RequireJSONResult[installResult](t, second)
+	payload := support.RequireJSONResult[bootstrapResult](t, second)
 	if !strings.Contains(payload.Summary, "already up to date") {
-		t.Fatalf("expected noop wrapper rerun summary, got %#v", payload)
+		t.Fatalf("expected noop block rerun summary, got %#v", payload)
 	}
 	if len(payload.Actions) != 1 || payload.Actions[0].Kind != "noop" {
-		t.Fatalf("expected noop wrapper rerun action, got %#v", payload.Actions)
+		t.Fatalf("expected noop block rerun action, got %#v", payload.Actions)
+	}
+}
+
+func TestInitSupportsExplicitOverrideTargetsViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+
+	result := support.Run(t, workspace.Root, "init", "--agent", "claude", "--dir", ".claude/skills", "--file", "CLAUDE.md")
+	support.RequireSuccess(t, result)
+	support.RequireNoStderr(t, result)
+
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
+	if !payload.OK || payload.Command != "init" || payload.Resource != "bootstrap" {
+		t.Fatalf("unexpected init override payload: %#v", payload)
+	}
+	instructionsPath := workspace.Path("CLAUDE.md")
+	skillPath := workspace.Path(".claude/skills/harness-discovery/SKILL.md")
+	support.RequireFileExists(t, instructionsPath)
+	support.RequireFileExists(t, skillPath)
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+
+	instructionsData, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read custom instructions file: %v", err)
+	}
+	support.RequireContains(t, string(instructionsData), `<!-- easyharness:begin version="`)
+
+	skillData, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read custom skill file: %v", err)
+	}
+	support.RequireContains(t, string(skillData), "easyharness-version:")
+
+	staleInstructions := strings.Replace(string(instructionsData), `<!-- easyharness:begin version="`, `<!-- easyharness:begin version="stale-`, 1)
+	if err := os.WriteFile(instructionsPath, []byte(staleInstructions), 0o644); err != nil {
+		t.Fatalf("write stale custom instructions file: %v", err)
+	}
+	staleSkill := strings.Replace(string(skillData), "easyharness-version:", "easyharness-version: stale-", 1)
+	if err := os.WriteFile(skillPath, []byte(staleSkill), 0o644); err != nil {
+		t.Fatalf("write stale custom skill file: %v", err)
+	}
+
+	refresh := support.Run(t, workspace.Root, "init", "--agent", "claude", "--dir", ".claude/skills", "--file", "CLAUDE.md")
+	support.RequireSuccess(t, refresh)
+	support.RequireNoStderr(t, refresh)
+
+	refreshedInstructions, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read refreshed custom instructions file: %v", err)
+	}
+	if strings.Contains(string(refreshedInstructions), `version="stale-`) {
+		t.Fatalf("expected custom instructions refresh to replace stale version marker, got:\n%s", refreshedInstructions)
+	}
+
+	refreshedSkill, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read refreshed custom skill file: %v", err)
+	}
+	if strings.Contains(string(refreshedSkill), "easyharness-version: stale-") {
+		t.Fatalf("expected custom skill refresh to replace stale version marker, got:\n%s", refreshedSkill)
+	}
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+}
+
+func TestSkillsAndInstructionsInstallSupportUserScopeViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	codexHome := workspace.Path("tmp/codex-home")
+
+	skillsResult := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"skills", "install", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, skillsResult)
+	support.RequireNoStderr(t, skillsResult)
+
+	skillsPayload := support.RequireJSONResult[bootstrapResult](t, skillsResult)
+	if !skillsPayload.OK || skillsPayload.Command != "skills install" || skillsPayload.Scope != "user" {
+		t.Fatalf("unexpected user-scope skills payload: %#v", skillsPayload)
+	}
+	support.RequireFileExists(t, filepath.Join(codexHome, "skills/harness-discovery/SKILL.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+
+	instructionsResult := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"instructions", "install", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, instructionsResult)
+	support.RequireNoStderr(t, instructionsResult)
+
+	instructionsPayload := support.RequireJSONResult[bootstrapResult](t, instructionsResult)
+	if !instructionsPayload.OK || instructionsPayload.Command != "instructions install" || instructionsPayload.Scope != "user" {
+		t.Fatalf("unexpected user-scope instructions payload: %#v", instructionsPayload)
+	}
+	support.RequireFileExists(t, filepath.Join(codexHome, "AGENTS.md"))
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+
+	skillsUninstall := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"skills", "uninstall", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, skillsUninstall)
+	support.RequireNoStderr(t, skillsUninstall)
+
+	instructionsUninstall := support.RunWithOptions(t, support.RunOptions{
+		Workdir: workspace.Root,
+		Args:    []string{"instructions", "uninstall", "--scope", "user"},
+		Env:     []string{"CODEX_HOME=" + codexHome},
+	})
+	support.RequireSuccess(t, instructionsUninstall)
+	support.RequireNoStderr(t, instructionsUninstall)
+	support.RequireFileMissing(t, filepath.Join(codexHome, "skills/harness-discovery/SKILL.md"))
+	support.RequireFileMissing(t, filepath.Join(codexHome, "AGENTS.md"))
+}
+
+func TestSkillsAndInstructionsInstallSupportExplicitOverrideTargetsViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	skillsDir := ".claude/skills"
+	instructionsFile := "CLAUDE.md"
+	skillPath := workspace.Path(filepath.Join(skillsDir, "harness-discovery/SKILL.md"))
+	instructionsPath := workspace.Path(instructionsFile)
+
+	skillsInstall := support.Run(t, workspace.Root, "skills", "install", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsInstall)
+	support.RequireNoStderr(t, skillsInstall)
+	support.RequireFileExists(t, skillPath)
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+
+	instructionsInstall := support.Run(t, workspace.Root, "instructions", "install", "--agent", "claude", "--file", instructionsFile, "--dir", skillsDir)
+	support.RequireSuccess(t, instructionsInstall)
+	support.RequireNoStderr(t, instructionsInstall)
+	support.RequireFileExists(t, instructionsPath)
+
+	skillData, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read override skill file: %v", err)
+	}
+	instructionsData, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read override instructions file: %v", err)
+	}
+	support.RequireContains(t, string(skillData), "easyharness-version:")
+	support.RequireContains(t, string(instructionsData), `<!-- easyharness:begin version="`)
+
+	staleSkill := strings.Replace(string(skillData), "easyharness-version:", "easyharness-version: stale-", 1)
+	if err := os.WriteFile(skillPath, []byte(staleSkill), 0o644); err != nil {
+		t.Fatalf("write stale override skill file: %v", err)
+	}
+	staleInstructions := strings.Replace(string(instructionsData), `<!-- easyharness:begin version="`, `<!-- easyharness:begin version="stale-`, 1)
+	if err := os.WriteFile(instructionsPath, []byte(staleInstructions), 0o644); err != nil {
+		t.Fatalf("write stale override instructions file: %v", err)
+	}
+
+	skillsRefresh := support.Run(t, workspace.Root, "skills", "install", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsRefresh)
+	support.RequireNoStderr(t, skillsRefresh)
+
+	instructionsRefresh := support.Run(t, workspace.Root, "instructions", "install", "--agent", "claude", "--file", instructionsFile, "--dir", skillsDir)
+	support.RequireSuccess(t, instructionsRefresh)
+	support.RequireNoStderr(t, instructionsRefresh)
+
+	refreshedSkill, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read refreshed override skill file: %v", err)
+	}
+	if strings.Contains(string(refreshedSkill), "easyharness-version: stale-") {
+		t.Fatalf("expected override skill refresh to replace stale version marker, got:\n%s", refreshedSkill)
+	}
+
+	refreshedInstructions, err := os.ReadFile(instructionsPath)
+	if err != nil {
+		t.Fatalf("read refreshed override instructions file: %v", err)
+	}
+	if strings.Contains(string(refreshedInstructions), `version="stale-`) {
+		t.Fatalf("expected override instructions refresh to replace stale version marker, got:\n%s", refreshedInstructions)
+	}
+
+	skillsUninstall := support.Run(t, workspace.Root, "skills", "uninstall", "--agent", "claude", "--dir", skillsDir)
+	support.RequireSuccess(t, skillsUninstall)
+	support.RequireNoStderr(t, skillsUninstall)
+
+	instructionsUninstall := support.Run(t, workspace.Root, "instructions", "uninstall", "--agent", "claude", "--file", instructionsFile)
+	support.RequireSuccess(t, instructionsUninstall)
+	support.RequireNoStderr(t, instructionsUninstall)
+	support.RequireFileMissing(t, skillPath)
+	support.RequireFileMissing(t, instructionsPath)
+	support.RequireFileMissing(t, workspace.Path(".agents/skills"))
+	support.RequireFileMissing(t, workspace.Path("AGENTS.md"))
+}
+
+func TestInstructionsInstallRejectsOutOfOrderManagedMarkersViaCLI(t *testing.T) {
+	workspace := support.NewWorkspace(t)
+	agentsPath := workspace.Path("AGENTS.md")
+	content := strings.Join([]string{
+		"# AGENTS.md",
+		"",
+		"<!-- easyharness:end -->",
+		"",
+		"out of order",
+		"",
+		"<!-- easyharness:begin -->",
+		"",
+	}, "\n")
+	if err := os.WriteFile(agentsPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write malformed AGENTS.md: %v", err)
+	}
+
+	result := support.Run(t, workspace.Root, "instructions", "install")
+	support.RequireExitCode(t, result, 1)
+	support.RequireNoStderr(t, result)
+
+	payload := support.RequireJSONResult[bootstrapResult](t, result)
+	if payload.OK {
+		t.Fatalf("expected malformed marker failure, got %#v", payload)
 	}
 }
 
