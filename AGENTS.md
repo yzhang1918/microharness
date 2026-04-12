@@ -82,7 +82,8 @@ the bootstrap resource commands package for other repositories.
   managed markers below.
 
 When triaging this repository's GitHub issues, use the repo-local
-`issue-triage` skill together with the policy in `docs/issue-triage.md`.
+`issue-triage` skill. `docs/issue-triage.md` is only a thin discovery note;
+the self-contained triage contract lives in the skill package.
 
 The block below is the same harness-managed repository contract that
 `harness instructions install` would install into another repository.

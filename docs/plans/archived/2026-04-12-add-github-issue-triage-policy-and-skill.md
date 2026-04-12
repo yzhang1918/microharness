@@ -140,12 +140,11 @@ quality bar for cutting that version.
 
 #### Execution Notes
 
-Added a dedicated tracked policy at `docs/issue-triage.md` that defines the
-lightweight triage system for this repository: keep the default GitHub type
-labels, use only `state/accepted`, `state/needs-info`, and `state/deferred`
-for reviewed unscheduled issues, use concrete milestones such as `v0.x.y` only
-for truthful version intent, and close not-planned issues instead of leaving
-them open with a negative label.
+Added a dedicated tracked triage write-up at `docs/issue-triage.md` and the
+initial repo-local `issue-triage` skill package so this repository had a
+durable backlog-triage contract covering the default GitHub type labels, the
+`state/accepted`, `state/needs-info`, and `state/deferred` labels, concrete
+version milestones, and the required rationale-comment habit.
 
 Updated `AGENTS.md` and `docs/development.md` to point future agents at the new
 policy and to carve out the `issue-triage` repo-only skill as an intentional
@@ -168,10 +167,14 @@ back to release mechanics while the backlog policy stays in
 `docs/issue-triage.md`.
 
 Revision 4 reopen follow-up tightened the source-of-truth split and version
-examples. `docs/issue-triage.md` is now the only tracked policy surface, the
-repo-local `issue-triage` skill was reduced to workflow plus pointers instead
-of duplicating the rules, and the concrete milestone examples moved to pseudo
-values such as `v0.x.y` so the docs do not need churn on later real releases.
+examples by moving to pseudo milestone examples such as `v0.x.y` and trying a
+single-doc policy surface.
+
+Revision 5 reopen follow-up incorporated later PR feedback that the skill
+package should be self-contained instead. The triage rules now live in
+`.agents/skills/issue-triage/`, while `docs/issue-triage.md` is reduced to a
+thin discovery note that points maintainers at the repo-local skill and
+explains the GitHub-metadata boundary.
 
 #### Review Notes
 
@@ -230,10 +233,9 @@ imply the skill ships as part of the managed pack.
 
 Created the repo-only skill package at `.agents/skills/issue-triage/` using the
 skill-creator initializer, then replaced the template content with a concise
-triage workflow tailored to this repository. The skill now points agents at the
-tracked policy, explains how to choose among accepted / needs-info / deferred /
-milestone / close, and makes rationale comments part of the workflow instead of
-an optional extra.
+triage workflow tailored to this repository. The skill explains how to choose
+among accepted / needs-info / deferred / milestone / close and makes rationale
+comments part of the workflow instead of an optional extra.
 
 Generated `agents/openai.yaml` for the new skill, added a small
 `references/rationale-comments.md` helper with comment shapes, and validated the
@@ -242,15 +244,18 @@ explicitly repo-owned: no `harness-*` naming, no `easyharness-managed`
 metadata, and no bootstrap sync.
 
 Revision 4 reopen follow-up removed the separate rationale-comment reference
-file and trimmed the skill body so it no longer duplicates the triage rules or
-hard-codes real version examples. The skill now points future agents at
-`docs/issue-triage.md` as the sole policy source and keeps only the minimal
-workflow and guardrails needed to apply that policy.
+file and moved the examples to pseudo versions such as `v0.x.y`.
+
+Revision 5 reopen follow-up folded the full triage contract back into the skill
+package so it is self-contained again. `docs/issue-triage.md` now stays thin,
+while the skill carries the concrete state-label, milestone, rationale-comment,
+and sweep rules directly.
 
 #### Review Notes
 
-NO_STEP_REVIEW_NEEDED: The skill only makes sense together with the policy and
-the live GitHub backfill, so this step is reviewed as part of the same full
+NO_STEP_REVIEW_NEEDED: The skill only makes sense together with the thin
+discovery note and the live GitHub backfill, so this step is reviewed as part
+of the same full
 finalize pass.
 
 ### Step 3: Create GitHub metadata and backfill the open issue backlog
@@ -326,8 +331,9 @@ controller will use one full finalize review instead of isolated step review.
 
 - Risk: The triage system could still be too abstract, leaving future agents to
   interpret the state labels differently.
-  - Mitigation: Keep the labels minimal, define them in durable docs, and make
-    rationale comments mandatory so ambiguous edge cases remain legible later.
+  - Mitigation: Keep the labels minimal, define the operational contract in the
+    repo-local skill package, and make rationale comments mandatory so
+    ambiguous edge cases remain legible later.
 - Risk: The repo-only skill could accidentally be mistaken for part of the
   distributed easyharness bootstrap pack.
   - Mitigation: Keep it outside `assets/bootstrap/`, avoid `harness-*`
@@ -359,10 +365,12 @@ controller will use one full finalize review instead of isolated step review.
 - Revision 3 reopen validation confirmed `docs/releasing.md` is now focused
   again on release mechanics, while the triage-policy guidance remains in the
   dedicated `docs/issue-triage.md` surface and repo-facing pointers.
-- Revision 4 reopen validation confirmed `docs/issue-triage.md` now acts as the
-  sole tracked policy source, the repo-local skill no longer duplicates the
-  rules, and pseudo version examples replace real release numbers in the doc
-  and skill surfaces.
+- Revision 4 reopen validation confirmed the move to pseudo version examples
+  such as `v0.x.y` across the policy-facing surfaces.
+- Revision 5 reopen validation confirmed the repo-local `issue-triage` skill is
+  self-contained again, `docs/issue-triage.md` is now only a thin discovery
+  note, and the repo-facing guidance no longer depends on an external policy
+  doc for the actual triage rules.
 
 ## Review Summary
 
@@ -385,28 +393,35 @@ controller will use one full finalize review instead of isolated step review.
   `docs/issue-triage.md` as the only tracked policy source, leaves the
   repo-local skill procedural, and uses pseudo version examples consistently
   across the policy-facing surfaces.
+- Reopen delta review `review-005-delta` also passed with no findings.
+- Reviewer slot `docs-consistency` confirmed the revision-5 follow-up makes the
+  repo-local `issue-triage` skill self-contained again and leaves
+  `docs/issue-triage.md` as a thin discovery note rather than the policy
+  source.
 
 ## Archive Summary
 
-- Archived At: 2026-04-12T20:01:28+08:00
-- Revision: 4
+- Archived At: 2026-04-12T20:09:49+08:00
+- Revision: 5
 - PR: https://github.com/catu-ai/easyharness/pull/160
-- Ready: The candidate adds a dedicated GitHub issue triage policy, introduces
-  the repo-only `issue-triage` skill plus rationale-comment guidance, and
+- Ready: The candidate adds a lightweight GitHub issue triage system,
+  introduces the repo-only `issue-triage` skill plus rationale-comment
+  guidance, and
   backfills the live open-issue backlog with the new state labels and
   milestone semantics. Revision 2 tightened the skill-ownership wording and
   clarified that the current label system is a tracked convention plus live
   GitHub metadata rather than an existing `.github` automation layer. Revision
   3 removed the triage-policy aside from `docs/releasing.md` so the release
-  guide stays focused on release mechanics. Revision 4 makes
-  `docs/issue-triage.md` the sole tracked policy source, trims the repo-local
-  skill down to workflow plus pointers, and replaces concrete version examples
-  with pseudo placeholders such as `v0.x.y`. Finalize review `review-001-full`
-  and reopen delta reviews `review-002-delta`, `review-003-delta`, and
-  `review-004-delta` all passed cleanly. After the refreshed candidate is
-  pushed to PR #160 and the publish/CI/sync facts are refreshed for the new
-  head, it is ready to wait for merge approval.
-- Merge Handoff: Push the revision-4 repair to PR #160, refresh
+  guide stays focused on release mechanics. Revision 4 switched the examples to
+  pseudo versions such as `v0.x.y`. Revision 5 then incorporated PR feedback by
+  making the repo-local `issue-triage` skill self-contained again and reducing
+  `docs/issue-triage.md` to a thin discovery note. Finalize review
+  `review-001-full` and reopen delta reviews `review-002-delta`,
+  `review-003-delta`, `review-004-delta`, and `review-005-delta` all passed
+  cleanly. After the refreshed candidate is pushed to PR #160 and the
+  publish/CI/sync facts are refreshed for the new head, it is ready to wait
+  for merge approval.
+- Merge Handoff: Push the revision-5 repair to PR #160, refresh
   publish/CI/sync evidence for the latest head commit, and then wait for
   explicit merge approval once status returns to
   `execution/finalize/await_merge`.
@@ -415,11 +430,12 @@ controller will use one full finalize review instead of isolated step review.
 
 ### Delivered
 
-- Added `docs/issue-triage.md` as the durable repository policy for GitHub
-  backlog triage.
-- Updated `AGENTS.md` and `docs/development.md` so future agents can discover
-  the triage workflow and understand the repo-only ownership boundary of
-  `issue-triage`.
+- Added `docs/issue-triage.md` as a thin repository discovery note for GitHub
+  backlog triage and clarified that live labels/milestones remain GitHub
+  metadata rather than an already-managed `.github` contract.
+- Updated `AGENTS.md` and `docs/development.md` so future agents discover the
+  triage workflow through the repo-local skill and understand the repo-only
+  ownership boundary of `issue-triage`.
 - Added the repo-only skill package `.agents/skills/issue-triage/` with a
   validated `SKILL.md` and `agents/openai.yaml`.
 - Created live GitHub labels `state/accepted`, `state/needs-info`, and
@@ -431,17 +447,17 @@ controller will use one full finalize review instead of isolated step review.
   `harness-*` names identify the easyharness-managed distributed pack, while
   other skill names stay repo-owned local development skills unless promoted
   later.
-- Clarified in `docs/issue-triage.md` that the current label system is tracked
-  in repository docs plus live GitHub metadata rather than an already-shipped
-  `.github` label-sync contract.
+- Clarified in `docs/issue-triage.md` that the labels and milestones are live
+  GitHub metadata rather than an already-shipped `.github` label-sync
+  contract.
 - Removed the low-signal issue-milestone aside from `docs/releasing.md` so the
   release guide no longer mixes backlog-governance framing into the release
   mechanics page.
-- Reduced the repo-local `issue-triage` skill so it points to
-  `docs/issue-triage.md` instead of duplicating policy rules in a second
-  tracked source.
-- Replaced concrete version examples like `v0.2.2` in the policy and skill
-  with pseudo placeholders such as `v0.x.y`.
+- Folded the full triage contract back into the repo-local `issue-triage`
+  skill so the package is self-contained and no longer depends on an external
+  policy doc for the actual rules.
+- Replaced concrete version examples like `v0.2.2` in the policy-facing skill
+  and pointers with pseudo placeholders such as `v0.x.y`.
 
 ### Not Delivered
 

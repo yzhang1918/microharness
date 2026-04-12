@@ -133,8 +133,9 @@ chosen install directory earlier in `PATH`.
 
 ## GitHub Issue Triage
 
-Use the repo-local `issue-triage` skill plus the durable policy in
-[docs/issue-triage.md](./issue-triage.md) when reviewing or sweeping this
-repository's GitHub backlog. Leave a short rationale comment whenever an issue
-is first triaged or its triage state changes so later sweeps can understand
-why the earlier decision was made.
+Use the repo-local `issue-triage` skill when reviewing or sweeping this
+repository's GitHub backlog. [docs/issue-triage.md](./issue-triage.md) remains
+only a thin discovery note; the self-contained triage rules live in the skill
+package itself. Leave a short rationale comment whenever an issue is first
+triaged or its triage state changes so later sweeps can understand why the
+earlier decision was made.
