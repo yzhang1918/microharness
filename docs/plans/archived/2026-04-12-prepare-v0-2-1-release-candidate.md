@@ -49,11 +49,11 @@ directly in this slice.
 
 ## Acceptance Criteria
 
-- [ ] `VERSION` is `0.2.1`, and the main release-facing examples that point at
+- [x] `VERSION` is `0.2.1`, and the main release-facing examples that point at
       the current stable line now reference `0.2.1` / `v0.2.1`.
-- [ ] Targeted smoke validation passes for the updated release docs and
+- [x] Targeted smoke validation passes for the updated release docs and
       release-build help surfaces.
-- [ ] The dedicated `0.2.1` release branch is pushed and a PR is opened with
+- [x] The dedicated `0.2.1` release branch is pushed and a PR is opened with
       the expected post-merge automation path called out.
 
 ## Deferred Items
@@ -117,7 +117,7 @@ change, and the focused smoke suite already covers the affected behavior.
 
 ### Step 2: Validate and publish the release candidate branch
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -145,11 +145,18 @@ the automatic tag creation and release workflow dispatch for `v0.2.1`.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Focused smoke validation passed with:
+`go test ./tests/smoke -run 'TestReleaseDocsPresentStableOnboardingSurface|TestBuildReleaseProducesStableArchiveAndVersionedBinary|TestBuildReleaseHelpUsesStableExampleVersion|TestReleaseWorkflowWiresHomebrewTapPublishing'`.
+Committed the release candidate as `b8674a0` (`Prepare v0.2.1 release candidate`),
+pushed `codex/release-0-2-1` to `origin`, and opened
+https://github.com/catu-ai/easyharness/pull/148 with the merge-triggered
+automation path for `v0.2.1` called out explicitly.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: this step only records focused validation plus Git/PR
+publication for the already-validated release candidate and does not widen the
+change surface beyond Step 1.
 
 ## Validation Strategy
 
@@ -172,26 +179,53 @@ PENDING_STEP_REVIEW
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `harness plan lint docs/plans/active/2026-04-12-prepare-v0-2-1-release-candidate.md`
+- `go test ./tests/smoke -run 'TestReleaseDocsPresentStableOnboardingSurface|TestBuildReleaseProducesStableArchiveAndVersionedBinary|TestBuildReleaseHelpUsesStableExampleVersion|TestReleaseWorkflowWiresHomebrewTapPublishing'`
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Step 1 and Step 2 both recorded `NO_STEP_REVIEW_NEEDED` because the slice
+  stayed narrowly scoped to version/example alignment, focused validation, and
+  Git/PR publication for the release candidate.
+- Finalize full review `review-001-full` passed with zero blocking and zero
+  non-blocking findings. The candidate stayed focused to `VERSION`,
+  release-facing docs/help text, and the matching smoke coverage.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-12T11:13:14+08:00
+- Revision: 1
+- PR: https://github.com/catu-ai/easyharness/pull/148
+- Ready: The `0.2.1` release candidate bumps the tracked release version,
+  aligns all current-stable release examples to `0.2.1` / `v0.2.1`, passes the
+  targeted smoke coverage for docs/build/workflow surfaces, and passed finalize
+  full review `review-001-full` with no findings.
+- Merge Handoff: merge PR `#148` to `main`, confirm the `Tag Release From
+  VERSION` workflow creates tag `v0.2.1`, confirm the `Release` workflow
+  publishes assets for that tag, and verify the Homebrew tap update if the tap
+  token is configured.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Bumped the repository `VERSION` file to `0.2.1`.
+- Aligned the README release paragraph, maintainer release guide, workflow
+  dispatch help text, and build-release help text with the new stable release
+  example `0.2.1` / `v0.2.1`.
+- Updated targeted smoke coverage so the release docs, build-release help, and
+  release workflow wiring continue to enforce the current stable example line.
+- Published the dedicated release branch `codex/release-0-2-1` and opened
+  PR `#148` with the merge-triggered release automation path called out.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- The public `v0.2.1` git tag, GitHub Release assets, and any Homebrew tap
+  update remain pending until PR `#148` merges and repository automation runs.
 
 ### Follow-Up Issues
 
-NONE
+- Merge PR `#148`: https://github.com/catu-ai/easyharness/pull/148
+- After merge, verify the `Tag Release From VERSION` and `Release` workflows
+  succeed for `v0.2.1`, then confirm the release assets and token-gated tap
+  update state.
