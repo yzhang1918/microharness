@@ -56,6 +56,16 @@ When you or the agent need the current workflow position, use:
 harness status
 ```
 
+When a human wants the main built-in steering surface, use:
+
+```bash
+harness ui
+```
+
+`harness ui` starts the local read-only harness workbench. It is the primary
+UI for human steering: the place to inspect the current plan, workflow status,
+and execution summaries without reconstructing the story from shell history.
+
 ## Stability
 
 `easyharness` is evolving quickly, and breaking changes may happen between
@@ -108,6 +118,7 @@ The current v0.2 harness surface centers on a few core ideas:
 - command-owned runtime state, reviews, and evidence live under
   `.local/harness/`
 - the CLI reports one canonical `state.current_node`
+- `harness ui` is the main built-in human steering surface for the workflow
 - agents use repo-local skills instead of reconstructing workflow from shell
   history
 
