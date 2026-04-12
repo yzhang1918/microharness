@@ -161,6 +161,12 @@ development skills. `docs/issue-triage.md` also now says explicitly that the
 current label system is a tracked convention plus live GitHub metadata, not an
 already-automated `.github` label-sync setup.
 
+Revision 3 reopen follow-up removed the triage-policy aside from
+`docs/releasing.md`. That note mixed backlog-governance semantics into the
+release-playbook page without adding much value there, so the release guide is
+back to release mechanics while the backlog policy stays in
+`docs/issue-triage.md`.
+
 #### Review Notes
 
 NO_STEP_REVIEW_NEEDED: The policy doc, repo-only skill, and live GitHub
@@ -338,6 +344,9 @@ controller will use one full finalize review instead of isolated step review.
 - Revision 2 also confirmed the docs now state clearly that the current label
   system is tracked by repository docs plus live GitHub metadata rather than an
   existing `.github` label-sync automation path.
+- Revision 3 reopen validation confirmed `docs/releasing.md` is now focused
+  again on release mechanics, while the triage-policy guidance remains in the
+  dedicated `docs/issue-triage.md` surface and repo-facing pointers.
 
 ## Review Summary
 
@@ -351,23 +360,29 @@ controller will use one full finalize review instead of isolated step review.
 - Reviewer slot `docs-consistency` confirmed the revised ownership wording and
   the `.github` boundary text stay consistent across `AGENTS.md`,
   `docs/development.md`, and `docs/issue-triage.md`.
+- Reopen delta review `review-003-delta` also passed with no findings.
+- Reviewer slot `docs-consistency` confirmed that removing the milestone/policy
+  aside from `docs/releasing.md` improved page focus without losing any
+  necessary triage guidance elsewhere.
 
 ## Archive Summary
 
-- Archived At: 2026-04-12T19:38:40+08:00
-- Revision: 2
+- Archived At: 2026-04-12T19:51:05+08:00
+- Revision: 3
 - PR: https://github.com/catu-ai/easyharness/pull/160
 - Ready: The candidate adds a dedicated GitHub issue triage policy, introduces
   the repo-only `issue-triage` skill plus rationale-comment guidance, and
   backfills the live open-issue backlog with the new state labels and
   milestone semantics. Revision 2 tightened the skill-ownership wording and
   clarified that the current label system is a tracked convention plus live
-  GitHub metadata rather than an existing `.github` automation layer. Finalize
-  review `review-001-full` and reopen delta review `review-002-delta` both
+  GitHub metadata rather than an existing `.github` automation layer. Revision
+  3 removed the triage-policy aside from `docs/releasing.md` so the release
+  guide stays focused on release mechanics. Finalize review `review-001-full`
+  and reopen delta reviews `review-002-delta` and `review-003-delta` all
   passed cleanly. After the refreshed candidate is pushed to PR #160 and the
-  publish/CI/sync facts are refreshed for the new head, it is ready to wait for
-  merge approval.
-- Merge Handoff: Push the revision-2 repair to PR #160, refresh
+  publish/CI/sync facts are refreshed for the new head, it is ready to wait
+  for merge approval.
+- Merge Handoff: Push the revision-3 repair to PR #160, refresh
   publish/CI/sync evidence for the latest head commit, and then wait for
   explicit merge approval once status returns to
   `execution/finalize/await_merge`.
@@ -396,6 +411,9 @@ controller will use one full finalize review instead of isolated step review.
 - Clarified in `docs/issue-triage.md` that the current label system is tracked
   in repository docs plus live GitHub metadata rather than an already-shipped
   `.github` label-sync contract.
+- Removed the low-signal issue-milestone aside from `docs/releasing.md` so the
+  release guide no longer mixes backlog-governance framing into the release
+  mechanics page.
 
 ### Not Delivered
 
