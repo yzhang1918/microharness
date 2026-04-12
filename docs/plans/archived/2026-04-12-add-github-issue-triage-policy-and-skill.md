@@ -339,17 +339,17 @@ controller will use one full finalize review instead of isolated step review.
 
 - Archived At: 2026-04-12T18:45:19+08:00
 - Revision: 1
-- PR: To be filled after the archived candidate is pushed and the PR exists.
+- PR: https://github.com/catu-ai/easyharness/pull/160
 - Ready: The candidate adds a dedicated GitHub issue triage policy, introduces
   the repo-only `issue-triage` skill plus rationale-comment guidance, and
   backfills the live open-issue backlog with the new state labels and
-  milestone semantics. Finalize review `review-001-full` passed cleanly; after
-  archive, push/PR/evidence handoff remains before the candidate can wait for
-  merge approval.
-- Merge Handoff: After archive, commit and push the archived plan move plus
-  summary updates, open or refresh the PR, record publish/CI/sync evidence,
-  and then wait for explicit merge approval once status reaches
-  `execution/finalize/await_merge`.
+  milestone semantics. Finalize review `review-001-full` passed cleanly and
+  PR #160 is open on `codex/issue-triage-policy-and-skill`; after the refreshed
+  archived-summary head receives publish/CI/sync evidence, the candidate is
+  ready to wait for merge approval.
+- Merge Handoff: Push the archived-summary follow-up to PR #160, record
+  publish/CI/sync evidence for the latest head commit, and then wait for
+  explicit merge approval once status reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
