@@ -48,6 +48,17 @@ commit timestamp in UTC, subject to ZIP's 2-second timestamp precision. That
 keeps repeated builds of the same commit deterministic without making unpacked
 files look like they came from `2000-01-01 00:00`.
 
+## Issue Milestones and Release Policy
+
+GitHub milestones such as `v0.2.2` express intended issue scope for a concrete
+version once maintainers decide that a backlog item belongs in that release.
+They are a backlog-triage tool, not the release policy itself.
+
+Assigning an issue to `v0.2.2` does not by itself decide when `v0.2.2` should
+ship, what validation bar it must pass, or how urgent fixes should alter the
+cadence. Those broader release-policy questions remain separate repository
+work, currently tracked by issue `#87`.
+
 ## What Gets Published
 
 - Prebuilt `darwin/amd64`, `darwin/arm64`, `linux/amd64`, and `linux/arm64`
