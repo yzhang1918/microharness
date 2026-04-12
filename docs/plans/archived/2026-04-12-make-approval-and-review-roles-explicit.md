@@ -330,7 +330,11 @@ step-closeout round would have duplicated the final reviewer pass.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-12T13:42:10+08:00
+- Revision: 1
+- PR: https://github.com/catu-ai/easyharness/pull/150
+- Ready: Candidate validated, reviewed, and ready for archive plus publish/CI/sync evidence before waiting for merge approval.
+- Merge Handoff: After archive, commit and push the tracked plan move, record publish/CI/sync evidence on PR #150, and then wait for explicit human merge approval.
 
 ## Outcome Summary
 
