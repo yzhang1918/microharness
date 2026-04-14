@@ -207,26 +207,86 @@ delivery half of the same bounded UI fix.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+Revision 1 validated the shared workbench splitter fix with
+`pnpm --dir web check`, `pnpm --dir web build`, `scripts/install-dev-harness`,
+and direct Playwright CLI probes against the live `harness ui` served from this
+worktree. The targeted programmatic browser checks confirmed that a resized
+Timeline splitter stayed stable at `392px` across `Review`, `Status`, `Plan`,
+and back to `Timeline`, with the width persisted once under
+`harness-ui:workbench-explorer-width`.
+
+The headed interactive validation is recorded in
+`docs/plans/active/supplements/2026-04-14-stabilize-workbench-split-across-page-switches/interactive-headed-validation.md`,
+which captures a rail-driven `Timeline -> Review -> Status -> Plan` run with a
+stable `360px` shell width on every page. `git diff --check` also passed.
+
+The broadened regression assertion now lives in `scripts/ui-playwright-smoke`,
+and `scripts/ui-playwright-review-smoke` was updated to read the shared shell
+storage key. A full end-to-end rerun of `scripts/ui-playwright-smoke` still
+stalled in its broader fixture-capture phase after logging `capturing live
+status pages`, so the new four-page shell-continuity assertion was validated
+directly through Playwright CLI against the live app before archive closeout.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+Finalize review converged through three rounds. `review-001-full` requested
+changes because the first validation slice only proved `Timeline <-> Review`
+and narrated the headed validation without a repo-visible artifact. The repair
+broadened smoke coverage across the full `Status` / `Plan` / `Timeline` /
+`Review` shell set, added a tracked headed-validation supplement, and recorded
+those repairs in the active plan.
+
+`review-002-delta` then rechecked just that narrow validation repair from
+anchor commit `f53836921ceaee022bb13fe1b1c160b590e29ea6` and passed with no
+findings. Because `harness status` still required a fresh finalize full review
+before archive, `review-003-full` reran the full-candidate check and also
+passed cleanly with no blocking or non-blocking findings.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-14T21:38:26+08:00
+- Revision: 1
+This candidate makes explorer width part of the shared workbench shell instead
+of a page-specific preference. `WorkbenchFrame` now persists one shell-owned
+width under `harness-ui:workbench-explorer-width`, the page components no
+longer wire separate storage/default widths, and the broadened validation story
+proves shell continuity across `Status`, `Plan`, `Timeline`, and `Review`.
+
+- PR: pending post-archive publish handoff from branch
+  `codex/issue-168-stable-workbench-split`
+- Ready: Acceptance criteria are satisfied, finalize review passed in
+  `review-003-full`, and direct Playwright validation plus the tracked headed
+  supplement match the candidate behavior.
+- Merge Handoff: Archive the active plan, commit the tracked archive move, push
+  branch `codex/issue-168-stable-workbench-split`, open or update the PR for
+  issue #168, and refresh publish/CI/sync evidence until `harness status`
+  reaches `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Shared workbench-shell splitter persistence in `web/src/workbench.tsx` using
+  one shell-owned localStorage key and one shared default width.
+- Removal of page-specific width wiring from `web/src/pages.tsx`, so pages that
+  reuse the shell inherit the same split behavior by default.
+- Broadened browser regression coverage in `scripts/ui-playwright-smoke` across
+  `Review`, `Status`, `Plan`, and `Timeline`, plus the shared-key update in
+  `scripts/ui-playwright-review-smoke`.
+- Rebuilt embedded UI assets under `internal/ui/static/*` and refreshed the
+  repo-local `harness` binary so the live UI serves the repaired shell.
+- A tracked headed Playwright validation supplement documenting the
+  cross-page shell-width results for this candidate.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- No redesign of the workbench shell, divider visuals, or narrow-screen layout.
+- No special opt-out path for hypothetical future pages that might not fit the
+  shared workbench shell contract.
 
 ### Follow-Up Issues
 
-NONE
+- No new follow-up issue was created in this slice. The deferred future-page
+  incompatibility and broader visual-polish ideas remain intentionally out of
+  scope and can be revisited in a later workbench design pass if they become
+  concrete.
