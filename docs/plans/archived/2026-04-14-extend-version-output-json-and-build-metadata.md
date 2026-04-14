@@ -56,19 +56,19 @@ debug-friendly fields such as the resolved binary path.
 
 ## Acceptance Criteria
 
-- [ ] `harness --version` exits zero and returns parseable JSON by default.
-- [ ] The default JSON contract is stable and intentionally tiered:
+- [x] `harness --version` exits zero and returns parseable JSON by default.
+- [x] The default JSON contract is stable and intentionally tiered:
       release output includes the concise consumer-facing subset, while dev
       output may include extra debug-oriented fields such as `modified` and
       `path`.
-- [ ] The richer metadata set is deliberate and documented: `go_version` and
+- [x] The richer metadata set is deliberate and documented: `go_version` and
       `build_time` may appear in both modes when available from build info,
       while `modified` is dev-only and unavailable data is omitted rather than
       fabricated.
-- [ ] Unit and smoke coverage verify the JSON default, reject regressions back
+- [x] Unit and smoke coverage verify the JSON default, reject regressions back
       to plain text, and cover release-versus-dev visibility rules for `path`
       and the richer metadata fields.
-- [ ] Docs and help text describe `harness --version` as a JSON-first binary
+- [x] Docs and help text describe `harness --version` as a JSON-first binary
       identity probe so this slice can reasonably close `#32`.
 
 ## Deferred Items
@@ -242,26 +242,72 @@ validated together; the candidate will receive one full finalize review.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `bash -n scripts/install-dev-harness`
+- `go test ./internal/version ./internal/cli ./tests/smoke -run 'TestVersion|TestRenderHomebrewFormulaFromChecksums|TestInstallDevHarnessFallsBackToStablePathBinaryOutsideRepo|TestDownloadedReleaseAssetsMatchVersionAndCommitNamespace' -count=1`
+- `go test ./tests/smoke -count=1`
+- `go test ./... -count=1`
+- After finalize findings, reran focused repair validation with:
+  `go test ./internal/version ./tests/support ./tests/smoke -run 'TestVersion|TestInstallDevHarnessVersionReportsDevModeAndPathInsideWorktree|TestInstallDevHarnessVersionReportsStableModeAndPathOutsideWorktree' -count=1`
+- After repair, reran `go test ./... -count=1`
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- `review-001-full` requested changes with three blocking findings:
+  fabricated `commit: "unknown"`, missing dev `version` in the real
+  install-dev path, and no end-to-end smoke for the real dev binary's
+  `--version`.
+- The repair changed the omission contract to drop unavailable `commit`,
+  injected `BuildVersion` for dev installs from `VERSION`, copied `VERSION`
+  into the installer fixture, injected `BuildVersion` into the repo test
+  binary, and added an inside-worktree installer smoke that asserts dev mode,
+  dev version, and repo-local path.
+- `review-002-delta` requested one follow-up docs fix because
+  `docs/releasing.md` still described `commit` as unconditional.
+- `review-003-delta` passed with no findings after the release guide wording
+  was tightened to match the omission rule.
+- `review-004-full` passed with no findings across correctness, tests, and
+  docs consistency, making revision 1 archive-ready.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-14T21:49:34+08:00
+- Revision: 1
+Archived after the JSON-first `harness --version` contract, release/dev field
+tiers, docs/help refresh, and all finalize review repairs were landed and
+validated. The archived candidate is ready for publish/CI/sync handoff work.
+- PR: NONE. The branch has not been pushed or opened as a PR yet.
+- Ready: The candidate is archive-ready locally after the clean full finalize
+  review and the green validation runs recorded above.
+- Merge Handoff: Archive the plan, commit the archive move plus closeout
+  summaries, push `codex/issue-32-version-json`, open or update the PR, then
+  record publish, CI, and sync evidence before treating the candidate as
+  waiting for merge approval.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- `harness --version` now emits JSON by default instead of labeled plain text.
+- `internal/version.Info` now carries the JSON-first contract, including
+  optional `go_version` and `build_time`, plus dev-only `modified` and `path`.
+- Missing metadata is omitted instead of fabricated, including the removed
+  `commit: "unknown"` placeholder.
+- The dev installer now injects a real dev version string derived from
+  `VERSION` as `v<version>-dev`.
+- The installer wrapper, Homebrew formula generator, smoke tests, and release
+  verification paths were updated to consume the JSON contract.
+- The docs set now consistently describes `harness --version` as a JSON-first
+  binary identity probe with concise release output and richer dev output.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Installer or distribution provenance beyond what the running binary can
+  report today.
+- A separate `harness version` subcommand.
 
 ### Follow-Up Issues
 
-NONE
+- Deferred scope remains for richer distribution/install provenance if future
+  debugging needs more than binary-local metadata.
+- Deferred scope remains for a dedicated `harness version` subcommand if future
+  UX work finds a real need beyond the root `--version` flag.
