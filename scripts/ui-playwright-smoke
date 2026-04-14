@@ -869,6 +869,14 @@ async (page) => await page.evaluate(() => {
 ' >/dev/null
 pwcli_run_code_checked "$timeline_inspector_session" '
 async (page) => {
+  const parseExplorerWidth = (template) => {
+    const firstTrack = template.split(" ")[0] || "";
+    const width = Number.parseFloat(firstTrack);
+    if (Number.isNaN(width)) {
+      throw new Error(`could not parse explorer width from ${template}`);
+    }
+    return width;
+  };
   const frame = page.locator(".workbench-page");
   const divider = page.getByRole("separator", { name: /Timeline width/i });
   const before = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
@@ -883,14 +891,42 @@ async (page) => {
   await divider.focus();
   await page.keyboard.press("ArrowLeft");
   const after = await frame.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
-  const stored = await page.evaluate(() => window.localStorage.getItem("harness-ui:explorer-width:timeline"));
+  const stored = await page.evaluate(() => window.localStorage.getItem("harness-ui:workbench-explorer-width"));
   if (before === after) {
     throw new Error(`timeline splitter width did not change: ${before}`);
   }
   if (!stored) {
     throw new Error("timeline splitter width was not persisted");
   }
-  return { before, after, stored };
+  const resizedWidth = parseExplorerWidth(after);
+  if (Math.abs(resizedWidth - Number.parseFloat(stored)) > 1) {
+    throw new Error(`stored shared width ${stored} did not match resized width ${resizedWidth}`);
+  }
+  const origin = new URL(page.url()).origin;
+  const compatibleRoutes = [
+    ["/review", "Review"],
+    ["/status", "Status"],
+    ["/plan", "Plan"],
+    ["/timeline", "Timeline"],
+  ];
+  const routeWidths = {};
+  for (const [route, label] of compatibleRoutes) {
+    await page.goto(`${origin}${route}`, { waitUntil: "networkidle" });
+    const columns = await page.locator(".workbench-page").evaluate((node) => getComputedStyle(node).gridTemplateColumns);
+    const width = parseExplorerWidth(columns);
+    if (Math.abs(width - resizedWidth) > 1) {
+      throw new Error(`splitter jumped after switching to ${label}: ${resizedWidth} -> ${width}`);
+    }
+    routeWidths[label] = columns;
+  }
+  const legacyKeys = await page.evaluate(() => ({
+    timeline: window.localStorage.getItem("harness-ui:explorer-width:timeline"),
+    review: window.localStorage.getItem("harness-ui:explorer-width:review"),
+  }));
+  if (legacyKeys.timeline || legacyKeys.review) {
+    throw new Error(`found legacy per-page explorer width keys: ${JSON.stringify(legacyKeys)}`);
+  }
+  return { before, after, stored, routeWidths };
 }
 ' >/dev/null
 timeline_storage_denied_session="$(session_name timeline-storage-denied)"
