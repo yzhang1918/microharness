@@ -158,21 +158,24 @@ the Go binary serves the fixed UI.
 #### Execution Notes
 
 Updated the existing Playwright smoke coverage to assert that a resized
-Timeline splitter survives navigation to `Review`, round-trips back without
-jumping, and no legacy page-specific width keys are recreated. Updated the
-review-specific smoke script to read the same shared shell key. Rebuilt the
-frontend with `pnpm --dir web check` and `pnpm --dir web build`, then refreshed
-the repo-local `harness` binary with `scripts/install-dev-harness` so the live
-UI served the updated embedded assets. Validation used direct Playwright CLI
+Timeline splitter survives navigation across the full shell-compatible set
+(`Review`, `Status`, `Plan`, and back to `Timeline`) without width drift and
+without recreating legacy page-specific width keys. Updated the review-specific
+smoke script to read the same shared shell key. Rebuilt the frontend with
+`pnpm --dir web check` and `pnpm --dir web build`, then refreshed the
+repo-local `harness` binary with `scripts/install-dev-harness` so the live UI
+served the updated embedded assets. Validation used direct Playwright CLI
 flows in two modes: a programmatic run confirmed `Timeline` width `392px`
 persisted unchanged on `Review` with only the shared key present, and a headed
-interactive run resized `Timeline` to `376px`, navigated via the real `Review`
-rail link, and confirmed the `Review` frame still rendered `376px 8px ...`
-from the same shared stored width. A full end-to-end rerun of
-`scripts/ui-playwright-smoke` still stalled in its broader fixture capture
-phase after logging `capturing live status pages`, so the targeted shared-shell
-assertion was additionally validated directly through Playwright CLI against
-the live app.
+interactive run widened `Timeline` to `360px`, navigated through the real rail
+links `Timeline -> Review -> Status -> Plan`, and observed `360px 8px ...`
+for every page from the same shared stored width. The headed run is recorded
+durably in
+`docs/plans/active/supplements/2026-04-14-stabilize-workbench-split-across-page-switches/interactive-headed-validation.md`.
+A full end-to-end rerun of `scripts/ui-playwright-smoke` still stalled in its
+broader fixture capture phase after logging `capturing live status pages`, so
+the new four-page assertion was additionally validated directly through
+Playwright CLI against the live app.
 
 #### Review Notes
 
