@@ -458,6 +458,59 @@ func TestInstallDevHarnessWrapperSkipsRepoLocalDevBinaryOnPathOutsideWorktree(t 
 	}
 }
 
+func TestInstallDevHarnessVersionReportsDevModeAndPathInsideWorktree(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("installer smoke tests require a POSIX shell")
+	}
+
+	repoRoot := copyInstallerFixture(t)
+	installDir := filepath.Join(t.TempDir(), "path-bin")
+	stableDir, _ := newFakeStableHarness(t)
+
+	result := runCommand(
+		t,
+		repoRoot,
+		installerEnv(t, map[string]string{
+			"HOME": t.TempDir(),
+			"PATH": installerPath(t, installDir, stableDir),
+		}),
+		"/bin/bash",
+		filepath.Join(repoRoot, "scripts", "install-dev-harness"),
+		"--install-dir", installDir,
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("install-dev-harness failed with exit %d\nstdout:\n%s\nstderr:\n%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+
+	wrapperPath := filepath.Join(installDir, "harness")
+	versionResult := runCommand(
+		t,
+		repoRoot,
+		envWithOverrides(t, map[string]string{
+			"PATH": installerPath(t, installDir, stableDir),
+		}),
+		wrapperPath,
+		"--version",
+	)
+	if versionResult.ExitCode != 0 {
+		t.Fatalf("wrapper version failed with exit %d\nstdout:\n%s\nstderr:\n%s", versionResult.ExitCode, versionResult.Stdout, versionResult.Stderr)
+	}
+
+	if mode := requireVersionField(t, versionResult.Stdout, "mode"); mode != "dev" {
+		t.Fatalf("expected dev mode from repo-local worktree binary, got %q\noutput:\n%s", mode, versionResult.Stdout)
+	}
+	if version := requireVersionField(t, versionResult.Stdout, "version"); version != "v0.2.1-dev" {
+		t.Fatalf("expected dev version %q, got %q\noutput:\n%s", "v0.2.1-dev", version, versionResult.Stdout)
+	}
+	expectedPath := filepath.Join(repoRoot, ".local", "bin", "harness")
+	if resolvedPath, err := filepath.EvalSymlinks(expectedPath); err == nil {
+		expectedPath = resolvedPath
+	}
+	if path := requireVersionField(t, versionResult.Stdout, "path"); path != expectedPath {
+		t.Fatalf("expected repo-local dev path %q, got %q\noutput:\n%s", expectedPath, path, versionResult.Stdout)
+	}
+}
+
 func TestInstallDevHarnessVersionReportsStableModeAndPathOutsideWorktree(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("installer smoke tests require a POSIX shell")
@@ -719,6 +772,7 @@ func copyInstallerFixture(t *testing.T) string {
 	root := t.TempDir()
 	sourceRoot := support.RepoRoot(t)
 	for _, rel := range []string{
+		"VERSION",
 		"go.mod",
 		"go.sum",
 		"assets",

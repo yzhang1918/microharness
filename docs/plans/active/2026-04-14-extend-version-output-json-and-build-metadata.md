@@ -135,6 +135,8 @@ For both examples:
 
 - `path` is omitted outside dev mode.
 - `modified` is omitted outside dev mode.
+- If `commit` is unavailable from the running binary metadata, omit it instead
+  of fabricating a placeholder.
 - If `build_time` is unavailable from the running binary metadata, omit it
   instead of inventing a placeholder.
 - If `go_version` is unavailable, omit it instead of fabricating one.

@@ -374,9 +374,19 @@ build_commit=""
 if command -v git >/dev/null 2>&1; then
   build_commit="$(git -C "${repo_root}" rev-parse HEAD 2>/dev/null || true)"
 fi
+build_version=""
+if [[ -f "${repo_root}/VERSION" ]]; then
+  raw_version="$(tr -d '\r\n' < "${repo_root}/VERSION")"
+  if [[ -n "${raw_version}" ]]; then
+    build_version="v${raw_version}-dev"
+  fi
+fi
 build_ldflags=("-X" "${version_package}.BuildMode=dev")
 if [[ -n "${build_commit}" ]]; then
   build_ldflags+=("-X" "${version_package}.BuildCommit=${build_commit}")
+fi
+if [[ -n "${build_version}" ]]; then
+  build_ldflags+=("-X" "${version_package}.BuildVersion=${build_version}")
 fi
 build_args=("-o" "${binary_path}" "-ldflags" "${build_ldflags[*]}" "./cmd/harness")
 (

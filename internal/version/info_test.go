@@ -114,8 +114,8 @@ func TestCurrentFallsBackToUnknownCommit(t *testing.T) {
 		},
 	)
 
-	if info.Commit != "unknown" {
-		t.Fatalf("expected unknown commit fallback, got %#v", info)
+	if info.Commit != "" {
+		t.Fatalf("expected missing commit fallback, got %#v", info)
 	}
 	if info.Version != "" {
 		t.Fatalf("expected unknown-commit fallback to omit version, got %#v", info)

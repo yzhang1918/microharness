@@ -46,7 +46,13 @@ func BuildBinary(t *testing.T) string {
 			return
 		}
 
-		ldflags := fmt.Sprintf("-X %s.BuildCommit=%s", versionPackage, commit)
+		version, err := repoReleaseVersion(repoRoot())
+		if err != nil {
+			buildErr = fmt.Errorf("resolve harness build version: %w", err)
+			return
+		}
+
+		ldflags := fmt.Sprintf("-X %s.BuildCommit=%s -X %s.BuildVersion=%s", versionPackage, commit, versionPackage, version)
 		cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", buildPath, "./cmd/harness")
 		cmd.Dir = repoRoot()
 		output, err := cmd.CombinedOutput()
@@ -80,4 +86,16 @@ func repoHeadCommit(root string) (string, error) {
 		return "", fmt.Errorf("git rev-parse HEAD returned an empty commit")
 	}
 	return commit, nil
+}
+
+func repoReleaseVersion(root string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "VERSION"))
+	if err != nil {
+		return "", fmt.Errorf("read VERSION: %w", err)
+	}
+	version := strings.TrimSpace(string(data))
+	if version == "" {
+		return "", fmt.Errorf("VERSION file is empty")
+	}
+	return "v" + version, nil
 }

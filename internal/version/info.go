@@ -16,7 +16,7 @@ var (
 type Info struct {
 	Version   string `json:"version,omitempty"`
 	Mode      string `json:"mode"`
-	Commit    string `json:"commit"`
+	Commit    string `json:"commit,omitempty"`
 	GoVersion string `json:"go_version,omitempty"`
 	BuildTime string `json:"build_time,omitempty"`
 	Modified  *bool  `json:"modified,omitempty"`
@@ -69,7 +69,7 @@ func resolveCommit(buildInfo *debug.BuildInfo, ok bool) string {
 	if commit := resolveBuildSetting(buildInfo, ok, "vcs.revision"); commit != "" {
 		return commit
 	}
-	return "unknown"
+	return ""
 }
 
 func resolveGoVersion(buildInfo *debug.BuildInfo, ok bool) string {

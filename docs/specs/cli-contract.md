@@ -944,7 +944,8 @@ Contract:
 
 - remain a root-level flag rather than a workflow subcommand
 - return JSON rather than the shared workflow-state envelope
-- report the running binary's build commit and execution mode
+- report the running binary's execution mode and build commit when that commit
+  is available from the binary metadata
 - report the release-facing identity subset by default:
   `version`, `mode`, `commit`, with optional `go_version` and `build_time`
   when available from the binary metadata

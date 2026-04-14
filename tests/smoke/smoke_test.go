@@ -110,6 +110,9 @@ func TestVersionPrintsJSONBuildInfo(t *testing.T) {
 	result := support.Run(t, workspace.Root, "--version")
 	support.RequireSuccess(t, result)
 	support.RequireNoStderr(t, result)
+	if version := requireVersionField(t, result.Stdout, "version"); version == "" {
+		t.Fatalf("expected non-empty release version\noutput:\n%s", result.Stdout)
+	}
 	if mode := requireVersionField(t, result.Stdout, "mode"); mode != "release" {
 		t.Fatalf("expected release mode, got %q\noutput:\n%s", mode, result.Stdout)
 	}
