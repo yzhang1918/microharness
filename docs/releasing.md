@@ -56,8 +56,8 @@ files look like they came from `2000-01-01 00:00`.
 - Tags with a prerelease suffix such as `-alpha.1` publish as GitHub
   prereleases rather than stable releases.
 - The release binary reports JSON build metadata through `harness --version`,
-  including the release version, build commit, and mode, with optional
-  `go_version` or `build_time` when the binary can report them.
+  including the release version and mode, plus the build commit, `go_version`,
+  or `build_time` when the binary can report them.
 - Archive entry timestamps are derived from the source commit time for the
   tagged revision, subject to ZIP's 2-second precision, rather than the
   wall-clock publish time.
