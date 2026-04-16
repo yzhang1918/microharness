@@ -1,0 +1,6 @@
+server=http://127.0.0.1:59204
+status-live-update-ok
+stale-state-ok
+visibility-catchup-ok
+timeline-live-update-ok
+[exit 0]

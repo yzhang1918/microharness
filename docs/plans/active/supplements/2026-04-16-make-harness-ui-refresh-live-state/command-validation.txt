@@ -1,0 +1,28 @@
+$ pnpm --dir web check
+
+> harness-ui@0.0.0 check /Users/yaozhang/.codex/worktrees/4815/superharness/web
+> tsc -p tsconfig.json --noEmit
+
+[exit 0]
+
+$ pnpm --dir web build
+
+> harness-ui@0.0.0 build /Users/yaozhang/.codex/worktrees/4815/superharness/web
+> tsc -p tsconfig.json && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 86 modules transformed.
+rendering chunks...
+computing gzip size...
+../internal/ui/static/index.html                   0.74 kB │ gzip:  0.43 kB
+../internal/ui/static/assets/index-DW5YH7Wr.css   21.34 kB │ gzip:  4.88 kB
+../internal/ui/static/assets/index-cu2wS75v.js   166.40 kB │ gzip: 64.34 kB
+✓ built in 227ms
+[exit 0]
+
+$ git diff --check
+[exit 0]
+
+$ scripts/install-dev-harness
+[exit 0]

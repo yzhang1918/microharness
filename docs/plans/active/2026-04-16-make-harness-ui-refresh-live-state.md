@@ -222,7 +222,11 @@ with a single-use fetch gate so ordinary polling cannot satisfy the recovery
 window by accident, and it adds same-session live-update coverage for the
 already-open `Timeline` page after appending a new event. Rebuilt embedded
 assets and refreshed the repo-local `harness` binary after each frontend
-repair so the served UI matched the reviewed source.
+repair so the served UI matched the reviewed source. Durable evidence for the
+command-level checks and the focused browser run now lives in
+`docs/plans/active/supplements/2026-04-16-make-harness-ui-refresh-live-state/command-validation.txt`,
+`browser-validation.txt`, and
+`validation-evidence.md`.
 
 #### Review Notes
 
@@ -242,6 +246,9 @@ same `review-001-full` -> `review-003-delta` closeout sequence tracked in Step
 - Run `scripts/install-dev-harness` after Go-served embedded assets change so
   the repo-local `harness` binary serves the rebuilt UI.
 - Run `git diff --check`.
+- Record durable command and browser evidence under
+  `docs/plans/active/supplements/2026-04-16-make-harness-ui-refresh-live-state/`
+  so later finalize review does not depend on disposable local output.
 
 ## Risks
 
