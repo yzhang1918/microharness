@@ -266,26 +266,85 @@ same `review-001-full` -> `review-003-delta` closeout sequence tracked in Step
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `pnpm --dir web check`, `pnpm --dir web build`, `git diff --check`, and
+  `scripts/install-dev-harness` all exited `0`; the durable transcript lives in
+  `docs/plans/active/supplements/2026-04-16-make-harness-ui-refresh-live-state/command-validation.txt`.
+- Focused browser validation against a temporary live `harness ui` runtime
+  recorded `status-live-update-ok`, `stale-state-ok`,
+  `visibility-catchup-ok`, and `timeline-live-update-ok`; the durable output
+  lives in
+  `docs/plans/active/supplements/2026-04-16-make-harness-ui-refresh-live-state/browser-validation.txt`.
+- `docs/plans/active/supplements/2026-04-16-make-harness-ui-refresh-live-state/validation-evidence.md`
+  ties those command and browser artifacts back to the candidate behaviors this
+  slice claims to validate.
+- `scripts/ui-playwright-smoke` now covers same-session status and timeline
+  live-update behavior plus an isolated visibility-regain catch-up assertion.
+  The broader smoke flow still has an older early-navigation stall outside this
+  slice, so the tracked focused browser run remains the authoritative
+  end-to-end evidence for the final candidate.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- `review-001-full` requested changes for one catch-up correctness gap and two
+  validation gaps in the initial live-refresh implementation.
+- `review-002-delta` narrowed the remaining repair scope to the in-flight guard
+  bug and the visibility-catch-up test isolation gap after the first repair.
+- `review-003-delta` passed cleanly after the catch-up coordination and browser
+  validation repairs, closing step review for the implementation slice.
+- `review-004-full` requested changes during finalize review because the plan's
+  command/browser validation claims were not yet backed by tracked durable
+  evidence.
+- `review-005-delta` passed cleanly after adding the tracked supplement package
+  and explicit plan references for that evidence repair.
+- `review-006-full` passed cleanly as the final archive-candidate review, with
+  no correctness or tests findings remaining.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-17T00:29:29+08:00
+- Revision: 1
+- PR: NONE. The branch has not been pushed or opened as a PR yet; publish
+  handoff should open or update the PR after archive and link it to issue
+  `#158` while preserving follow-up issue `#179`.
+- Ready: The candidate satisfies all tracked acceptance criteria, rebuilt the
+  embedded `harness ui` assets, recorded durable command/browser validation
+  evidence in the tracked supplement package, and passed the final full
+  finalize review in `review-006-full` after the earlier review-driven repairs.
+- Merge Handoff: Run `harness archive`, commit the tracked archive move plus
+  these closeout notes, push branch `codex/issue-158-live-ui-refresh`, open or
+  update the PR so it closes `#158` and references follow-up `#179`, then
+  record publish, CI, and sync evidence until `harness status` reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- The workbench now uses a shared live-refresh loop that keeps `/api/status`
+  and the active page (`plan`, `timeline`, or `review`) current while the tab
+  is visible, plus an immediate catch-up refresh on focus or visibility regain.
+- The shared shell now surfaces explicit freshness state so operators can tell
+  when the UI is updating normally, background-refreshing, stale after refresh
+  failures, or disconnected on first-load failure.
+- The catch-up path now aborts superseded in-flight requests safely and keeps
+  the latest request responsible for clearing the shared in-flight guard.
+- `scripts/ui-playwright-smoke` and the tracked supplement evidence now prove
+  same-session status/timeline updates, stale-state signaling, and
+  visibility-regain recovery without a manual page reload.
+- The embedded static UI bundle under `internal/ui/static/` was rebuilt to ship
+  the reviewed frontend behavior through `harness ui`.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Route-specific polling cadences, backoff tuning, or other per-page refresh
+  policy refinements beyond the shared baseline shipped here.
+- Push-driven transport such as websocket or SSE updates; this slice stays with
+  polling plus focus/visibility catch-up.
+- Broader stale-state recovery affordances beyond the shell-level freshness
+  indicator and the retry behavior already needed for this slice.
 
 ### Follow-Up Issues
 
-NONE
+- Issue `#179`: tune workbench live-refresh policy after issue `#158` rollout,
+  including polling cadence evaluation, possible route-specific refresh policy
+  changes, and any evidence-based push/stale-recovery follow-up.
