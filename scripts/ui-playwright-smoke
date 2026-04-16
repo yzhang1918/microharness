@@ -1206,6 +1206,17 @@ pwcli_run_code_checked "$rail_session" '
 async (page) => {
   const targetNode = "land";
   await page.evaluate(() => {
+    if (!window.__codexOriginalFetch) {
+      window.__codexOriginalFetch = window.fetch.bind(window);
+    }
+    window.__codexFetchGate = false;
+    window.fetch = (...args) => {
+      if (!window.__codexFetchGate) {
+        return Promise.reject(new Error("blocked non-catchup refresh"));
+      }
+      window.__codexFetchGate = false;
+      return window.__codexOriginalFetch(...args);
+    };
     window.__codexVisibilityState = "hidden";
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -1214,6 +1225,7 @@ async (page) => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await page.evaluate(() => {
+    window.__codexFetchGate = true;
     window.__codexVisibilityState = "visible";
     document.dispatchEvent(new Event("visibilitychange"));
   });
@@ -1230,6 +1242,11 @@ async (page) => {
     targetNode,
     { timeout: 1500 },
   );
+  await page.evaluate(() => {
+    if (window.__codexOriginalFetch) {
+      window.fetch = window.__codexOriginalFetch;
+    }
+  });
 }
 ' >/dev/null
 capture_session_snapshot "$rail_session" "status-focus-refresh"

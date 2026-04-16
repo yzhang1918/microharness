@@ -144,8 +144,8 @@ function useLiveResource<T>(options: {
         .finally(() => {
           if (activeController === controller) {
             activeController = null;
+            inFlightRef.current = false;
           }
-          inFlightRef.current = false;
         });
     };
 
