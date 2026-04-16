@@ -406,6 +406,15 @@ code {
   white-space: nowrap;
 }
 
+.timeline-explorer-time {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
 .explorer-item-meta,
 .explorer-item-trailing {
   color: var(--text-muted);

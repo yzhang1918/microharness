@@ -91,11 +91,11 @@ export function timelineEventTitle(event: TimelineEvent): string {
 }
 
 export function timelineEventSubtitle(event: TimelineEvent): string {
-  return event.synthetic ? "bootstrap" : humanizeLabel(event.kind);
-}
-
-export function timelineEventRevisionLabel(event: TimelineEvent): string | null {
-  return event.revision !== undefined ? `rev ${event.revision}` : null;
+  const parts = [event.synthetic ? "bootstrap" : humanizeLabel(event.kind)];
+  if (event.revision !== undefined) {
+    parts.push(`rev ${event.revision}`);
+  }
+  return parts.join(" · ");
 }
 
 export function sortTimelineEvents(events: TimelineEvent[]): TimelineEvent[] {

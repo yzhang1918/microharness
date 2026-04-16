@@ -815,7 +815,7 @@ async (page) => {
 
       if (tokenMode === 'timeline-revision') {
         const timelineSubtitle = rows
-          .map((row) => row.querySelector('.explorer-item-subtitle'))
+          .map((row) => row.querySelector('.explorer-item-compact-label'))
           .find((value) => value instanceof HTMLElement && /\\brev\\s+\\d+\\b/i.test(value.textContent || ''));
         if (!(timelineSubtitle instanceof HTMLElement)) {
           throw new Error('missing timeline subtitle with revision text at 220px');

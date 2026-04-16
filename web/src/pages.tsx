@@ -27,7 +27,6 @@ import {
   reviewRoundStatusLabel,
   reviewRoundStatusTone,
   reviewRoundTitle,
-  timelineEventRevisionLabel,
   sortTimelineEvents,
   timelineEventSubtitle,
   timelineEventTitle,
@@ -982,12 +981,9 @@ export function TimelineWorkspace(props: {
                 subtitle={
                   <div class="explorer-item-compact-row">
                     <span class="explorer-item-compact-label">{timelineEventSubtitle(event)}</span>
-                    {timelineEventRevisionLabel(event) ? (
-                      <span class="explorer-item-compact-token">{`\u00b7 ${timelineEventRevisionLabel(event)}`}</span>
-                    ) : null}
+                    <span class="explorer-item-compact-token timeline-explorer-time">{formatTimestamp(event.recorded_at)}</span>
                   </div>
                 }
-                meta={formatTimestamp(event.recorded_at)}
               />
             ))
           ) : (

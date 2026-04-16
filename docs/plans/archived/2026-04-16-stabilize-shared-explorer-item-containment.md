@@ -123,7 +123,15 @@ its own width/overflow boundaries so `ExplorerItem` rows stay visually bounded
 at the `220px` explorer floor. This slice used a real Red/Green browser loop:
 the first smoke extension failed on the original Timeline regression by proving
 that the `rev` text and revision number landed on different visual lines at
-`220px`, then the shared row fix turned that same check green.
+`220px`, then the shared row fix turned that same check green. After archive,
+direct human visual feedback on the shipped Timeline explorer exposed one more
+real presentation issue: the first repair solved containment but made the row
+hierarchy feel too mechanical by splitting `Evidence` and `rev 1` across the
+subtitle row while the timestamp still dominated the title line. Revision `2`
+reopened in `finalize-fix` mode and retuned Timeline to keep `Evidence · rev 1`
+as one left-side metadata string with a weaker right-aligned timestamp, so the
+row reads like one dense explorer line again without giving up the shared
+containment contract.
 
 #### Review Notes
 
@@ -179,7 +187,11 @@ Playwright execution context. Browser evidence landed in
 contains `status-explorer-220.png`, `timeline-explorer-220.png`, and
 `review-explorer-220.png` from the passing run. Rebuilt the embedded frontend
 bundle under `internal/ui/static/*` after the source changes and reran the
-shared smoke to green.
+shared smoke to green. After the `finalize-fix` reopen for revision `2`, reran
+the same browser flow successfully and captured refreshed 220px screenshots
+under `output/playwright/harness-ui-smoke-95942-1776303427222054000-25066/`,
+including a Timeline explorer screenshot whose subtitle hierarchy now reads as
+one left-side metadata string plus a weaker right-side timestamp.
 
 #### Review Notes
 
@@ -215,8 +227,12 @@ part of the same bounded UI slice and are best reviewed together at finalize.
 - `pnpm --dir web build`
 - `git diff --check`
 - `scripts/ui-playwright-smoke`
-- Passing 220px browser evidence from
+- Initial passing 220px browser evidence from
   `output/playwright/harness-ui-smoke-52645-1776302387494631000-18421/`,
+  including `status-explorer-220.png`, `timeline-explorer-220.png`, and
+  `review-explorer-220.png`
+- Refreshed revision `2` 220px browser evidence from
+  `output/playwright/harness-ui-smoke-95942-1776303427222054000-25066/`,
   including `status-explorer-220.png`, `timeline-explorer-220.png`, and
   `review-explorer-220.png`
 
@@ -227,24 +243,32 @@ blocking or non-blocking findings. Reviewer slot `correctness` confirmed the
 shared ExplorerItem containment change stayed semantically sound across
 `Status`, `Timeline`, and `Review`, and reviewer slot `tests` reran
 `scripts/ui-playwright-smoke` to confirm the widened 220px browser proof stayed
-green after the validation hardening.
+green after the validation hardening. After direct human visual feedback
+reopened the candidate in `finalize-fix` mode, finalize full review
+`review-002-full` also passed cleanly at revision `2` with no findings.
+Reviewer slot `correctness` confirmed the visual-polish repair restored the
+Timeline hierarchy without breaking the shared containment contract, and
+reviewer slot `tests` confirmed the adjusted Timeline assertion plus rebuilt UI
+bundle stayed aligned with the passing browser proof.
 
 ## Archive Summary
 
-- Archived At: 2026-04-16T09:29:58+08:00
-- Revision: 1
-This candidate turns the issue #173 Timeline regression into one shared
-ExplorerItem narrow-width contract. Timeline revision metadata now keeps the
-compact revision token grouped at the `220px` explorer floor, Review reuses the
-same compact subtitle row pattern for its metadata/status line, and the shared
-browser smoke now proves containment for `Status`, `Timeline`, and `Review`
-instead of relying on one page-local fix.
+- Archived At: 2026-04-16T09:46:26+08:00
+- Revision: 2
+This candidate still resolves issue #173 through one shared ExplorerItem
+narrow-width contract, but revision `2` retunes the Timeline hierarchy after
+human visual feedback. Timeline now keeps `Evidence · rev 1` together on the
+left side of the subtitle row while demoting the timestamp to a weaker
+right-aligned position, so the row reads like one dense explorer line without
+backsliding on the shared `220px` containment proof across `Status`,
+`Timeline`, and `Review`.
 
 - PR: pending post-archive publish handoff from branch
   `codex/issue-173-shared-explorer-containment`
-- Ready: All acceptance criteria are satisfied, `review-001-full` passed with
-  no findings, and focused browser validation plus saved 220px screenshots
-  match the candidate behavior.
+- Ready: All acceptance criteria remain satisfied after the `finalize-fix`
+  reopen, `review-002-full` passed with no findings, and focused browser
+  validation plus refreshed 220px screenshots match the revision `2`
+  candidate behavior.
 - Merge Handoff: Run `harness archive`, commit the tracked archive move plus
   closeout notes, push branch `codex/issue-173-shared-explorer-containment`,
   open or update the PR for issue #173, and record publish/CI/sync evidence
@@ -263,6 +287,9 @@ instead of relying on one page-local fix.
   also hardening the existing width-persistence assertions against timing and
   runtime-environment issues.
 - Refreshed embedded UI bundle artifacts under `internal/ui/static/*`.
+- A revision `2` Timeline visual-polish repair that keeps `Evidence · rev 1`
+  as one left-side metadata string and moves the timestamp into a weaker
+  right-aligned subtitle position.
 
 ### Not Delivered
 
