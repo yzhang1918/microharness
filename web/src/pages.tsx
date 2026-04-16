@@ -27,6 +27,7 @@ import {
   reviewRoundStatusLabel,
   reviewRoundStatusTone,
   reviewRoundTitle,
+  timelineEventRevisionLabel,
   sortTimelineEvents,
   timelineEventSubtitle,
   timelineEventTitle,
@@ -978,7 +979,14 @@ export function TimelineWorkspace(props: {
                 selected={event.event_id === selectedEvent?.event_id}
                 onSelect={() => setSelectedEventId(event.event_id)}
                 title={timelineEventTitle(event)}
-                subtitle={timelineEventSubtitle(event)}
+                subtitle={
+                  <div class="explorer-item-compact-row">
+                    <span class="explorer-item-compact-label">{timelineEventSubtitle(event)}</span>
+                    {timelineEventRevisionLabel(event) ? (
+                      <span class="explorer-item-compact-token">{`\u00b7 ${timelineEventRevisionLabel(event)}`}</span>
+                    ) : null}
+                  </div>
+                }
                 meta={formatTimestamp(event.recorded_at)}
               />
             ))
@@ -1110,9 +1118,11 @@ export function ReviewWorkspace(props: {
                 ariaLabel={reviewRoundAriaLabel(round)}
                 title={reviewRoundTitle(round)}
                 subtitle={
-                  <div class="review-explorer-subtitle">
-                    <span class="review-explorer-meta">{reviewRoundExplorerMetaLabel(round)}</span>
-                    <span class={`review-round-status-text is-${reviewRoundStatusTone(round)}`}>{reviewRoundCompactStatusLabel(round)}</span>
+                  <div class="explorer-item-compact-row">
+                    <span class="explorer-item-compact-label review-explorer-meta">{reviewRoundExplorerMetaLabel(round)}</span>
+                    <span class={`explorer-item-compact-token review-round-status-text is-${reviewRoundStatusTone(round)}`}>
+                      {reviewRoundCompactStatusLabel(round)}
+                    </span>
                   </div>
                 }
                 tone={reviewRoundStatusTone(round)}
