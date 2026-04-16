@@ -59,17 +59,17 @@ introducing websocket/SSE infrastructure or a second hidden state system.
 
 ## Acceptance Criteria
 
-- [ ] While a workbench page is open and the tab is visible, external harness
+- [x] While a workbench page is open and the tab is visible, external harness
       state changes become visible automatically without a full browser reload.
-- [ ] When the browser tab regains focus or visibility after being backgrounded,
+- [x] When the browser tab regains focus or visibility after being backgrounded,
       the active page refreshes immediately instead of waiting for the next
       polling interval.
-- [ ] The shared shell surfaces concise freshness state that distinguishes a
+- [x] The shared shell surfaces concise freshness state that distinguishes a
       healthy updating state from a stale/disconnected state after fetch
       failures.
-- [ ] Focused automated validation fails if the UI returns to one-shot snapshot
+- [x] Focused automated validation fails if the UI returns to one-shot snapshot
       behavior for at least one representative external state-change flow.
-- [ ] `pnpm --dir web check`, `pnpm --dir web build`, and `git diff --check`
+- [x] `pnpm --dir web check`, `pnpm --dir web build`, and `git diff --check`
       pass after the change.
 
 ## Deferred Items
@@ -85,7 +85,7 @@ introducing websocket/SSE infrastructure or a second hidden state system.
 
 ### Step 1: Add shared live-refresh and freshness state to the workbench shell
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -146,13 +146,24 @@ the change spans shared runtime polling plus browser lifecycle events rather
 than a narrow pure function. The slice instead validated behavior directly in a
 live browser against a temporary harness workdir before review.
 
+Follow-up repairs from `review-001-full` and `review-002-delta` hardened the
+catch-up path further: focus/visibility-triggered refreshes now abort an older
+in-flight request before starting the replacement fetch, and only the newest
+active controller can clear the shared in-flight guard in `finally`. That
+prevents both the original skip-on-refocus bug and the later overlap-window
+regression found during delta review.
+
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-001-full` requested changes for one catch-up correctness gap and two
+validation gaps. `review-002-delta` then narrowed the remaining repair scope
+to one in-flight-guard bug and one visibility-test isolation bug. After the
+final repair, `review-003-delta` passed cleanly with no blocking or
+non-blocking findings.
 
 ### Step 2: Add regression coverage for external updates and refresh shipped assets
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -205,9 +216,20 @@ refresh failures while preserving prior data, and immediate recovery back to
 segment outside this issue's new assertions, so the targeted live-session run
 is the authoritative validation evidence for this slice so far.
 
+Later review-driven repairs strengthened that validation story further:
+`scripts/ui-playwright-smoke` now isolates the visibility catch-up assertion
+with a single-use fetch gate so ordinary polling cannot satisfy the recovery
+window by accident, and it adds same-session live-update coverage for the
+already-open `Timeline` page after appending a new event. Rebuilt embedded
+assets and refreshed the repo-local `harness` binary after each frontend
+repair so the served UI matched the reviewed source.
+
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: Step 2 remained the validation-and-asset delivery half
+of the same bounded slice, and its review-driven repairs were covered by the
+same `review-001-full` -> `review-003-delta` closeout sequence tracked in Step
+1's review notes.
 
 ## Validation Strategy
 
