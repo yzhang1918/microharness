@@ -1205,7 +1205,18 @@ PY
 pwcli_run_code_checked "$rail_session" '
 async (page) => {
   const targetNode = "land";
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.evaluate(() => {
+    window.__codexVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => window.__codexVisibilityState ?? "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.evaluate(() => {
+    window.__codexVisibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   await page.waitForFunction(
     (expected) => {
       const topbarMatches = Array.from(document.querySelectorAll(".topbar-metric")).some((node) => {
@@ -1224,6 +1235,47 @@ async (page) => {
 capture_session_snapshot "$rail_session" "status-focus-refresh"
 assert_has_text "status-focus-refresh" "land"
 pwcli_close "$rail_session"
+
+timeline_live_session="$(session_name timeline-live)"
+navigate_browser_to "$timeline_live_session" "${base_url}/timeline"
+sleep 1
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/events.jsonl" "$plan_path" "$plan_stem" <<'PY'
+import json
+import sys
+
+events_path, plan_path, plan_stem = sys.argv[1:4]
+event = {
+    "event_id": "event-live-refresh-check",
+    "sequence": 999,
+    "recorded_at": "2026-04-01T22:46:00+08:00",
+    "kind": "validation",
+    "command": "live-refresh-check",
+    "summary": "Added after the timeline page was already open.",
+    "plan_path": plan_path,
+    "plan_stem": plan_stem,
+    "revision": 1,
+    "from_node": "land",
+    "to_node": "land"
+}
+with open(events_path, "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(event) + "\n")
+PY
+
+pwcli_run_code_checked "$timeline_live_session" '
+async (page) => {
+  const expected = "live-refresh-check";
+  await page.waitForFunction(
+    (value) => (document.body.textContent ?? "").includes(value),
+    expected,
+    { timeout: 10000 },
+  );
+}
+' >/dev/null
+capture_session_snapshot "$timeline_live_session" "timeline-live-update"
+assert_has_text "timeline-live-update" "live-refresh-check"
+pwcli_close "$timeline_live_session"
+
 capture_snapshot "/review" "review"
 assert_has_text "review" "Review"
 assert_has_text "review" "Explorer"

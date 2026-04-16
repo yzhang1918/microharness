@@ -95,8 +95,13 @@ function useLiveResource<T>(options: {
     let activeController: AbortController | null = null;
 
     const refresh = (trigger: "initial" | "poll" | "focus") => {
-      if (disposed || inFlightRef.current) return;
+      if (disposed) return;
       if (trigger === "poll" && document.visibilityState !== "visible") return;
+      if (inFlightRef.current) {
+        if (trigger === "poll") return;
+        activeController?.abort();
+        inFlightRef.current = false;
+      }
 
       const hasLiveData = hasSuccessfulLoadRef.current;
       setLoading(!hasLiveData);
