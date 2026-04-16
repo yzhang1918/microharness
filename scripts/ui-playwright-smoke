@@ -1149,6 +1149,80 @@ navigate_via_rail "$rail_session" "timeline-rail" "Status" "status-rail" "Status
 navigate_via_rail "$rail_session" "status-rail" "Review" "review-rail" "Review data is hidden once required post-merge bookkeeping begins."
 assert_workbench_scroll_contract "$rail_session" "review"
 navigate_via_rail "$rail_session" "review-rail" "Status" "status-return" "Status"
+assert_has_text "status-return" "land"
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/state.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
+payload["current_node"] = "execution/finalize/await_merge"
+payload.pop("land", None)
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh)
+PY
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  const targetNode = "execution/finalize/await_merge";
+  await page.waitForFunction(
+    (expected) => {
+      const topbarMatches = Array.from(document.querySelectorAll(".topbar-metric")).some((node) => {
+        const text = node.textContent ?? "";
+        return text.includes("Node") && text.includes(expected);
+      });
+      const overview = document.querySelector("[aria-label=\"Status overview\"]");
+      const overviewMatches = (overview?.textContent ?? "").includes(expected);
+      return topbarMatches && overviewMatches;
+    },
+    targetNode,
+    { timeout: 10000 },
+  );
+}
+' >/dev/null
+capture_session_snapshot "$rail_session" "status-live-update"
+assert_has_text "status-live-update" "execution/finalize/await_merge"
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/state.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
+payload["current_node"] = "land"
+payload["land"] = {
+    "pr_url": "https://github.com/catu-ai/easyharness/pull/93",
+    "commit": "abc123def456",
+    "landed_at": "2026-04-01T22:45:00+08:00",
+}
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh)
+PY
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  const targetNode = "land";
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.waitForFunction(
+    (expected) => {
+      const topbarMatches = Array.from(document.querySelectorAll(".topbar-metric")).some((node) => {
+        const text = node.textContent ?? "";
+        return text.includes("Node") && text.includes(expected);
+      });
+      const overview = document.querySelector("[aria-label=\"Status overview\"]");
+      const overviewMatches = (overview?.textContent ?? "").includes(expected);
+      return topbarMatches && overviewMatches;
+    },
+    targetNode,
+    { timeout: 1500 },
+  );
+}
+' >/dev/null
+capture_session_snapshot "$rail_session" "status-focus-refresh"
+assert_has_text "status-focus-refresh" "land"
 pwcli_close "$rail_session"
 capture_snapshot "/review" "review"
 assert_has_text "review" "Review"
@@ -1256,6 +1330,7 @@ PY
 
 capture_snapshot "/status" "status-error" 1
 assert_has_text "status-error" "Status"
+assert_has_text "status-error" "Disconnected"
 assert_has_text "status-error" "$status_error_summary"
 assert_has_text "status-error" "another command is already mutating local state"
 assert_has_text "status-error" "retry after it finishes"
