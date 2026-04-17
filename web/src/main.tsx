@@ -1,9 +1,11 @@
 import { render } from "preact";
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import "./styles.css";
 
 import {
+  combineLiveFreshness,
+  describeLiveFreshness,
   formatPlanError,
   formatReviewError,
   formatStatusError,
@@ -13,8 +15,8 @@ import {
   workdirLabel,
 } from "./helpers";
 import { PlanWorkspace, ReviewWorkspace, StatusWorkspace, TimelineWorkspace } from "./pages";
-import type { Page, PageDef, PlanResult, ReviewResult, StatusResult, TimelineResult } from "./types";
-import { RailIcon, TopbarMetric } from "./workbench";
+import type { LiveFreshness, Page, PageDef, PlanResult, ReviewResult, StatusResult, TimelineResult } from "./types";
+import { RailIcon, TopbarFreshness, TopbarMetric } from "./workbench";
 
 const pages: PageDef[] = [
   { id: "status", label: "Status", href: "/status" },
@@ -22,6 +24,15 @@ const pages: PageDef[] = [
   { id: "timeline", label: "Timeline", href: "/timeline" },
   { id: "review", label: "Review", href: "/review" },
 ];
+const LIVE_REFRESH_INTERVAL_MS = 4000;
+const LIVE_REFRESH_ACTIVITY_BUFFER_MS = 250;
+
+type LiveResourceResult<T> = {
+  data: T | null;
+  error: string | null;
+  loading: boolean;
+  freshness: LiveFreshness;
+};
 
 function isPage(value: string | null): value is Page {
   return value === "status" || value === "plan" || value === "timeline" || value === "review";
@@ -56,21 +67,138 @@ function readSectionFromLocation(page: Page): string {
   return sectionIDsForPage(page).includes(section) ? section : sectionIDsForPage(page)[0];
 }
 
+function formatTimelineResourceError(result: TimelineResult | null, statusCode?: number): string {
+  return formatTimelineError(result?.summary, result?.errors, statusCode);
+}
+
+function useLiveResource<T>(options: {
+  enabled: boolean;
+  path: string;
+  formatError: (result: T | null, statusCode?: number) => string;
+  intervalMs?: number;
+}): LiveResourceResult<T> {
+  const { enabled, path, formatError, intervalMs = LIVE_REFRESH_INTERVAL_MS } = options;
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [freshness, setFreshness] = useState<LiveFreshness>(() => describeLiveFreshness(enabled ? "connecting" : "idle"));
+  const inFlightRef = useRef(false);
+  const lastSuccessAtRef = useRef<string | null>(null);
+  const hasSuccessfulLoadRef = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
+    let disposed = false;
+    let activeController: AbortController | null = null;
+    let updatingIndicatorTimeoutID: number | null = null;
+
+    const clearUpdatingIndicator = () => {
+      if (updatingIndicatorTimeoutID !== null) {
+        window.clearTimeout(updatingIndicatorTimeoutID);
+        updatingIndicatorTimeoutID = null;
+      }
+    };
+
+    const refresh = (trigger: "initial" | "poll" | "focus") => {
+      if (disposed) return;
+      if (trigger === "poll" && document.visibilityState !== "visible") return;
+      if (inFlightRef.current) {
+        if (trigger === "poll") return;
+        clearUpdatingIndicator();
+        activeController?.abort();
+        inFlightRef.current = false;
+      }
+
+      const hasLiveData = hasSuccessfulLoadRef.current;
+      setLoading(!hasLiveData);
+
+      const controller = new AbortController();
+      activeController = controller;
+      inFlightRef.current = true;
+      clearUpdatingIndicator();
+      if (hasLiveData) {
+        updatingIndicatorTimeoutID = window.setTimeout(() => {
+          updatingIndicatorTimeoutID = null;
+          if (disposed || controller.signal.aborted) return;
+          setFreshness(describeLiveFreshness("updating", lastSuccessAtRef.current));
+        }, LIVE_REFRESH_ACTIVITY_BUFFER_MS);
+      } else {
+        setFreshness(describeLiveFreshness("connecting", lastSuccessAtRef.current));
+      }
+
+      fetch(path, { signal: controller.signal })
+        .then(async (response) => {
+          const payload = (await response.json()) as T & { ok?: boolean };
+          if (!response.ok || payload.ok === false) {
+            throw new Error(formatError(payload as T, response.status));
+          }
+          return payload as T;
+        })
+        .then((payload) => {
+          if (disposed || controller.signal.aborted) return;
+          clearUpdatingIndicator();
+          const nextSuccessAt = new Date().toISOString();
+          hasSuccessfulLoadRef.current = true;
+          lastSuccessAtRef.current = nextSuccessAt;
+          setData(payload);
+          setError(null);
+          setLoading(false);
+          setFreshness(describeLiveFreshness("live", nextSuccessAt));
+        })
+        .catch((nextError: unknown) => {
+          if (disposed || controller.signal.aborted) return;
+          clearUpdatingIndicator();
+          const message = nextError instanceof Error ? nextError.message : `Unable to load ${path}`;
+          setError(message);
+          setLoading(false);
+          if (!hasSuccessfulLoadRef.current) {
+            setData(null);
+          }
+          setFreshness(
+            describeLiveFreshness(hasSuccessfulLoadRef.current ? "stale" : "disconnected", lastSuccessAtRef.current, message),
+          );
+        })
+        .finally(() => {
+          if (activeController === controller) {
+            activeController = null;
+            inFlightRef.current = false;
+          }
+        });
+    };
+
+    const refreshOnFocus = () => refresh("focus");
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refresh("focus");
+      }
+    };
+
+    refresh("initial");
+    const intervalID = window.setInterval(() => refresh("poll"), intervalMs);
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibility);
+
+    return () => {
+      disposed = true;
+      clearUpdatingIndicator();
+      window.clearInterval(intervalID);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibility);
+      activeController?.abort();
+      inFlightRef.current = false;
+    };
+  }, [enabled, formatError, intervalMs, path]);
+
+  return { data, error, loading, freshness };
+}
+
 function App() {
   const [page, setPage] = useState<Page>(() => readPageFromLocation());
   const [section, setSection] = useState<string>(() => readSectionFromLocation(readPageFromLocation()));
-  const [status, setStatus] = useState<StatusResult | null>(null);
-  const [statusError, setStatusError] = useState<string | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [plan, setPlan] = useState<PlanResult | null>(null);
-  const [planError, setPlanError] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineResult | null>(null);
-  const [timelineError, setTimelineError] = useState<string | null>(null);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const [review, setReview] = useState<ReviewResult | null>(null);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
 
   useEffect(() => {
     const onLocationChange = () => {
@@ -104,120 +232,31 @@ function App() {
   const navigateToSection = (nextSection: string) => {
     navigateToPage(page, nextSection);
   };
+  const statusResource = useLiveResource<StatusResult>({
+    enabled: true,
+    path: "/api/status",
+    formatError: formatStatusError,
+  });
+  const planResource = useLiveResource<PlanResult>({
+    enabled: page === "plan",
+    path: "/api/plan",
+    formatError: formatPlanError,
+  });
+  const timelineResource = useLiveResource<TimelineResult>({
+    enabled: page === "timeline",
+    path: "/api/timeline",
+    formatError: formatTimelineResourceError,
+  });
+  const reviewResource = useLiveResource<ReviewResult>({
+    enabled: page === "review",
+    path: "/api/review",
+    formatError: formatReviewError,
+  });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setStatusLoading(true);
-    setStatusError(null);
-
-    fetch("/api/status", { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json()) as StatusResult;
-        if (!response.ok || payload.ok === false) {
-          throw new Error(formatStatusError(payload, response.status));
-        }
-        return payload;
-      })
-      .then((nextStatus) => {
-        setStatus(nextStatus);
-        setStatusLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setStatus(null);
-        setStatusError(error instanceof Error ? error.message : "Unable to load status");
-        setStatusLoading(false);
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (page !== "plan") return;
-
-    const controller = new AbortController();
-    setPlanLoading(true);
-    setPlanError(null);
-
-    fetch("/api/plan", { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json()) as PlanResult;
-        if (!response.ok || payload.ok === false) {
-          throw new Error(formatPlanError(payload, response.status));
-        }
-        return payload;
-      })
-      .then((nextPlan) => {
-        setPlan(nextPlan);
-        setPlanLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setPlan(null);
-        setPlanError(error instanceof Error ? error.message : "Unable to load plan");
-        setPlanLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [page]);
-
-  useEffect(() => {
-    if (page !== "timeline") return;
-
-    const controller = new AbortController();
-    setTimelineLoading(true);
-    setTimelineError(null);
-
-    fetch("/api/timeline", { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json()) as TimelineResult;
-        if (!response.ok || payload.ok === false) {
-          throw new Error(formatTimelineError(payload?.summary, payload?.errors, response.status));
-        }
-        return payload;
-      })
-      .then((nextTimeline) => {
-        setTimeline(nextTimeline);
-        setTimelineLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setTimeline(null);
-        setTimelineError(error instanceof Error ? error.message : "Unable to load timeline");
-        setTimelineLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [page]);
-
-  useEffect(() => {
-    if (page !== "review") return;
-
-    const controller = new AbortController();
-    setReviewLoading(true);
-    setReviewError(null);
-
-    fetch("/api/review", { signal: controller.signal })
-      .then(async (response) => {
-        const payload = (await response.json()) as ReviewResult;
-        if (!response.ok || payload.ok === false) {
-          throw new Error(formatReviewError(payload, response.status));
-        }
-        return payload;
-      })
-      .then((nextReview) => {
-        setReview(nextReview);
-        setReviewLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setReview(null);
-        setReviewError(error instanceof Error ? error.message : "Unable to load review");
-        setReviewLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [page]);
+  const { data: status, error: statusError, loading: statusLoading, freshness: statusFreshness } = statusResource;
+  const { data: plan, error: planError, loading: planLoading, freshness: planFreshness } = planResource;
+  const { data: timeline, error: timelineError, loading: timelineLoading, freshness: timelineFreshness } = timelineResource;
+  const { data: review, error: reviewError, loading: reviewLoading, freshness: reviewFreshness } = reviewResource;
 
   const activeStatus = useMemo(
     () => ({
@@ -261,6 +300,13 @@ function App() {
     [review],
   );
 
+  const shellFreshness = useMemo(() => {
+    if (page === "status") return statusFreshness;
+    if (page === "plan") return combineLiveFreshness([statusFreshness, planFreshness]);
+    if (page === "timeline") return combineLiveFreshness([statusFreshness, timelineFreshness]);
+    return combineLiveFreshness([statusFreshness, reviewFreshness]);
+  }, [page, planFreshness, reviewFreshness, statusFreshness, timelineFreshness]);
+
   return (
     <div class="app-shell">
       <header class="topbar">
@@ -270,6 +316,7 @@ function App() {
         <div class="workspace-path" title={workdirLabel()}>
           {workdirLabel()}
         </div>
+        <TopbarFreshness freshness={shellFreshness} />
         <div class="topbar-summary">
           <TopbarMetric kind="node" label="Node" value={activeStatus.currentNode} onClick={() => navigateToPage("status", "summary")} />
           {activeStatus.blockers.length > 0 ? (

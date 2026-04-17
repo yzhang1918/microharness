@@ -1149,7 +1149,241 @@ navigate_via_rail "$rail_session" "timeline-rail" "Status" "status-rail" "Status
 navigate_via_rail "$rail_session" "status-rail" "Review" "review-rail" "Review data is hidden once required post-merge bookkeeping begins."
 assert_workbench_scroll_contract "$rail_session" "review"
 navigate_via_rail "$rail_session" "review-rail" "Status" "status-return" "Status"
+assert_has_text "status-return" "land"
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/state.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
+payload["current_node"] = "execution/finalize/await_merge"
+payload.pop("land", None)
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh)
+PY
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  const targetNode = "execution/finalize/await_merge";
+  await page.waitForFunction(
+    (expected) => {
+      const topbarMatches = Array.from(document.querySelectorAll(".topbar-metric")).some((node) => {
+        const text = node.textContent ?? "";
+        return text.includes("Node") && text.includes(expected);
+      });
+      const overview = document.querySelector("[aria-label=\"Status overview\"]");
+      const overviewMatches = (overview?.textContent ?? "").includes(expected);
+      return topbarMatches && overviewMatches;
+    },
+    targetNode,
+    { timeout: 10000 },
+  );
+}
+' >/dev/null
+capture_session_snapshot "$rail_session" "status-live-update"
+assert_has_text "status-live-update" "execution/finalize/await_merge"
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  await page.evaluate(() => {
+    const label = document.querySelector(".topbar-freshness-label");
+    if (!(label instanceof HTMLElement)) {
+      throw new Error("missing topbar freshness label");
+    }
+    window.__codexObservedFreshness = [label.textContent ?? ""];
+    window.__codexFreshnessObserver?.disconnect?.();
+    const observer = new MutationObserver(() => {
+      const next = label.textContent ?? "";
+      const seen = window.__codexObservedFreshness;
+      if (seen[seen.length - 1] !== next) {
+        seen.push(next);
+      }
+    });
+    observer.observe(label, { childList: true, subtree: true, characterData: true });
+    window.__codexFreshnessObserver = observer;
+    if (!window.__codexOriginalFetch) {
+      window.__codexOriginalFetch = window.fetch.bind(window);
+    }
+    window.__codexRefreshDone = false;
+    window.fetch = async (...args) => {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      try {
+        return await window.__codexOriginalFetch(...args);
+      } finally {
+        window.__codexRefreshDone = true;
+      }
+    };
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.waitForFunction(() => window.__codexRefreshDone === true, { timeout: 1500 });
+  const seen = await page.evaluate(() => {
+    window.fetch = window.__codexOriginalFetch;
+    window.__codexFreshnessObserver?.disconnect?.();
+    return [...window.__codexObservedFreshness];
+  });
+  if (seen.includes("Updating")) {
+    throw new Error(`fast successful refresh flashed Updating: ${seen.join(" -> ")}`);
+  }
+  if (seen[seen.length - 1] !== "Live") {
+    throw new Error(`fast successful refresh did not settle back to Live: ${seen.join(" -> ")}`);
+  }
+}
+' >/dev/null
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  await page.evaluate(() => {
+    const label = document.querySelector(".topbar-freshness-label");
+    if (!(label instanceof HTMLElement)) {
+      throw new Error("missing topbar freshness label");
+    }
+    window.__codexObservedFreshness = [label.textContent ?? ""];
+    window.__codexFreshnessObserver?.disconnect?.();
+    const observer = new MutationObserver(() => {
+      const next = label.textContent ?? "";
+      const seen = window.__codexObservedFreshness;
+      if (seen[seen.length - 1] !== next) {
+        seen.push(next);
+      }
+    });
+    observer.observe(label, { childList: true, subtree: true, characterData: true });
+    window.__codexFreshnessObserver = observer;
+    if (!window.__codexOriginalFetch) {
+      window.__codexOriginalFetch = window.fetch.bind(window);
+    }
+    window.fetch = async () => {
+      throw new Error("blocked fast refresh");
+    };
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.waitForFunction(
+    () => (document.querySelector(".topbar-freshness-label")?.textContent ?? "") === "Stale",
+    { timeout: 1500 },
+  );
+  const seen = await page.evaluate(() => {
+    window.fetch = window.__codexOriginalFetch;
+    window.__codexFreshnessObserver?.disconnect?.();
+    return [...window.__codexObservedFreshness];
+  });
+  if (seen.includes("Updating")) {
+    throw new Error(`fast failed refresh flashed Updating: ${seen.join(" -> ")}`);
+  }
+  if (seen[seen.length - 1] !== "Stale") {
+    throw new Error(`fast failed refresh did not settle to Stale: ${seen.join(" -> ")}`);
+  }
+}
+' >/dev/null
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/state.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
+payload["current_node"] = "land"
+payload["land"] = {
+    "pr_url": "https://github.com/catu-ai/easyharness/pull/93",
+    "commit": "abc123def456",
+    "landed_at": "2026-04-01T22:45:00+08:00",
+}
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh)
+PY
+
+pwcli_run_code_checked "$rail_session" '
+async (page) => {
+  const targetNode = "land";
+  await page.evaluate(() => {
+    if (!window.__codexOriginalFetch) {
+      window.__codexOriginalFetch = window.fetch.bind(window);
+    }
+    window.__codexFetchGate = false;
+    window.fetch = (...args) => {
+      if (!window.__codexFetchGate) {
+        return Promise.reject(new Error("blocked non-catchup refresh"));
+      }
+      window.__codexFetchGate = false;
+      return window.__codexOriginalFetch(...args);
+    };
+    window.__codexVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => window.__codexVisibilityState ?? "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.evaluate(() => {
+    window.__codexFetchGate = true;
+    window.__codexVisibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForFunction(
+    (expected) => {
+      const topbarMatches = Array.from(document.querySelectorAll(".topbar-metric")).some((node) => {
+        const text = node.textContent ?? "";
+        return text.includes("Node") && text.includes(expected);
+      });
+      const overview = document.querySelector("[aria-label=\"Status overview\"]");
+      const overviewMatches = (overview?.textContent ?? "").includes(expected);
+      return topbarMatches && overviewMatches;
+    },
+    targetNode,
+    { timeout: 1500 },
+  );
+  await page.evaluate(() => {
+    if (window.__codexOriginalFetch) {
+      window.fetch = window.__codexOriginalFetch;
+    }
+  });
+}
+' >/dev/null
+capture_session_snapshot "$rail_session" "status-focus-refresh"
+assert_has_text "status-focus-refresh" "land"
 pwcli_close "$rail_session"
+
+timeline_live_session="$(session_name timeline-live)"
+navigate_browser_to "$timeline_live_session" "${base_url}/timeline"
+sleep 1
+
+python3 - "$runtime_workdir/.local/harness/plans/$plan_stem/events.jsonl" "$plan_path" "$plan_stem" <<'PY'
+import json
+import sys
+
+events_path, plan_path, plan_stem = sys.argv[1:4]
+event = {
+    "event_id": "event-live-refresh-check",
+    "sequence": 999,
+    "recorded_at": "2026-04-01T22:46:00+08:00",
+    "kind": "validation",
+    "command": "live-refresh-check",
+    "summary": "Added after the timeline page was already open.",
+    "plan_path": plan_path,
+    "plan_stem": plan_stem,
+    "revision": 1,
+    "from_node": "land",
+    "to_node": "land"
+}
+with open(events_path, "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(event) + "\n")
+PY
+
+pwcli_run_code_checked "$timeline_live_session" '
+async (page) => {
+  const expected = "live-refresh-check";
+  await page.waitForFunction(
+    (value) => (document.body.textContent ?? "").includes(value),
+    expected,
+    { timeout: 10000 },
+  );
+}
+' >/dev/null
+capture_session_snapshot "$timeline_live_session" "timeline-live-update"
+assert_has_text "timeline-live-update" "live-refresh-check"
+pwcli_close "$timeline_live_session"
+
 capture_snapshot "/review" "review"
 assert_has_text "review" "Review"
 assert_has_text "review" "Explorer"
@@ -1256,6 +1490,7 @@ PY
 
 capture_snapshot "/status" "status-error" 1
 assert_has_text "status-error" "Status"
+assert_has_text "status-error" "Disconnected"
 assert_has_text "status-error" "$status_error_summary"
 assert_has_text "status-error" "another command is already mutating local state"
 assert_has_text "status-error" "retry after it finishes"

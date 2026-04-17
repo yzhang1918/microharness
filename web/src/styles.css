@@ -74,7 +74,7 @@ code {
 
 .topbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 0.85rem;
   align-items: center;
   min-height: 2.25rem;
@@ -114,6 +114,50 @@ code {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.topbar-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 1.55rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topbar-freshness.is-good {
+  color: #9fe1d3;
+}
+
+.topbar-freshness.is-warning {
+  color: #dcc96f;
+}
+
+.topbar-freshness.is-danger {
+  color: #f4b1a0;
+}
+
+.topbar-freshness-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.88;
+}
+
+.topbar-freshness.is-updating .topbar-freshness-dot,
+.topbar-freshness.is-connecting .topbar-freshness-dot {
+  animation: freshness-pulse 1.2s ease-in-out infinite;
+}
+
+.topbar-freshness-label {
+  line-height: 1;
 }
 
 .topbar-metric {
@@ -186,6 +230,16 @@ code {
   display: grid;
   grid-template-columns: 3rem minmax(0, 1fr);
   min-height: calc(100vh - 2.25rem);
+}
+
+@keyframes freshness-pulse {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .rail {
@@ -517,6 +571,22 @@ body.is-resizing-workbench .workbench-divider::before {
   .layout {
     height: 100%;
     min-height: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .topbar-freshness {
+    justify-self: end;
+  }
+
+  .topbar-summary {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    padding-bottom: 0.35rem;
   }
 }
 

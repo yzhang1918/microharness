@@ -1,5 +1,7 @@
 import type {
   ErrorDetail,
+  LiveFreshness,
+  LiveFreshnessKind,
   PlanResult,
   ReviewAggregateFinding,
   ReviewArtifact,
@@ -9,6 +11,7 @@ import type {
   StatusResult,
   TimelineArtifactRef,
   TimelineEvent,
+  Tone,
   ReviewResult,
 } from "./types";
 
@@ -74,6 +77,103 @@ export function formatTimestamp(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+export function formatFreshnessTimestamp(value: string | null | undefined): string {
+  if (!value) return "never";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const now = new Date();
+  const sameDay = parsed.toDateString() === now.toDateString();
+  return parsed.toLocaleString(undefined, sameDay ? { timeStyle: "short" } : { dateStyle: "medium", timeStyle: "short" });
+}
+
+function freshnessTone(kind: LiveFreshnessKind): Tone {
+  switch (kind) {
+    case "live":
+      return "good";
+    case "stale":
+      return "warning";
+    case "disconnected":
+      return "danger";
+    default:
+      return "muted";
+  }
+}
+
+export function describeLiveFreshness(
+  kind: LiveFreshnessKind,
+  lastSuccessAt: string | null = null,
+  error: string | null = null,
+): LiveFreshness {
+  const lastUpdated = formatFreshnessTimestamp(lastSuccessAt);
+  switch (kind) {
+    case "connecting":
+      return {
+        kind,
+        label: "Connecting",
+        detail: "Waiting for the first harness UI sync.",
+        tone: freshnessTone(kind),
+        lastSuccessAt,
+      };
+    case "updating":
+      return {
+        kind,
+        label: "Updating",
+        detail: lastSuccessAt ? `Refreshing now. Last synced ${lastUpdated}.` : "Refreshing harness state now.",
+        tone: freshnessTone(kind),
+        lastSuccessAt,
+      };
+    case "live":
+      return {
+        kind,
+        label: "Live",
+        detail: lastSuccessAt ? `Auto-refresh is healthy. Last synced ${lastUpdated}.` : "Auto-refresh is healthy.",
+        tone: freshnessTone(kind),
+        lastSuccessAt,
+      };
+    case "stale":
+      return {
+        kind,
+        label: "Stale",
+        detail: lastSuccessAt
+          ? `${error || "The latest refresh failed."} Showing data from ${lastUpdated}.`
+          : error || "The latest refresh failed.",
+        tone: freshnessTone(kind),
+        lastSuccessAt,
+      };
+    case "disconnected":
+      return {
+        kind,
+        label: "Disconnected",
+        detail: error || "Unable to reach the harness UI data endpoints.",
+        tone: freshnessTone(kind),
+        lastSuccessAt,
+      };
+    default:
+      return {
+        kind: "idle",
+        label: "Idle",
+        detail: "Live refresh is idle.",
+        tone: freshnessTone("idle"),
+        lastSuccessAt,
+      };
+  }
+}
+
+const freshnessPriority: Record<LiveFreshnessKind, number> = {
+  idle: 0,
+  live: 1,
+  updating: 2,
+  connecting: 3,
+  stale: 4,
+  disconnected: 5,
+};
+
+export function combineLiveFreshness(states: LiveFreshness[]): LiveFreshness {
+  return states.reduce((current, candidate) =>
+    freshnessPriority[candidate.kind] > freshnessPriority[current.kind] ? candidate : current,
+  );
 }
 
 export function humanizeLabel(value: string): string {

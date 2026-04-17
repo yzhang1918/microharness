@@ -1,7 +1,6 @@
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
-
-type Tone = "good" | "danger" | "warning" | "muted";
+import type { LiveFreshness, Tone } from "./types";
 
 const WORKBENCH_EXPLORER_WIDTH_STORAGE_KEY = "harness-ui:workbench-explorer-width";
 const DEFAULT_WORKBENCH_EXPLORER_WIDTH = 304;
@@ -98,6 +97,16 @@ export function TopbarMetric(props: {
     </button>
   ) : (
     <div class={`topbar-metric is-${tone}`}>{content}</div>
+  );
+}
+
+export function TopbarFreshness(props: { freshness: LiveFreshness }) {
+  const { freshness } = props;
+  return (
+    <div class={`topbar-freshness is-${freshness.tone} is-${freshness.kind}`} title={freshness.detail} aria-label={freshness.detail}>
+      <span class="topbar-freshness-dot" aria-hidden="true" />
+      <span class="topbar-freshness-label">{freshness.label}</span>
+    </div>
   );
 }
 

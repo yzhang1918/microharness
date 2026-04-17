@@ -1,5 +1,15 @@
 export type Page = "status" | "plan" | "timeline" | "review";
 
+export type Tone = "good" | "danger" | "warning" | "muted";
+export type LiveFreshnessKind = "idle" | "connecting" | "updating" | "live" | "stale" | "disconnected";
+export type LiveFreshness = {
+  kind: LiveFreshnessKind;
+  label: string;
+  detail: string;
+  tone: Tone;
+  lastSuccessAt: string | null;
+};
+
 export type PageDef = { id: Page; label: string; href: string };
 
 export type SectionLink = { id: string; label: string; meta?: string };
