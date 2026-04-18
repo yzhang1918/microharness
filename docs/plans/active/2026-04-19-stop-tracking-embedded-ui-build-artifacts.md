@@ -108,9 +108,7 @@ practical; focused validation and repo-level smoke coverage were used instead.
 
 #### Review Notes
 
-NO_STEP_REVIEW_NEEDED: This bootstrap slice was implemented and validated as
-part of the same integrated generated-artifact contract change covered by the
-Step 1 closeout review.
+PENDING_STEP_REVIEW
 
 ### Step 2: Update local developer bootstrap and failure modes
 
@@ -198,9 +196,9 @@ frontend-first path.
 
 #### Review Notes
 
-NO_STEP_REVIEW_NEEDED: This validation slice is itself the repo-level proof for
-the integrated generated-artifact contract change covered by the Step 1
-closeout review.
+NO_STEP_REVIEW_NEEDED: This automation slice was implemented and validated as
+part of the same integrated generated-artifact contract change covered by the
+Step 1 closeout review.
 
 ### Step 4: Prove the repository works without tracked bundle artifacts
 
@@ -243,7 +241,9 @@ and `scripts/ui-playwright-smoke`.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+NO_STEP_REVIEW_NEEDED: This validation slice is itself the repo-level proof for
+the integrated generated-artifact contract change covered by the Step 1
+closeout review.
 
 ## Validation Strategy
 
