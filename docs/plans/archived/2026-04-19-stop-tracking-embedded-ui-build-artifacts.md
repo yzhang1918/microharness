@@ -322,6 +322,18 @@ missing `pnpm` smoke coverage and rewrote the opening language to foreground
 
 ## Archive Summary
 
+- Archived At: 2026-04-19T01:32:24+08:00
+- Revision: 1
+- PR: https://github.com/catu-ai/easyharness/pull/183
+- Ready: Full finalize review `review-005-full` passed after the earlier
+  repair follow-ups, and deferred runtime-fallback work now has durable
+  follow-up issue `#182`. Once the archived-plan move is committed and pushed
+  to PR `#183`, the remaining handoff is remote evidence refresh rather than
+  more local implementation.
+- Merge Handoff: Archive this plan, commit and push the tracked move plus the
+  final closeout notes to PR `#183`, then refresh publish/CI/sync evidence for
+  the latest head before waiting for explicit merge approval.
+
 The repository now treats `internal/ui/generated/build/` as generated output,
 not tracked source. Contributors rebuild embedded assets through the shared
 `scripts/build-embedded-ui` entrypoint, `scripts/install-dev-harness` prepares
