@@ -288,8 +288,6 @@ closeout review.
 
 ## Validation Summary
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 Validated the generated-artifact contract through both source-path and
 embedded-binary paths. Initial closeout validation covered
 `pnpm --dir web check`, `scripts/build-embedded-ui`,
@@ -316,8 +314,6 @@ and `go test ./... -count=1` after merging `origin/main`.
 
 ## Review Summary
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 Step closeout review started with `review-001-full`, which requested five
 blocking fixes around shared builder usage in Playwright smoke entrypoints,
 actionable missing-`node` guidance, clean-checkout fixture proof, and
@@ -330,6 +326,8 @@ still missed the `pnpm`-missing preflight, and the plan opening still led with
 the retired `internal/ui/static/` path. The narrow finalize repair added the
 missing `pnpm` smoke coverage and rewrote the opening language to foreground
 `internal/ui/generated/build/`; `review-004-delta` passed with zero findings.
+The resulting full finalize review `review-005-full` then passed with zero
+findings and allowed revision `1` to archive.
 
 Revision 2 reopened after archive because post-archive CI on PR `#183` failed
 before Go tests even started: `actions/setup-node` was asked to use `cache:
@@ -340,25 +338,24 @@ bump landed. Revision 2 repairs that publish-time regression by installing
 assertions around that contract, switching `scripts/build-embedded-ui` to run
 inside `web/` so Corepack-backed `pnpm` resolves the pinned package-manager
 version without network drift, and merging `origin/main` before the next
-finalize review.
+finalize review. Full finalize review `review-006-full` then passed with zero
+findings for revision `2`.
 
 ## Archive Summary
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
-- Archived At: 2026-04-19T01:32:24+08:00
-- Revision: 1
+- Archived At: 2026-04-19T01:52:23+08:00
+- Revision: 2
 - PR: https://github.com/catu-ai/easyharness/pull/183
 - Ready: Revision `1` archived successfully, but post-archive handoff surfaced
   two invalidators: CI on PR `#183` failed during runner setup because `pnpm`
   had not been installed before `actions/setup-node` attempted pnpm caching,
   and sync evidence showed the branch was stale versus `origin/main` after the
-  `v0.2.3` release bump. Revision `2` repairs those issues and is pending a
-  fresh finalize review plus re-archive.
-- Merge Handoff: Complete revision `2` finalize review, re-archive the active
-  plan, push the refreshed candidate to PR `#183`, and then refresh
-  publish/CI/sync evidence for the new head before waiting for explicit merge
-  approval.
+  `v0.2.3` release bump. Revision `2` repaired those issues, merged
+  `origin/main`, and `review-006-full` passed cleanly, so the candidate is
+  ready to re-archive and refresh post-archive handoff evidence.
+- Merge Handoff: Re-archive the active plan for revision `2`, push the
+  refreshed candidate to PR `#183`, and then refresh publish/CI/sync evidence
+  for the new head before waiting for explicit merge approval.
 
 The repository now treats `internal/ui/generated/build/` as generated output,
 not tracked source. Contributors rebuild embedded assets through the shared
@@ -376,8 +373,6 @@ smoke scripts that route through the same shared builder used elsewhere.
 
 ### Delivered
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 - Removed tracked embedded UI bundle artifacts from git and moved the embed
   contract onto generated `internal/ui/generated/build/`.
 - Added `scripts/build-embedded-ui` as the shared frontend build path for local
@@ -385,19 +380,18 @@ UPDATE_REQUIRED_AFTER_REOPEN
 - Added actionable missing-tool handling for both `node` and `pnpm`.
 - Updated smoke/workflow coverage so clean-checkout fixtures and automation
   assertions exercise the generated-artifact contract directly.
+- Stabilized local and CI `pnpm` usage by running the shared builder inside
+  `web/` for Corepack-backed environments and by installing `pnpm` before
+  `actions/setup-node` caching in CI/release workflows.
 - Updated the tracked plan and docs to reflect the generated-build contract and
   the review/repair history that closed it out.
 
 ### Not Delivered
 
-UPDATE_REQUIRED_AFTER_REOPEN
-
 - No runtime fallback rebuild path was added inside `harness ui` when generated
   embedded assets are missing.
 
 ### Follow-Up Issues
-
-UPDATE_REQUIRED_AFTER_REOPEN
 
 - #182: Consider fallback handling when generated embedded UI assets are
   missing at runtime.
