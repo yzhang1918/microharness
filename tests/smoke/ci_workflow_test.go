@@ -3,6 +3,7 @@ package smoke_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/catu-ai/easyharness/tests/support"
@@ -24,4 +25,21 @@ func TestCIWorkflowBuildsEmbeddedUIBeforeGoTests(t *testing.T) {
 	support.RequireContains(t, workflow, `run: corepack enable`)
 	support.RequireContains(t, workflow, `run: scripts/build-embedded-ui`)
 	support.RequireContains(t, workflow, `run: go test ./...`)
+	requireSubstringOrder(t, workflow, `run: scripts/build-embedded-ui`, `run: go test ./...`)
+}
+
+func requireSubstringOrder(t *testing.T, haystack, first, second string) {
+	t.Helper()
+
+	firstIndex := strings.Index(haystack, first)
+	if firstIndex < 0 {
+		t.Fatalf("expected %q to appear in content", first)
+	}
+	secondIndex := strings.Index(haystack, second)
+	if secondIndex < 0 {
+		t.Fatalf("expected %q to appear in content", second)
+	}
+	if firstIndex >= secondIndex {
+		t.Fatalf("expected %q to appear before %q", first, second)
+	}
 }

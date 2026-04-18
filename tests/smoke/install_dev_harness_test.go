@@ -798,6 +798,7 @@ func copyInstallerFixture(t *testing.T) string {
 	} {
 		copyPath(t, filepath.Join(sourceRoot, rel), filepath.Join(root, rel))
 	}
+	_ = os.RemoveAll(filepath.Join(root, "internal", "ui", "generated", "build"))
 	return root
 }
 

@@ -105,6 +105,11 @@ left a tracked README anchor so clean checkouts still have a stable embed path.
 TDD note: this slice changed a shared workflow contract across build scripts,
 fixtures, docs, and embedded assets, so strict Red/Green by micro-step was not
 practical; focused validation and repo-level smoke coverage were used instead.
+After `review-001-full` requested changes, the repair pass moved the
+Playwright smoke scripts onto `scripts/build-embedded-ui`, added an explicit
+`node` preflight ahead of `pnpm`, cleared inherited generated assets from the
+installer/release checkout fixtures, and tightened workflow smoke assertions so
+they verify build-before-test and build-before-package ordering directly.
 
 #### Review Notes
 
@@ -237,7 +242,9 @@ Validated the generated-asset contract with `scripts/build-embedded-ui`,
 `scripts/install-dev-harness`, `pnpm --dir web check`, `go test ./... -count=1`,
 `scripts/build-release --version "v$(cat VERSION)" --output-dir
 .local/release-ui-artifacts-check --platform "$(go env GOOS)/$(go env GOARCH)"`,
-and `scripts/ui-playwright-smoke`.
+and `scripts/ui-playwright-smoke`. The post-review repair pass revalidated with
+`go test ./tests/smoke -count=1`, `scripts/ui-playwright-smoke`, and
+`go test ./... -count=1`.
 
 #### Review Notes
 

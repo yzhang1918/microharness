@@ -230,6 +230,8 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	support.RequireContains(t, workflow, `EASYHARNESS_LIVE_GH_REPO: ${{ github.repository }}`)
 	support.RequireContains(t, workflow, `EASYHARNESS_LIVE_GH_TAG: ${{ steps.release-version.outputs.version }}`)
 	support.RequireContains(t, workflow, `go test ./tests/smoke -run TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled -count=1`)
+	requireSubstringOrder(t, workflow, "working-directory: dist/release-source\n        run: scripts/build-embedded-ui", "working-directory: dist/release-source\n        run: go test ./...")
+	requireSubstringOrder(t, workflow, "working-directory: dist/release-source\n        run: scripts/build-embedded-ui", `run: dist/release-source/scripts/build-release --version "${{ steps.release-version.outputs.version }}" --output-dir dist/release`)
 }
 
 func TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled(t *testing.T) {

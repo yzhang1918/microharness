@@ -967,6 +967,7 @@ func newReleaseBuildCheckout(t *testing.T) string {
 	} {
 		copyPath(t, filepath.Join(repoRoot, rel), filepath.Join(checkoutRoot, rel))
 	}
+	_ = os.RemoveAll(filepath.Join(checkoutRoot, "internal", "ui", "generated", "build"))
 
 	return checkoutRoot
 }

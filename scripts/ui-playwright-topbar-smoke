@@ -52,7 +52,7 @@ trap cleanup EXIT
 
 mkdir -p "$output_dir"
 
-pnpm --dir "$repo_root/web" build >/dev/null
+"$repo_root/scripts/build-embedded-ui" >/dev/null
 "$repo_root/scripts/install-dev-harness" >/dev/null
 harness_bin="${HARNESS_UI_BINARY:-$repo_root/.local/bin/harness}"
 
