@@ -288,6 +288,8 @@ closeout review.
 
 ## Validation Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 Validated the generated-artifact contract through both source-path and
 embedded-binary paths. Initial closeout validation covered
 `pnpm --dir web check`, `scripts/build-embedded-ui`,
@@ -307,6 +309,8 @@ validation then covered the missing-tool smoke cases directly with
 
 ## Review Summary
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 Step closeout review started with `review-001-full`, which requested five
 blocking fixes around shared builder usage in Playwright smoke entrypoints,
 actionable missing-`node` guidance, clean-checkout fixture proof, and
@@ -321,6 +325,8 @@ missing `pnpm` smoke coverage and rewrote the opening language to foreground
 `internal/ui/generated/build/`; `review-004-delta` passed with zero findings.
 
 ## Archive Summary
+
+UPDATE_REQUIRED_AFTER_REOPEN
 
 - Archived At: 2026-04-19T01:32:24+08:00
 - Revision: 1
@@ -350,6 +356,8 @@ smoke scripts that route through the same shared builder used elsewhere.
 
 ### Delivered
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - Removed tracked embedded UI bundle artifacts from git and moved the embed
   contract onto generated `internal/ui/generated/build/`.
 - Added `scripts/build-embedded-ui` as the shared frontend build path for local
@@ -362,10 +370,15 @@ smoke scripts that route through the same shared builder used elsewhere.
 
 ### Not Delivered
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - No runtime fallback rebuild path was added inside `harness ui` when generated
   embedded assets are missing.
 
 ### Follow-Up Issues
 
+UPDATE_REQUIRED_AFTER_REOPEN
+
 - #182: Consider fallback handling when generated embedded UI assets are
   missing at runtime.
+

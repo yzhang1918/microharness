@@ -18,6 +18,9 @@ func TestCIWorkflowBuildsEmbeddedUIBeforeGoTests(t *testing.T) {
 	}
 	workflow := string(workflowData)
 
+	support.RequireContains(t, workflow, `uses: pnpm/action-setup@v4`)
+	support.RequireContains(t, workflow, `version: 10.32.1`)
+	support.RequireContains(t, workflow, `run_install: false`)
 	support.RequireContains(t, workflow, `uses: actions/setup-node@v4`)
 	support.RequireContains(t, workflow, `node-version: "22"`)
 	support.RequireContains(t, workflow, `cache: pnpm`)
@@ -25,6 +28,7 @@ func TestCIWorkflowBuildsEmbeddedUIBeforeGoTests(t *testing.T) {
 	support.RequireContains(t, workflow, `run: corepack enable`)
 	support.RequireContains(t, workflow, `run: scripts/build-embedded-ui`)
 	support.RequireContains(t, workflow, `run: go test ./...`)
+	requireSubstringOrder(t, workflow, `uses: pnpm/action-setup@v4`, `uses: actions/setup-node@v4`)
 	requireSubstringOrder(t, workflow, `run: scripts/build-embedded-ui`, `run: go test ./...`)
 }
 

@@ -197,6 +197,9 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	support.RequireContains(t, workflow, `EASYHARNESS_HOMEBREW_TAP_BRANCH: main`)
 	support.RequireContains(t, workflow, `path: dist/release-source`)
 	support.RequireContains(t, workflow, `go-version-file: dist/release-source/go.mod`)
+	support.RequireContains(t, workflow, `uses: pnpm/action-setup@v4`)
+	support.RequireContains(t, workflow, `version: 10.32.1`)
+	support.RequireContains(t, workflow, `run_install: false`)
 	support.RequireContains(t, workflow, `uses: actions/setup-node@v4`)
 	support.RequireContains(t, workflow, `node-version: "22"`)
 	support.RequireContains(t, workflow, `cache: pnpm`)
@@ -230,6 +233,7 @@ func TestReleaseWorkflowWiresHomebrewTapPublishing(t *testing.T) {
 	support.RequireContains(t, workflow, `EASYHARNESS_LIVE_GH_REPO: ${{ github.repository }}`)
 	support.RequireContains(t, workflow, `EASYHARNESS_LIVE_GH_TAG: ${{ steps.release-version.outputs.version }}`)
 	support.RequireContains(t, workflow, `go test ./tests/smoke -run TestVerifyHomebrewTapInstallAgainstGitHubWhenEnabled -count=1`)
+	requireSubstringOrder(t, workflow, `uses: pnpm/action-setup@v4`, `uses: actions/setup-node@v4`)
 	requireSubstringOrder(t, workflow, "working-directory: dist/release-source\n        run: scripts/build-embedded-ui", "working-directory: dist/release-source\n        run: go test ./...")
 	requireSubstringOrder(t, workflow, "working-directory: dist/release-source\n        run: scripts/build-embedded-ui", `run: dist/release-source/scripts/build-release --version "${{ steps.release-version.outputs.version }}" --output-dir dist/release`)
 }
