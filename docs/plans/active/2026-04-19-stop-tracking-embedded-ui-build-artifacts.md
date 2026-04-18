@@ -307,6 +307,13 @@ validation then covered the missing-tool smoke cases directly with
 'TestBuildEmbeddedUIScriptFailsWithActionableMessageWhen(NodeIsMissingButPnpmExists|PnpmIsMissing)$'
 -count=1` followed by a full `go test ./tests/smoke -count=1`.
 
+Revision 2 reopen validation now covers the post-archive publish repair:
+`go test ./tests/smoke -run
+'Test(CIWorkflowBuildsEmbeddedUIBeforeGoTests|ReleaseWorkflowWiresHomebrewTapPublishing)$'
+-count=1`, `scripts/build-embedded-ui`,
+`go test ./tests/smoke -run TestInstallDevHarnessVersionReportsStableModeAndPathOutsideWorktree -count=1`,
+and `go test ./... -count=1` after merging `origin/main`.
+
 ## Review Summary
 
 UPDATE_REQUIRED_AFTER_REOPEN
@@ -324,6 +331,17 @@ the retired `internal/ui/static/` path. The narrow finalize repair added the
 missing `pnpm` smoke coverage and rewrote the opening language to foreground
 `internal/ui/generated/build/`; `review-004-delta` passed with zero findings.
 
+Revision 2 reopened after archive because post-archive CI on PR `#183` failed
+before Go tests even started: `actions/setup-node` was asked to use `cache:
+pnpm` before `pnpm` had been installed on the runner, and sync checking also
+showed the branch was stale versus `origin/main` after the `v0.2.3` release
+bump landed. Revision 2 repairs that publish-time regression by installing
+`pnpm` explicitly in CI/release workflows, tightening workflow smoke
+assertions around that contract, switching `scripts/build-embedded-ui` to run
+inside `web/` so Corepack-backed `pnpm` resolves the pinned package-manager
+version without network drift, and merging `origin/main` before the next
+finalize review.
+
 ## Archive Summary
 
 UPDATE_REQUIRED_AFTER_REOPEN
@@ -331,14 +349,16 @@ UPDATE_REQUIRED_AFTER_REOPEN
 - Archived At: 2026-04-19T01:32:24+08:00
 - Revision: 1
 - PR: https://github.com/catu-ai/easyharness/pull/183
-- Ready: Full finalize review `review-005-full` passed after the earlier
-  repair follow-ups, and deferred runtime-fallback work now has durable
-  follow-up issue `#182`. Once the archived-plan move is committed and pushed
-  to PR `#183`, the remaining handoff is remote evidence refresh rather than
-  more local implementation.
-- Merge Handoff: Archive this plan, commit and push the tracked move plus the
-  final closeout notes to PR `#183`, then refresh publish/CI/sync evidence for
-  the latest head before waiting for explicit merge approval.
+- Ready: Revision `1` archived successfully, but post-archive handoff surfaced
+  two invalidators: CI on PR `#183` failed during runner setup because `pnpm`
+  had not been installed before `actions/setup-node` attempted pnpm caching,
+  and sync evidence showed the branch was stale versus `origin/main` after the
+  `v0.2.3` release bump. Revision `2` repairs those issues and is pending a
+  fresh finalize review plus re-archive.
+- Merge Handoff: Complete revision `2` finalize review, re-archive the active
+  plan, push the refreshed candidate to PR `#183`, and then refresh
+  publish/CI/sync evidence for the new head before waiting for explicit merge
+  approval.
 
 The repository now treats `internal/ui/generated/build/` as generated output,
 not tracked source. Contributors rebuild embedded assets through the shared
@@ -381,4 +401,3 @@ UPDATE_REQUIRED_AFTER_REOPEN
 
 - #182: Consider fallback handling when generated embedded UI assets are
   missing at runtime.
-

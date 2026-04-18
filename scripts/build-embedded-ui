@@ -21,5 +21,6 @@ if [[ ! -d "${web_dir}" ]]; then
   exit 1
 fi
 
-CI=true pnpm --dir "${web_dir}" install --frozen-lockfile
-pnpm --dir "${web_dir}" build
+cd "${web_dir}"
+CI=true pnpm install --frozen-lockfile
+pnpm build
