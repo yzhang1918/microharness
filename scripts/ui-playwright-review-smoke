@@ -110,7 +110,7 @@ fi
 mkdir -p "$runtime_workdir" "$session_dir" "$output_dir"
 
 log_phase "rebuilding embedded UI assets"
-pnpm --dir "$repo_root/web" build >/dev/null
+"$repo_root/scripts/build-embedded-ui" >/dev/null
 log_phase "refreshing local harness binary"
 "$repo_root/scripts/install-dev-harness" >/dev/null
 harness_bin="${HARNESS_UI_BINARY:-$repo_root/.local/bin/harness}"
