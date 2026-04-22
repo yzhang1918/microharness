@@ -143,7 +143,7 @@ with no findings.
 
 ### Step 2: Document the dashboard read model contract
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -176,7 +176,12 @@ spec rewrite.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Updated the watchlist contract and dashboard steering proposal to document the
+read-time dashboard projection over `watchlist.json` plus per-workspace
+status. The specs now separate raw `current_node` from dashboard lifecycle
+state, define `active`, `completed`, `idle`, `missing`, and `invalid`, and
+record invalid reasons such as `unreadable`, `not_git_workspace`, and
+`status_error`. Validation: `git diff --check -- docs/specs/watchlist-contract.md docs/specs/proposals/harness-ui-steering-surface.md`.
 
 #### Review Notes
 
