@@ -24,9 +24,11 @@ const (
 	StateMissing   = "missing"
 	StateInvalid   = "invalid"
 
-	InvalidUnreadable      = "unreadable"
-	InvalidNotGitWorkspace = "not_git_workspace"
-	InvalidStatusError     = "status_error"
+	InvalidUnreadable        = "unreadable"
+	InvalidNotGitWorkspace   = "not_git_workspace"
+	InvalidStatusError       = "status_error"
+	InvalidMalformedPath     = "malformed_path"
+	InvalidRouteKeyCollision = "route_key_collision"
 )
 
 var dashboardStateOrder = []string{StateActive, StateCompleted, StateIdle, StateMissing, StateInvalid}
@@ -63,6 +65,7 @@ func (s Service) Read() Result {
 	for _, watched := range file.Workspaces {
 		entries = append(entries, s.readWorkspace(watched))
 	}
+	markRouteKeyCollisions(entries)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entryLess(entries[i], entries[j])
 	})
@@ -88,8 +91,13 @@ func (s Service) readWorkspace(watched watchlist.Workspace) Workspace {
 	}
 
 	if path == "" {
-		entry.InvalidReason = InvalidNotGitWorkspace
+		entry.InvalidReason = InvalidMalformedPath
 		entry.Errors = []ErrorDetail{{Path: "workspace_path", Message: "watched workspace path is empty"}}
+		return entry
+	}
+	if !filepath.IsAbs(path) {
+		entry.InvalidReason = InvalidMalformedPath
+		entry.Errors = []ErrorDetail{{Path: "workspace_path", Message: "watched workspace path must be absolute"}}
 		return entry
 	}
 
@@ -146,6 +154,33 @@ func (s Service) readWorkspace(watched watchlist.Workspace) Workspace {
 	entry.Errors = statusResult.Errors
 	entry.Artifacts = statusResult.Artifacts
 	return entry
+}
+
+func markRouteKeyCollisions(entries []Workspace) {
+	byKey := make(map[string][]int, len(entries))
+	for index, entry := range entries {
+		byKey[entry.WorkspaceKey] = append(byKey[entry.WorkspaceKey], index)
+	}
+	for key, indexes := range byKey {
+		if len(indexes) < 2 {
+			continue
+		}
+		for _, index := range indexes {
+			entry := &entries[index]
+			entry.DashboardState = StateInvalid
+			entry.InvalidReason = InvalidRouteKeyCollision
+			entry.CurrentNode = ""
+			entry.NextAction = nil
+			entry.Warnings = nil
+			entry.Blockers = nil
+			entry.Artifacts = nil
+			entry.Summary = "Watched workspace route key collides with another watchlist record."
+			entry.Errors = append(entry.Errors, ErrorDetail{
+				Path:    "workspace_key",
+				Message: fmt.Sprintf("workspace_key %q is shared by %d watchlist records", key, len(indexes)),
+			})
+		}
+	}
 }
 
 func (s Service) stat(path string) (os.FileInfo, error) {

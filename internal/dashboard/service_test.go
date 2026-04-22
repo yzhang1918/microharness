@@ -113,6 +113,63 @@ func TestReadSurfacesMissingAndInvalidEntries(t *testing.T) {
 	}
 }
 
+func TestReadRejectsMalformedNonAbsoluteWorkspacePath(t *testing.T) {
+	home := t.TempDir()
+	relative := "relative-git"
+	writeWatchlist(t, home, []watchlist.Workspace{workspaceRecord(relative, "2026-04-22T12:00:00Z")})
+
+	result := Service{
+		LookupEnv: easyHome(home),
+		Stat: func(path string) (os.FileInfo, error) {
+			t.Fatalf("dashboard read should not stat malformed non-absolute path %q", path)
+			return nil, nil
+		},
+		CheckGitWorkspace: func(path string) error {
+			t.Fatalf("dashboard read should not probe git for malformed non-absolute path %q", path)
+			return nil
+		},
+		ReadStatus: func(path string) contracts.StatusResult {
+			t.Fatalf("dashboard read should not read status for malformed non-absolute path %q", path)
+			return contracts.StatusResult{}
+		},
+	}.Read()
+
+	entry := findWorkspace(t, result, StateInvalid, relative)
+	if entry.InvalidReason != InvalidMalformedPath || entry.WorkspaceKey == "" {
+		t.Fatalf("expected malformed invalid entry with route key, got %#v", entry)
+	}
+	if len(entry.Errors) != 1 || entry.Errors[0].Path != "workspace_path" {
+		t.Fatalf("expected workspace_path diagnostic, got %#v", entry.Errors)
+	}
+}
+
+func TestReadSurfacesRouteKeyCollisions(t *testing.T) {
+	home := t.TempDir()
+	workspace := seedGitWorkspace(t, "duplicate")
+	writeWatchlist(t, home, []watchlist.Workspace{
+		workspaceRecord(workspace, "2026-04-22T12:00:00Z"),
+		workspaceRecord(workspace, "2026-04-22T11:00:00Z"),
+	})
+
+	result := Service{
+		LookupEnv:  easyHome(home),
+		ReadStatus: func(string) contracts.StatusResult { return statusResult("execution/step-1/implement", "Active", nil) },
+	}.Read()
+
+	entries := findWorkspaces(t, result, StateInvalid, workspace)
+	if len(entries) != 2 {
+		t.Fatalf("expected both duplicate entries to be surfaced as invalid, got %d: %#v", len(entries), entries)
+	}
+	for _, entry := range entries {
+		if entry.InvalidReason != InvalidRouteKeyCollision || entry.CurrentNode != "" {
+			t.Fatalf("expected collision invalid entry without readable node, got %#v", entry)
+		}
+		if len(entry.Errors) == 0 || entry.Errors[len(entry.Errors)-1].Path != "workspace_key" {
+			t.Fatalf("expected workspace_key collision diagnostic, got %#v", entry.Errors)
+		}
+	}
+}
+
 func TestReadOrdersEntriesByRecencyWithDeterministicFallback(t *testing.T) {
 	home := t.TempDir()
 	root := t.TempDir()
@@ -449,18 +506,27 @@ func assertGroupPaths(t *testing.T, result Result, state string, want []string) 
 
 func findWorkspace(t *testing.T, result Result, state, path string) Workspace {
 	t.Helper()
+	entries := findWorkspaces(t, result, state, path)
+	if len(entries) == 0 {
+		t.Fatalf("missing workspace %q in state %q", path, state)
+	}
+	return entries[0]
+}
+
+func findWorkspaces(t *testing.T, result Result, state, path string) []Workspace {
+	t.Helper()
+	var matches []Workspace
 	for _, group := range result.Groups {
 		if group.State != state {
 			continue
 		}
 		for _, workspace := range group.Workspaces {
 			if workspace.WorkspacePath == path {
-				return workspace
+				matches = append(matches, workspace)
 			}
 		}
 	}
-	t.Fatalf("missing workspace %q in state %q", path, state)
-	return Workspace{}
+	return matches
 }
 
 func TestReadSurfacesStatErrorsAsUnreadable(t *testing.T) {

@@ -24,7 +24,7 @@ func SchemaRegistry() []SchemaEntry {
 			Group:       "ui_resources",
 			Path:        "schema/ui-resources/dashboard.schema.json",
 			Title:       "Dashboard UI resource",
-			Description: "Read-only JSON resource returned by the dashboard home API for `harness ui`.",
+			Description: "Read-only JSON resource returned by the dashboard home API.",
 			Shape:       "output",
 			Type:        reflect.TypeFor[DashboardResult](),
 		},

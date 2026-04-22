@@ -277,9 +277,9 @@ Lifecycle classification:
 - `invalid`: the watched path exists but cannot be treated as a valid readable
   harness workspace
 
-Invalid entries carry a reason such as `unreadable`, `not_git_workspace`, or
-`status_error`. The reason refines the `invalid` state; it does not expand the
-top-level lifecycle enum.
+Invalid entries carry a reason such as `unreadable`, `not_git_workspace`,
+`status_error`, `malformed_path`, or `route_key_collision`. The reason refines
+the `invalid` state; it does not expand the top-level lifecycle enum.
 
 ## Dashboard Read Model Payload
 
@@ -336,6 +336,10 @@ In particular:
   later explicit membership-removal behavior exists and removes it
 - a permissions, Git probe, or status failure may surface as `invalid` without
   removing the workspace from the watchlist
+- a malformed non-absolute `workspace_path` must surface as `invalid` before
+  any filesystem, Git, or status probe is attempted
+- a duplicate or otherwise colliding `workspace_key` must surface explicit
+  per-entry collision diagnostics rather than silently routing to one workspace
 
 ## No Automatic GC In V1
 

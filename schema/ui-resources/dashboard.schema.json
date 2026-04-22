@@ -286,5 +286,5 @@
     }
   },
   "title": "Dashboard UI resource",
-  "description": "Read-only JSON resource returned by the dashboard home API for `harness ui`."
+  "description": "Read-only JSON resource returned by the dashboard home API."
 }
