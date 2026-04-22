@@ -113,6 +113,48 @@ func TestReadMissingWatchlistReturnsEmptyFileWithoutCreatingIt(t *testing.T) {
 	}
 }
 
+func TestReadExistingWatchlistDoesNotRewriteFile(t *testing.T) {
+	userHome := t.TempDir()
+	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	writeWatchlistFile(t, watchlistPath, File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: "/tmp/workspace-a", WatchedAt: "2026-04-19T01:00:00Z", LastSeenAt: "2026-04-19T02:00:00Z"},
+		},
+	})
+	fixedTime := time.Date(2026, 4, 19, 3, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(watchlistPath, fixedTime, fixedTime); err != nil {
+		t.Fatalf("set watchlist timestamp: %v", err)
+	}
+	beforeInfo, err := os.Stat(watchlistPath)
+	if err != nil {
+		t.Fatalf("stat watchlist before read: %v", err)
+	}
+	beforeData, err := os.ReadFile(watchlistPath)
+	if err != nil {
+		t.Fatalf("read watchlist before read: %v", err)
+	}
+
+	if _, err := (Service{UserHomeDir: func() (string, error) { return userHome, nil }}).Read(); err != nil {
+		t.Fatalf("read watchlist: %v", err)
+	}
+
+	afterInfo, err := os.Stat(watchlistPath)
+	if err != nil {
+		t.Fatalf("stat watchlist after read: %v", err)
+	}
+	afterData, err := os.ReadFile(watchlistPath)
+	if err != nil {
+		t.Fatalf("read watchlist after read: %v", err)
+	}
+	if string(afterData) != string(beforeData) {
+		t.Fatalf("expected read to preserve watchlist bytes\nbefore:\n%s\nafter:\n%s", beforeData, afterData)
+	}
+	if !afterInfo.ModTime().Equal(beforeInfo.ModTime()) {
+		t.Fatalf("expected read to preserve watchlist mtime, got %s want %s", afterInfo.ModTime(), beforeInfo.ModTime())
+	}
+}
+
 func TestReadReturnsParseErrorForInvalidWatchlist(t *testing.T) {
 	userHome := t.TempDir()
 	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
