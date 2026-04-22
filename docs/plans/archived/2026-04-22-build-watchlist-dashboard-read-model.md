@@ -61,28 +61,28 @@ recency ordering, or degraded-entry handling.
 
 ## Acceptance Criteria
 
-- [ ] The dashboard read model reads watched workspaces from the machine-local
+- [x] The dashboard read model reads watched workspaces from the machine-local
       watchlist and returns one compact summary per watched entry.
-- [ ] Each readable workspace summary exposes the raw harness `current_node`
+- [x] Each readable workspace summary exposes the raw harness `current_node`
       alongside a dashboard lifecycle state.
-- [ ] `execution/finalize/await_merge`, `land`, and other non-idle readable
+- [x] `execution/finalize/await_merge`, `land`, and other non-idle readable
       nodes classify as `active`.
-- [ ] Idle workspaces with `artifacts.last_landed_at` classify as `completed`.
-- [ ] Idle workspaces without last-landed context classify as `idle`, not
+- [x] Idle workspaces with `artifacts.last_landed_at` classify as `completed`.
+- [x] Idle workspaces without last-landed context classify as `idle`, not
       `completed`.
-- [ ] Missing watched paths classify as `missing` and remain visible in the
+- [x] Missing watched paths classify as `missing` and remain visible in the
       model.
-- [ ] Existing but invalid watched paths classify as `invalid` with a reason
+- [x] Existing but invalid watched paths classify as `invalid` with a reason
       that preserves whether the path was unreadable, not git-backed, or failed
       status resolution.
-- [ ] The read model is read-only and tests prove it does not touch or rewrite
+- [x] The read model is read-only and tests prove it does not touch or rewrite
       the watchlist or workflow state.
-- [ ] Dashboard entries are ordered by watchlist recency using `last_seen_at`,
+- [x] Dashboard entries are ordered by watchlist recency using `last_seen_at`,
       with deterministic fallback ordering for malformed or equal timestamps.
-- [ ] A UI server API endpoint returns the dashboard read model as JSON without
+- [x] A UI server API endpoint returns the dashboard read model as JSON without
       disturbing the existing `/api/status`, `/api/plan`, `/api/timeline`, or
       `/api/review` endpoints.
-- [ ] Tracked specs document the dashboard read model payload boundary,
+- [x] Tracked specs document the dashboard read model payload boundary,
       `current_node` exposure, dashboard lifecycle states, and invalid reason
       semantics.
 
@@ -348,26 +348,70 @@ Follow-up `review-009-delta` passed with no findings.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- `harness plan lint docs/plans/active/2026-04-22-build-watchlist-dashboard-read-model.md`
+- `go test ./internal/watchlist -count=1`
+- `go test ./internal/dashboard ./internal/watchlist ./internal/contractsync -count=1`
+- `go test ./internal/ui ./internal/dashboard ./internal/watchlist -count=1`
+- `go test ./internal/dashboard ./internal/watchlist ./internal/ui -count=1`
+- `scripts/sync-contract-artifacts --check`
+- `git diff --check`
+- `go test ./internal/... -count=1`
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Step 1 delta review: `review-001-delta` requested one no-rewrite test fix;
+  `review-002-delta` passed after adding bytes and mtime coverage.
+- Step 2 delta review: `review-003-delta` requested concrete payload-boundary
+  docs; `review-004-delta` passed after documenting result/group/workspace
+  fields.
+- Step 3 delta review: `review-005-delta` and `review-006-delta` requested
+  read-only status behavior and Git probe classification fixes;
+  `review-007-delta` passed after `ReadUnlocked()` and marker-aware parser
+  coverage.
+- Step 4 delta review: `review-008-delta` requested endpoint coverage proving
+  missing watched entries remain in the response; `review-009-delta` passed.
+- Finalize review: `review-010-full` requested malformed path rejection and
+  explicit route-key collision diagnostics, plus one schema wording cleanup.
+  `review-011-full` passed with no findings after the repair.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-22T23:33:36+08:00
+- Revision: 1
+- PR: not opened yet; publish closeout should create the PR from branch
+  `codex/issue-165-dashboard-read-model` and include `Closes #165`.
+- Ready: Acceptance criteria are satisfied, focused and full internal
+  validation passed, generated contract schemas are in sync, and
+  `review-011-full` passed cleanly.
+- Merge Handoff: After archive, commit the tracked plan move, push the branch,
+  open the PR, record publish/CI/sync evidence, and stop at merge approval.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Added a read-only watchlist loader and tests proving reads do not create or
+  rewrite `watchlist.json`.
+- Added the dashboard read model contract, generated schema registration, and
+  tracked spec updates for lifecycle groups, raw `current_node`, invalid
+  reasons, route keys, and degraded entries.
+- Added `internal/dashboard` service behavior for active, completed, idle,
+  missing, invalid, malformed path, route-key collision, recency sorting, and
+  read-only status integration.
+- Added `GET /api/dashboard` with tests for JSON response shape, method
+  rejection, missing/degraded entries, and no watchlist rewrite side effects.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Dashboard frontend rendering, the `harness dashboard` entrypoint, background
+  refresh, notifications, dashboard-local write actions, and persisted
+  watchlist schema changes remain out of scope for this slice.
 
 ### Follow-Up Issues
 
-NONE
+- #156 tracks the broader machine-local watchlist dashboard epic:
+  https://github.com/catu-ai/easyharness/issues/156
+- #166 tracks completed/hidden lifecycle and dashboard-local hide/archive
+  semantics: https://github.com/catu-ai/easyharness/issues/166
+- #167 tracks the minimal watchlist dashboard UI and entrypoint:
+  https://github.com/catu-ai/easyharness/issues/167
