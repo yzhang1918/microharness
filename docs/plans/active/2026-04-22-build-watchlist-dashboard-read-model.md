@@ -138,7 +138,8 @@ versions, and preserving persisted workspace records as read.
 `review-001-delta` found one blocking tests gap: existing-file reads did not
 prove the file bytes or mtime were preserved. Added
 `TestReadExistingWatchlistDoesNotRewriteFile` and reran
-`go test ./internal/watchlist -count=1`.
+`go test ./internal/watchlist -count=1`. Follow-up `review-002-delta` passed
+with no findings.
 
 ### Step 2: Document the dashboard read model contract
 
