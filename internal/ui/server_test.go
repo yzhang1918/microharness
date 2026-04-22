@@ -192,6 +192,21 @@ func TestNewHandlerDashboardDoesNotRewriteWatchlist(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
 	}
+	var payload struct {
+		OK       bool                 `json:"ok"`
+		Resource string               `json:"resource"`
+		Groups   []dashboardTestGroup `json:"groups"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v\n%s", err, recorder.Body.String())
+	}
+	if !payload.OK || payload.Resource != "dashboard" {
+		t.Fatalf("unexpected dashboard payload: %#v", payload)
+	}
+	entry := dashboardWorkspaceInGroup(t, payload.Groups, "missing", missing)
+	if entry.DashboardState != "missing" || entry.CurrentNode != "" {
+		t.Fatalf("expected missing degraded entry, got %#v", entry)
+	}
 	assertFileUnchanged(t, watchlistPath, before)
 }
 

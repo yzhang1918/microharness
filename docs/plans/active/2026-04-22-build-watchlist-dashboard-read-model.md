@@ -308,7 +308,11 @@ failures, and does not rewrite the machine-local watchlist. Validation:
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-008-delta` found one blocking tests gap: the endpoint no-rewrite test
+seeded a missing watched path but did not assert the missing degraded entry was
+present in the JSON response. Added response assertions for the `missing`
+group entry and reran
+`go test ./internal/ui ./internal/dashboard ./internal/watchlist -count=1`.
 
 ## Validation Strategy
 
