@@ -133,7 +133,7 @@ removes them. `review-002-delta` passed with no findings.
 
 ### Step 2: Decide whether this slice needs a tiny unwatch write path
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -185,7 +185,7 @@ no-op refinement.
 `EASYHARNESS_HOME` / configured home resolution. Added
 `TestUnwatchUsesEasyharnessHomeOverride`, which proves `Unwatch` removes from
 the configured custom watchlist and leaves the default user-home watchlist
-untouched. Validation: `go test ./internal/watchlist -count=1`.
+untouched. `review-004-delta` passed with no findings.
 
 ### Step 3: Close the GitHub-facing handoff
 
