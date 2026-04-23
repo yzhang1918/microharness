@@ -168,7 +168,16 @@ CLI work into this plan.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Implemented the small isolated watchlist write path in this slice:
+`watchlist.Service.Unwatch` removes one selected workspace record from
+`watchlist.json`, preserves unrelated records, uses the same home resolution,
+lock, and atomic rewrite helpers as `Touch`, supports missing workspace rows
+by matching their persisted path, leaves absent records as no-ops without
+creating an empty watchlist, and does not touch harness workflow state.
+Validation: red `go test ./internal/watchlist -run Unwatch -count=1` failed
+before implementation because `Service.Unwatch` did not exist; green
+`go test ./internal/watchlist -count=1` passed after implementation and the
+no-op refinement.
 
 #### Review Notes
 
