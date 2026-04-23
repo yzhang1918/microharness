@@ -569,6 +569,48 @@ func TestUnwatchRemovesMissingWorkspaceByPersistedPath(t *testing.T) {
 	}
 }
 
+func TestUnwatchUsesEasyharnessHomeOverride(t *testing.T) {
+	userHome := t.TempDir()
+	customHome := filepath.Join(t.TempDir(), "custom-home")
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	defaultWorkspace := filepath.Join(t.TempDir(), "default-workspace")
+	writeWatchlistFile(t, filepath.Join(customHome, "watchlist.json"), File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: workspace, WatchedAt: "2026-04-19T01:00:00Z", LastSeenAt: "2026-04-19T01:00:00Z"},
+		},
+	})
+	defaultWatchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	writeWatchlistFile(t, defaultWatchlistPath, File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: defaultWorkspace, WatchedAt: "2026-04-19T02:00:00Z", LastSeenAt: "2026-04-19T02:00:00Z"},
+		},
+	})
+
+	svc := Service{
+		LookupEnv: func(key string) (string, bool) {
+			if key == envHome {
+				return customHome, true
+			}
+			return "", false
+		},
+		UserHomeDir: func() (string, error) { return userHome, nil },
+	}
+	if err := svc.Unwatch(workspace); err != nil {
+		t.Fatalf("unwatch custom home workspace: %v", err)
+	}
+
+	customGot := readWatchlistFile(t, filepath.Join(customHome, "watchlist.json"))
+	if len(customGot.Workspaces) != 0 {
+		t.Fatalf("expected custom home workspace to be removed, got %#v", customGot.Workspaces)
+	}
+	defaultGot := readWatchlistFile(t, defaultWatchlistPath)
+	if len(defaultGot.Workspaces) != 1 || defaultGot.Workspaces[0].WorkspacePath != defaultWorkspace {
+		t.Fatalf("expected default watchlist to remain untouched, got %#v", defaultGot.Workspaces)
+	}
+}
+
 func TestUnwatchAbsentWorkspaceIsIdempotent(t *testing.T) {
 	userHome := t.TempDir()
 	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")

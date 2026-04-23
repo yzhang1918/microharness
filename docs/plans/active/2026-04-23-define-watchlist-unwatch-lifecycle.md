@@ -181,7 +181,11 @@ no-op refinement.
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-003-delta` requested one tests fix: add `Unwatch` coverage for
+`EASYHARNESS_HOME` / configured home resolution. Added
+`TestUnwatchUsesEasyharnessHomeOverride`, which proves `Unwatch` removes from
+the configured custom watchlist and leaves the default user-home watchlist
+untouched. Validation: `go test ./internal/watchlist -count=1`.
 
 ### Step 3: Close the GitHub-facing handoff
 
