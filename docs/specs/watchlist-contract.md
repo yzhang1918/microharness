@@ -231,16 +231,33 @@ state instead of persisting copies that can drift.
 
 ## Membership and User Action
 
-Watchlist membership is binary in this first contract:
+Watchlist membership is binary in this contract:
 
 - a workspace is watched because a record exists in `watchlist.json`
-- this touch-foundation slice does not yet define a membership-removal command
+- a workspace is no longer watched once that record is removed from
+  `watchlist.json`
 
 This contract does not define a separate dashboard-local `hidden` state.
+There is no persisted visibility flag, archive bucket, or secondary lifecycle
+layer for clearing rows from the main dashboard.
 
-Future work may add an explicit local action such as `unwatch` to remove a
-workspace record from `watchlist.json`, but that user-facing removal path is
-deferred beyond this machine-local touch foundation.
+The explicit user-facing membership-removal action is `unwatch`.
+
+`Unwatch` means:
+
+- remove the selected workspace record from the machine-local watchlist
+- preserve unrelated workspace records in the same watchlist file
+- leave the watched repository, git worktree, tracked plan files, and
+  `.local/harness` workflow artifacts untouched
+
+`Unwatch` does not mean `harness archive`. It must not advance, reopen,
+archive, land, or otherwise mutate harness workflow state. It also must not
+delete a local checkout or git worktree.
+
+Once a workspace is unwatched, it is absent from ordinary dashboard lifecycle
+groups because it is no longer a watched entry. The first dashboard slice does
+not need tombstone or history state to distinguish "never watched" from
+"previously watched and later unwatched."
 
 ## Derived Lifecycle States
 
@@ -331,9 +348,10 @@ In particular:
   the workspace from the watchlist
 - ordinary idle without last-landed context remains `idle`; it must not be
   presented as `completed`
+- completed watched workspaces remain visible until explicit `unwatch`
 - deleting the local directory does not remove the workspace from the
   watchlist by itself; it instead becomes a `missing` watched workspace until
-  later explicit membership-removal behavior exists and removes it
+  explicit `unwatch` removes it
 - a permissions, Git probe, or status failure may surface as `invalid` without
   removing the workspace from the watchlist
 - a malformed non-absolute `workspace_path` must surface as `invalid` before
@@ -347,8 +365,8 @@ This first contract does not define silent automatic garbage collection.
 
 The watchlist is a remembered local set, not an auto-pruned mirror of the
 current filesystem. The combination of `last_seen_at`, derived `missing`
-or `invalid` status, and deferred explicit membership-removal behavior is
-enough for this touch-foundation slice.
+or `invalid` status, and explicit `unwatch` behavior is enough for this
+contract.
 
 Later work may add user-facing cleanup or stale-item policies, but v1 should
 not silently discard watched entries just because they have gone idle,
@@ -365,6 +383,9 @@ For dashboard workspace-detail routing:
   treated as "not currently watched"
 - the first dashboard slice does not need extra watchlist history state just
   to distinguish "never watched" from "used to be watched and later unwatched"
+
+If a workspace has been unwatched, its old route key should resolve the same
+way as any other key that does not match the current watchlist.
 
 ## Write Expectations
 
@@ -405,3 +426,5 @@ This spec does not:
 - support non-git watched directories in the first slice
 - define any dashboard-local `hidden` state or secondary visibility layer
   beyond explicit `unwatch`
+- define automatic cleanup for completed, idle, missing, invalid, or stale
+  watched workspaces
