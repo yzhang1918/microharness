@@ -439,6 +439,8 @@ this step.
 
 ## Archive Summary
 
+- Archived At: 2026-04-24T00:54:31+08:00
+- Revision: 1
 - PR: not opened yet; publish closeout should create the PR from branch
   `codex/issue-167-dashboard-ui`.
 - Ready: Acceptance criteria are satisfied, Step 3 closeout passed through
