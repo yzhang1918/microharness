@@ -296,7 +296,7 @@ tracked specs beyond this plan note.
 
 ## Archive Summary
 
-- Archived At: pending `harness archive`
+- Archived At: 2026-04-23T09:58:33+08:00
 - Revision: 1
 - PR: not opened yet; publish closeout should create a PR from branch
   `codex/issue-166-unwatch-lifecycle` and include `Closes #166`.
