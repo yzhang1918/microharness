@@ -292,6 +292,7 @@ tracked specs beyond this plan note.
   resolves that closeout gap before the archive retry.
 - `review-006-delta` passed after the closeout summaries and follow-up issue
   handoff were filled.
+- `review-007-full` passed cleanly with no blocking or non-blocking findings.
 
 ## Archive Summary
 
@@ -303,7 +304,7 @@ tracked specs beyond this plan note.
   proposal consistently define `completed` and `unwatch`, the isolated
   watchlist-level `Service.Unwatch` write path is implemented with focused
   tests, issue #166 has a GitHub-visible handoff comment, and
-  `review-006-delta` passed after the finalize closeout repair.
+  `review-007-full` passed cleanly.
 - Merge Handoff: After archive, commit the tracked plan move, push the branch,
   open the PR, record publish/CI/sync evidence, and stop at merge approval.
 
