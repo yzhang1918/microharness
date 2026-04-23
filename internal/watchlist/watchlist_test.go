@@ -505,6 +505,150 @@ func TestTouchRegistersLinkedGitWorktree(t *testing.T) {
 	}
 }
 
+func TestUnwatchRemovesWorkspaceAndPreservesUnrelatedRecords(t *testing.T) {
+	userHome := t.TempDir()
+	root := t.TempDir()
+	first := filepath.Join(root, "workspace-a")
+	second := filepath.Join(root, "workspace-b")
+	for _, path := range []string{first, second} {
+		seedGitWorkspace(t, path)
+	}
+	nested := filepath.Join(first, "docs", "plans")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested workspace path: %v", err)
+	}
+
+	svc := Service{UserHomeDir: func() (string, error) { return userHome, nil }}
+	if err := svc.Touch(first); err != nil {
+		t.Fatalf("touch first workspace: %v", err)
+	}
+	if err := svc.Touch(second); err != nil {
+		t.Fatalf("touch second workspace: %v", err)
+	}
+	if err := svc.Unwatch(nested); err != nil {
+		t.Fatalf("unwatch nested workspace path: %v", err)
+	}
+
+	got := readWatchlistFile(t, filepath.Join(userHome, ".easyharness", "watchlist.json"))
+	canonicalSecond, err := filepath.EvalSymlinks(second)
+	if err != nil {
+		t.Fatalf("resolve second workspace: %v", err)
+	}
+	if len(got.Workspaces) != 1 {
+		t.Fatalf("expected only unrelated workspace to remain, got %#v", got.Workspaces)
+	}
+	if got.Workspaces[0].WorkspacePath != canonicalSecond {
+		t.Fatalf("expected second workspace to remain, got %#v", got.Workspaces[0])
+	}
+}
+
+func TestUnwatchRemovesMissingWorkspaceByPersistedPath(t *testing.T) {
+	userHome := t.TempDir()
+	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	missing := filepath.Join(t.TempDir(), "missing-workspace")
+	remaining := filepath.Join(t.TempDir(), "remaining-workspace")
+	writeWatchlistFile(t, watchlistPath, File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: missing, WatchedAt: "2026-04-19T01:00:00Z", LastSeenAt: "2026-04-19T01:00:00Z"},
+			{WorkspacePath: remaining, WatchedAt: "2026-04-19T02:00:00Z", LastSeenAt: "2026-04-19T02:00:00Z"},
+		},
+	})
+
+	svc := Service{UserHomeDir: func() (string, error) { return userHome, nil }}
+	if err := svc.Unwatch(missing); err != nil {
+		t.Fatalf("unwatch missing workspace: %v", err)
+	}
+
+	got := readWatchlistFile(t, watchlistPath)
+	if len(got.Workspaces) != 1 {
+		t.Fatalf("expected missing workspace to be removed, got %#v", got.Workspaces)
+	}
+	if got.Workspaces[0].WorkspacePath != remaining {
+		t.Fatalf("expected remaining workspace to survive, got %#v", got.Workspaces[0])
+	}
+}
+
+func TestUnwatchUsesEasyharnessHomeOverride(t *testing.T) {
+	userHome := t.TempDir()
+	customHome := filepath.Join(t.TempDir(), "custom-home")
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	defaultWorkspace := filepath.Join(t.TempDir(), "default-workspace")
+	writeWatchlistFile(t, filepath.Join(customHome, "watchlist.json"), File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: workspace, WatchedAt: "2026-04-19T01:00:00Z", LastSeenAt: "2026-04-19T01:00:00Z"},
+		},
+	})
+	defaultWatchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	writeWatchlistFile(t, defaultWatchlistPath, File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: defaultWorkspace, WatchedAt: "2026-04-19T02:00:00Z", LastSeenAt: "2026-04-19T02:00:00Z"},
+		},
+	})
+
+	svc := Service{
+		LookupEnv: func(key string) (string, bool) {
+			if key == envHome {
+				return customHome, true
+			}
+			return "", false
+		},
+		UserHomeDir: func() (string, error) { return userHome, nil },
+	}
+	if err := svc.Unwatch(workspace); err != nil {
+		t.Fatalf("unwatch custom home workspace: %v", err)
+	}
+
+	customGot := readWatchlistFile(t, filepath.Join(customHome, "watchlist.json"))
+	if len(customGot.Workspaces) != 0 {
+		t.Fatalf("expected custom home workspace to be removed, got %#v", customGot.Workspaces)
+	}
+	defaultGot := readWatchlistFile(t, defaultWatchlistPath)
+	if len(defaultGot.Workspaces) != 1 || defaultGot.Workspaces[0].WorkspacePath != defaultWorkspace {
+		t.Fatalf("expected default watchlist to remain untouched, got %#v", defaultGot.Workspaces)
+	}
+}
+
+func TestUnwatchAbsentWorkspaceIsIdempotent(t *testing.T) {
+	userHome := t.TempDir()
+	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	absent := filepath.Join(t.TempDir(), "absent-workspace")
+	writeWatchlistFile(t, watchlistPath, File{
+		Version: version,
+		Workspaces: []Workspace{
+			{WorkspacePath: workspace, WatchedAt: "2026-04-19T01:00:00Z", LastSeenAt: "2026-04-19T01:00:00Z"},
+		},
+	})
+
+	svc := Service{UserHomeDir: func() (string, error) { return userHome, nil }}
+	if err := svc.Unwatch(absent); err != nil {
+		t.Fatalf("unwatch absent workspace: %v", err)
+	}
+
+	got := readWatchlistFile(t, watchlistPath)
+	if len(got.Workspaces) != 1 || got.Workspaces[0].WorkspacePath != workspace {
+		t.Fatalf("expected existing workspace to survive idempotent unwatch, got %#v", got.Workspaces)
+	}
+}
+
+func TestUnwatchMissingWatchlistDoesNotCreateFile(t *testing.T) {
+	userHome := t.TempDir()
+	absent := filepath.Join(t.TempDir(), "absent-workspace")
+
+	svc := Service{UserHomeDir: func() (string, error) { return userHome, nil }}
+	if err := svc.Unwatch(absent); err != nil {
+		t.Fatalf("unwatch absent workspace without watchlist: %v", err)
+	}
+
+	watchlistPath := filepath.Join(userHome, ".easyharness", "watchlist.json")
+	if _, err := os.Stat(watchlistPath); !os.IsNotExist(err) {
+		t.Fatalf("expected absent unwatch to avoid creating watchlist, err=%v", err)
+	}
+}
+
 func readWatchlistFile(t *testing.T, path string) File {
 	t.Helper()
 	data, err := os.ReadFile(path)

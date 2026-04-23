@@ -95,6 +95,10 @@ stays `idle`, and invalid rows carry a reason such as `unreadable`,
 `not_git_workspace`, or `status_error`. The read model should return stable
 lifecycle groups containing compact watched workspace entries rather than
 making the frontend derive grouping or field names from raw status payloads.
+Completed rows should remain watched until the user explicitly removes
+watchlist membership with `Unwatch`; the dashboard should not invent a
+separate hidden state or use dashboard-local archive terminology for that
+action.
 
 ## Product Shape
 
@@ -472,6 +476,10 @@ That degraded page may offer one local cleanup action:
 
 - `Unwatch`
 
+`Unwatch` removes the workspace from the machine-local watchlist only. It is
+not `harness archive`, does not alter harness workflow state, and does not
+delete the local checkout or git worktree.
+
 If the key does not match any currently watched workspace, the route should be
 treated as not currently watched. The product does not need extra tombstone or
 history state just to distinguish "never existed" from "used to be watched."
@@ -492,6 +500,8 @@ Ship:
 Defer:
 
 - direct action triggers beyond minimal refresh, open, or `Unwatch`
+- automatic cleanup or age-out of completed, missing, invalid, or stale watched
+  workspaces
 
 ### Phase 2: Contextual Steering Actions
 

@@ -83,6 +83,45 @@ func (s Service) Touch(workdir string) error {
 	return writeJSONAtomic(path, payload, 0o644)
 }
 
+func (s Service) Unwatch(workdir string) error {
+	canonicalPath, err := unwatchWorkspacePath(workdir)
+	if err != nil {
+		return err
+	}
+
+	home, err := s.easyharnessHome()
+	if err != nil {
+		return err
+	}
+
+	release, err := acquireLock(home)
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	path := filepath.Join(home, "watchlist.json")
+	data, err := loadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var removed bool
+	data.Workspaces, removed = removeWorkspace(data.Workspaces, canonicalPath)
+	if !removed {
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	payload, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal watchlist.json: %w", err)
+	}
+	return writeJSONAtomic(path, payload, 0o644)
+}
+
 func (s Service) easyharnessHome() (string, error) {
 	if lookup := s.LookupEnv; lookup != nil {
 		if value, ok := lookup(envHome); ok && strings.TrimSpace(value) != "" {
@@ -205,6 +244,19 @@ func upsertWorkspace(workspaces []Workspace, canonicalPath, seenAt string) []Wor
 	return next
 }
 
+func removeWorkspace(workspaces []Workspace, canonicalPath string) ([]Workspace, bool) {
+	next := make([]Workspace, 0, len(workspaces))
+	removed := false
+	for _, workspace := range workspaces {
+		if strings.TrimSpace(workspace.WorkspacePath) == canonicalPath {
+			removed = true
+			continue
+		}
+		next = append(next, workspace)
+	}
+	return next, removed
+}
+
 func canonicalWorkspacePath(workdir string) (string, error) {
 	root, err := gitWorkspaceRoot(workdir)
 	if err != nil {
@@ -219,6 +271,24 @@ func canonicalWorkspacePath(workdir string) (string, error) {
 		return "", fmt.Errorf("resolve workspace symlinks: %w", err)
 	}
 	return filepath.Clean(resolved), nil
+}
+
+func unwatchWorkspacePath(workdir string) (string, error) {
+	workdir = strings.TrimSpace(workdir)
+	if workdir == "" {
+		return "", fmt.Errorf("resolve workspace: empty path")
+	}
+	if canonical, err := canonicalWorkspacePath(workdir); err == nil {
+		return canonical, nil
+	}
+	absolute, err := filepath.Abs(workdir)
+	if err != nil {
+		return "", fmt.Errorf("resolve workspace absolute path: %w", err)
+	}
+	if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+		return filepath.Clean(resolved), nil
+	}
+	return filepath.Clean(absolute), nil
 }
 
 func gitWorkspaceRoot(workdir string) (string, error) {
