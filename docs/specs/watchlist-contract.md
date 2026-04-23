@@ -176,8 +176,8 @@ If a previously watched `workspace_path` later becomes:
 - unreadable
 - no longer a valid Git-backed workspace
 
-the watchlist record should remain present until later explicit
-membership-removal behavior exists and removes it.
+the watchlist record should remain present until explicit `unwatch` removes
+it.
 
 Read-model and UI layers should surface those entries as explicit degraded
 states rather than silently dropping them from the watched set.
