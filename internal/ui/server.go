@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -93,6 +94,8 @@ func NewHandler(workdir string) (http.Handler, error) {
 		return nil, fmt.Errorf("load embedded ui assets: %w (run scripts/install-dev-harness or scripts/build-embedded-ui first)", err)
 	}
 
+	watchlistSvc := watchlist.Service{}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -123,19 +126,46 @@ func NewHandler(workdir string) (http.Handler, error) {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			if !workspaceResult.OK {
-				writeWorkspaceJSON(w, workspaceResult)
-				return
-			}
-			if !workspaceResult.Watched || workspaceResult.Workspace == nil {
-				writeJSON(w, http.StatusNotFound, map[string]any{
+			file, err := watchlistSvc.Read()
+			if err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 					"ok":       false,
 					"resource": "workspace",
-					"summary":  "Workspace is not currently watched.",
+					"summary":  "Unable to load the machine-local watchlist.",
+					"errors": []map[string]string{{
+						"path":    "watchlist",
+						"message": err.Error(),
+					}},
 				})
 				return
 			}
-			if err := (watchlist.Service{}).Unwatch(workspaceResult.Workspace.WorkspacePath); err != nil {
+			request, err := decodeWorkspaceActionRequest(r)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]any{
+					"ok":       false,
+					"resource": "workspace",
+					"summary":  "Workspace action request body is invalid.",
+					"errors": []map[string]string{{
+						"path":    "workspace_path",
+						"message": err.Error(),
+					}},
+				})
+				return
+			}
+			targetPath, resolveErr := resolveWorkspaceActionTarget(workspaceMatchesByKey(file.Workspaces, key), request.WorkspacePath)
+			if resolveErr != nil {
+				statusCode := http.StatusConflict
+				if errors.Is(resolveErr, errWorkspaceActionTargetNotFound) {
+					statusCode = http.StatusNotFound
+				}
+				writeJSON(w, statusCode, map[string]any{
+					"ok":       false,
+					"resource": "workspace",
+					"summary":  resolveErr.Error(),
+				})
+				return
+			}
+			if err := watchlistSvc.Unwatch(targetPath); err != nil {
 				writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 					"ok":       false,
 					"resource": "workspace",
@@ -229,6 +259,64 @@ func NewHandler(workdir string) (http.Handler, error) {
 	})
 	mux.Handle("/", spaHandler(staticFS, workdir))
 	return mux, nil
+}
+
+var (
+	errWorkspaceActionTargetNotFound = errors.New("workspace action target is not currently watched")
+	errWorkspaceActionTargetAmbiguous = errors.New("workspace route key is ambiguous; specify the exact workspace_path")
+)
+
+type workspaceActionRequest struct {
+	WorkspacePath string `json:"workspace_path"`
+}
+
+func decodeWorkspaceActionRequest(r *http.Request) (workspaceActionRequest, error) {
+	if r.Body == nil {
+		return workspaceActionRequest{}, nil
+	}
+	defer r.Body.Close()
+
+	var request workspaceActionRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&request); err != nil {
+		if errors.Is(err, io.EOF) {
+			return workspaceActionRequest{}, nil
+		}
+		return workspaceActionRequest{}, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != nil && !errors.Is(err, io.EOF) {
+		return workspaceActionRequest{}, errors.New("request body must contain a single JSON object")
+	}
+	request.WorkspacePath = strings.TrimSpace(request.WorkspacePath)
+	return request, nil
+}
+
+func workspaceMatchesByKey(entries []watchlist.Workspace, key string) []watchlist.Workspace {
+	matches := make([]watchlist.Workspace, 0, 2)
+	for _, entry := range entries {
+		if dashboard.WorkspaceKey(entry.WorkspacePath) == key {
+			matches = append(matches, entry)
+		}
+	}
+	return matches
+}
+
+func resolveWorkspaceActionTarget(matches []watchlist.Workspace, requestedPath string) (string, error) {
+	if requestedPath != "" {
+		for _, match := range matches {
+			if strings.TrimSpace(match.WorkspacePath) == requestedPath {
+				return requestedPath, nil
+			}
+		}
+		return "", fmt.Errorf("%w: %s", errWorkspaceActionTargetNotFound, requestedPath)
+	}
+	if len(matches) == 0 {
+		return "", errWorkspaceActionTargetNotFound
+	}
+	if len(matches) > 1 {
+		return "", errWorkspaceActionTargetAmbiguous
+	}
+	return strings.TrimSpace(matches[0].WorkspacePath), nil
 }
 
 func spaHandler(staticFS fs.FS, workdir string) http.Handler {

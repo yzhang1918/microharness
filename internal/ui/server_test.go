@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -555,6 +556,64 @@ func TestNewHandlerWorkspaceUnwatchRemovesEntry(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/workspace/"+dashboard.WorkspaceKey(canonicalPath)+"/unwatch", nil)
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	after := readWatchlist(t, home)
+	if len(after.Workspaces) != 0 {
+		t.Fatalf("expected watched workspace to be removed, got %#v", after.Workspaces)
+	}
+}
+
+func TestResolveWorkspaceActionTargetRejectsAmbiguousMatchWithoutExplicitPath(t *testing.T) {
+	matches := []watchlist.Workspace{
+		{WorkspacePath: "/tmp/alpha"},
+		{WorkspacePath: "/tmp/beta"},
+	}
+
+	target, err := resolveWorkspaceActionTarget(matches, "")
+	if !errors.Is(err, errWorkspaceActionTargetAmbiguous) {
+		t.Fatalf("expected ambiguous target error, got target=%q err=%v", target, err)
+	}
+}
+
+func TestResolveWorkspaceActionTargetAcceptsExplicitPathFromCollisionSet(t *testing.T) {
+	matches := []watchlist.Workspace{
+		{WorkspacePath: "/tmp/alpha"},
+		{WorkspacePath: "/tmp/beta"},
+	}
+
+	target, err := resolveWorkspaceActionTarget(matches, "/tmp/beta")
+	if err != nil {
+		t.Fatalf("resolve explicit target: %v", err)
+	}
+	if target != "/tmp/beta" {
+		t.Fatalf("expected explicit target path, got %q", target)
+	}
+}
+
+func TestNewHandlerWorkspaceUnwatchUsesExplicitWorkspacePath(t *testing.T) {
+	home := t.TempDir()
+	workspace := filepath.Join(t.TempDir(), "workspace-unwatch-explicit")
+	seedGitWorkspace(t, workspace)
+	canonicalPath, err := watchlist.CanonicalWorkspacePath(workspace)
+	if err != nil {
+		t.Fatalf("canonical workspace path: %v", err)
+	}
+	writeWatchlist(t, home, []watchlist.Workspace{workspaceRecord(canonicalPath, "2026-04-22T12:00:00Z")})
+	t.Setenv("EASYHARNESS_HOME", home)
+
+	handler, err := NewHandler(t.TempDir())
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	body := strings.NewReader(`{"workspace_path":"` + canonicalPath + `"}`)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/workspace/"+dashboard.WorkspaceKey(canonicalPath)+"/unwatch", body)
+	request.Header.Set("Content-Type", "application/json")
 	handler.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {

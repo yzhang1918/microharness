@@ -322,6 +322,18 @@ Validated with `go test ./internal/dashboard ./internal/ui ./internal/cli -count
 `pnpm --dir web test`, `pnpm --dir web build`,
 `scripts/sync-contract-artifacts --check`, and `go test ./... -count=1`.
 
+Delta `review-002-delta` then found one remaining correctness gap: dashboard
+collision rows rendered distinctly, but `Unwatch` still targeted only
+`/api/workspace/<workspace_key>/unwatch`, so a colliding key could remove a
+different watched workspace than the row the user clicked. The repair now
+posts the exact `workspace_path` from the selected row, and the server now
+resolves unwatch targets fail-safe: when a request omits `workspace_path`, a
+colliding key returns an ambiguity error instead of removing an arbitrary
+match. Added targeted server coverage for explicit-path unwatchs and helper
+coverage for the ambiguous collision case. Revalidated with
+`go test ./internal/ui ./internal/cli -count=1`, `pnpm --dir web test`, and
+`pnpm --dir web build`.
+
 #### Review Notes
 
 `review-001-full` requested six blocking findings. Correctness found that
@@ -335,7 +347,10 @@ UI surface instead of documenting `harness dashboard` plus the quiet
 compatibility role for `harness ui`.
 
 All six findings are now repaired and revalidated. Fresh delta review is the
-next step before marking Step 3 done.
+next step before marking Step 3 done. `review-002-delta` then cleared tests
+and docs consistency but raised one additional correctness finding: collision
+rows still sent an ambiguous unwatch target. That repair is now in place and a
+fresh narrow delta review is the next step.
 
 ## Validation Strategy
 

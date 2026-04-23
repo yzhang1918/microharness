@@ -230,7 +230,13 @@ function App() {
 
   const unwatchWorkspace = (workspace: DashboardWorkspace) => {
     setBusyWorkspaceKey(workspace.workspace_key);
-    fetch(`/api/workspace/${workspace.workspace_key}/unwatch`, { method: "POST" })
+    fetch(`/api/workspace/${workspace.workspace_key}/unwatch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ workspace_path: workspace.workspace_path }),
+    })
       .then(async (response) => {
         const payload = (await response.json()) as { ok?: boolean; summary?: string };
         if (!response.ok || payload.ok === false) {
