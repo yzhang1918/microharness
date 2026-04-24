@@ -234,8 +234,6 @@ code {
 
 .dashboard-stage {
   min-height: calc(100vh - 2.25rem);
-  overflow: auto;
-  overscroll-behavior: contain;
   padding: 1rem 1.1rem 1.2rem;
   background: var(--surface-app);
 }
@@ -456,14 +454,13 @@ code {
   outline-offset: 0.26rem;
 }
 
-.dashboard-progress-node::after {
-  content: attr(data-label);
+.dashboard-progress-tooltip {
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 0.65rem);
+  left: 0;
+  bottom: calc(100% + 0.55rem);
   z-index: 8;
   width: max-content;
-  max-width: min(26rem, 72vw);
+  max-width: 100%;
   padding: 0.34rem 0.48rem;
   border: 1px solid var(--border);
   background: #252728;
@@ -473,17 +470,7 @@ code {
   white-space: normal;
   overflow-wrap: anywhere;
   box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.28);
-  opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 0.18rem);
-  transition: opacity 90ms ease, transform 90ms ease;
-}
-
-.dashboard-progress-node:hover::after,
-.dashboard-progress-node:focus::after,
-.dashboard-progress-node:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
 }
 
 .dashboard-progress-node.is-invalid,
@@ -821,6 +808,8 @@ body.is-resizing-workbench .workbench-divider::before {
   .dashboard-stage {
     height: 100%;
     min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 }
 

@@ -1302,6 +1302,7 @@ function dashboardItemMeta(workspace: DashboardWorkspace): string[] {
 
 function DashboardProgressAxis(props: { workspace: DashboardWorkspace }) {
   const nodes = props.workspace.progress?.nodes ?? [];
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
   if (nodes.length === 0) return null;
   return (
     <div class="dashboard-progress">
@@ -1315,8 +1316,17 @@ function DashboardProgressAxis(props: { workspace: DashboardWorkspace }) {
           aria-label={node.label}
           role="img"
           tabIndex={0}
+          onMouseEnter={() => setActiveLabel(node.label)}
+          onMouseLeave={() => setActiveLabel(null)}
+          onFocus={() => setActiveLabel(node.label)}
+          onBlur={() => setActiveLabel(null)}
         />
       ))}
+      {activeLabel ? (
+        <div class="dashboard-progress-tooltip" role="tooltip">
+          {activeLabel}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/preact";
+import { cleanup, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { dashboardRowKey } from "./helpers";
@@ -57,6 +57,10 @@ describe("dashboard helpers and pages", () => {
     expect(screen.getByText("alpha")).toBeTruthy();
     expect(screen.getByText("Open")).toBeTruthy();
     expect(screen.queryByText("execution/step-2/implement")).toBeNull();
+    fireEvent.mouseEnter(currentNode as Element);
+    expect(screen.getByRole("tooltip").textContent).toBe("execution/step-2/implement · Build UI");
+    fireEvent.mouseLeave(currentNode as Element);
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   test("degraded page keeps the return path and only shows unwatch for watched routes", () => {

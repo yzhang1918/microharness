@@ -423,7 +423,8 @@ this step.
 - Reopen revision 3 validation:
   - `pnpm --dir web test`
   - `pnpm --dir web build`
-  - Playwright check against `go run ./cmd/harness dashboard --no-open --port 58419` confirmed the custom progress tooltip pseudo-element renders visible text (`::after` opacity `1`) on focus.
+  - Playwright check against `go run ./cmd/harness dashboard --no-open --port 58419` confirmed the custom progress tooltip renders visible text on focus, first/last progress-node tooltip text stays within a 390px viewport, and the dashboard does not gain horizontal overflow.
+  - Playwright scroll checks confirmed desktop scrolling moves `.dashboard-stage.scrollTop` while `body` remains hidden, and mobile-width scrolling moves `window.scrollY` while `.dashboard-stage` is `overflow: visible`.
   - `scripts/install-dev-harness`
 
 ## Review Summary
@@ -470,6 +471,13 @@ this step.
   still not visibly appearing on hover in the running app. The repair replaced
   reliance on browser-native `title` behavior with a custom CSS tooltip backed
   by each progress node's `data-label`, shown on hover and focus.
+- `review-013-delta` confirmed the custom tooltip appeared, then requested an
+  edge-placement repair because first/last node tooltips could clip offscreen
+  and create mobile horizontal overflow. The follow-up moved the tooltip to an
+  axis-level `role="tooltip"` element constrained to the progress axis, and
+  also limited dashboard-stage scroll containment to desktop layouts so mobile
+  scroll chains to the document instead of being swallowed by a non-scrollable
+  stage.
 
 ## Archive Summary
 
@@ -480,7 +488,8 @@ this step.
   repair and the revision 3 custom tooltip fix. Step 3 closeout passed through
   `review-004-delta`; finalize follow-ups through `review-010-full` produced
   the original merge-ready candidate; revision 2 passed `review-012-delta`;
-  revision 3 now requires a focused finalize review before archive.
+  revision 3 now requires a focused finalize review after the edge-tooltip and
+  mobile-scroll repair before archive.
 - Merge Handoff: Run `harness archive`, commit the tracked archive move, push
   branch `codex/issue-167-dashboard-ui`, refresh PR #191, and then record
   publish/CI/sync evidence until `harness status` returns to
@@ -513,7 +522,10 @@ this step.
   instead of always-visible card metadata. The post-review accessibility
   follow-up also makes those progress nodes keyboard focusable.
 - In revision 3, replaced the unreliable browser-native `title` tooltip with a
-  visible custom tooltip that appears on hover and focus.
+  visible custom tooltip that appears on hover and focus, then adjusted the
+  tooltip placement and scroll containment so edge nodes remain readable and
+  mobile-width scrolling uses the document rather than a non-scrollable
+  dashboard stage.
 
 ### Not Delivered
 
