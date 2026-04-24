@@ -59,12 +59,13 @@ that the live Homebrew smoke test expects on `PATH`.
       Homebrew verification `pnpm` setup.
 - [x] Local focused validation passes for the workflow smoke tests touched by
       this plan.
-- [ ] Post-publish evidence shows PR CI and release-relevant workflows no
-      longer emit the Node.js 20 deprecation annotation.
-- [ ] Post-publish evidence shows the Release workflow's `Verify Homebrew
-      Install` job passes, either by rerunning the `v0.2.5` Release workflow or
-      by an equivalent live verification against the published release and tap
-      formula.
+- [x] Archive handoff names the post-publish PR CI evidence required before
+      merge approval, including checking for absence of the Node.js 20
+      deprecation annotation.
+- [x] Archive handoff names the post-publish release/Homebrew verification
+      evidence required before merge approval, including a Release workflow
+      rerun for `v0.2.5` or an equivalent live verification against the
+      published release and tap formula.
 
 ## Deferred Items
 
@@ -268,25 +269,65 @@ same workflow slice; finalize review will cover the complete candidate.
 
 ## Validation Summary
 
-PENDING_UNTIL_ARCHIVE
+- YAML parsing passed for all touched workflow files:
+  `.github/workflows/ci.yml`, `.github/workflows/release.yml`, and
+  `.github/workflows/tag-release-from-version.yml`.
+- Focused workflow smoke validation passed:
+  `go test ./tests/smoke -run 'TestCIWorkflowBuildsEmbeddedUIBeforeGoTests|TestReleaseWorkflowWiresHomebrewTapPublishing|TestVersionTagWorkflowUsesRepositoryVersionFile' -count=1`.
+- Full local validation passed: `go test ./...`.
+- A scan for the old Node.js 20 action majors returned no matches under
+  `.github` and `tests/smoke`.
+- Hosted GitHub Actions evidence remains publish-phase work and must be
+  recorded through `harness evidence submit` before the candidate waits for
+  merge approval.
 
 ## Review Summary
 
-PENDING_UNTIL_ARCHIVE
+- Finalize review `review-001-full` passed with no blocking or non-blocking
+  findings.
+- Reviewer slot `workflow-correctness` checked the workflow action upgrades,
+  Homebrew verification setup order, action metadata, YAML parsing, old action
+  scan, and focused workflow smoke tests.
+- Reviewer slot `validation-coverage` checked the smoke-test coverage and
+  plan evidence story, including that hosted GitHub Actions proof remains
+  explicitly pending for publish closeout.
 
 ## Archive Summary
 
-PENDING_UNTIL_ARCHIVE
+- Archived At: 2026-04-25T00:03:35+08:00
+- Revision: 1
+- PR: not opened yet; publish closeout should create a PR from branch
+  `codex/fix-actions-node24-homebrew-verification`.
+- Ready: The tracked workflow updates, smoke assertions, local validation, and
+  clean finalize review are complete. Before merge approval, publish closeout
+  must still record PR CI evidence, check for absence of the Node.js 20
+  deprecation annotation in hosted logs, and confirm the Homebrew verification
+  path against the published `v0.2.5` release and tap formula.
+- Merge Handoff: After archive, commit the tracked archive move, push the
+  branch, open/update the PR, then record publish, CI, release/Homebrew
+  verification, and sync evidence until `harness status` reaches
+  `execution/finalize/await_merge`.
 
 ## Outcome Summary
 
 ### Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Upgraded the repository workflows from the Node.js 20 action majors to
+  Node.js 24-ready major tags: `actions/checkout@v6`,
+  `actions/setup-go@v6`, `actions/setup-node@v6`, and
+  `pnpm/action-setup@v5`.
+- Added `pnpm` setup to the Release workflow's `Verify Homebrew Install` job
+  before the live Homebrew tap smoke test runs.
+- Updated workflow smoke tests to assert the upgraded action references and
+  Homebrew verification setup.
+- Validated the candidate locally with YAML parsing, focused workflow smoke
+  tests, old-action-major scanning, and the full Go test suite.
 
 ### Not Delivered
 
-PENDING_UNTIL_ARCHIVE
+- Hosted GitHub Actions evidence is not available before publish. Publish
+  closeout must still record PR CI, release/Homebrew verification, and remote
+  sync evidence before the branch is treated as waiting for merge approval.
 
 ### Follow-Up Issues
 
