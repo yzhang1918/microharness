@@ -1293,18 +1293,9 @@ export function ReviewWorkspace(props: {
 
 function dashboardItemMeta(workspace: DashboardWorkspace): string[] {
   const parts: string[] = [];
-  if (workspace.current_node?.trim()) {
-    parts.push(workspace.current_node.trim());
-  }
-  if (workspace.facts?.current_step?.trim()) {
-    parts.push(workspace.facts.current_step.trim());
-  }
   const warningCount = Array.isArray(workspace.warnings) ? workspace.warnings.length : 0;
   if (warningCount > 0) {
     parts.push(`${warningCount} warning${warningCount === 1 ? "" : "s"}`);
-  }
-  if (workspace.progress?.nodes?.length) {
-    parts.push(`${workspace.progress.nodes.length} nodes`);
   }
   return parts;
 }
@@ -1313,7 +1304,7 @@ function DashboardProgressAxis(props: { workspace: DashboardWorkspace }) {
   const nodes = props.workspace.progress?.nodes ?? [];
   if (nodes.length === 0) return null;
   return (
-    <div class="dashboard-progress" style={{ gridTemplateColumns: `repeat(${nodes.length}, minmax(0, 1fr))` }}>
+    <div class="dashboard-progress">
       <div class="dashboard-progress-line" aria-hidden="true" />
       {nodes.map((node, index) => (
         <span
@@ -1339,13 +1330,6 @@ export function DashboardHome(props: {
 
   return (
     <div class="dashboard-page">
-      <div class="dashboard-header">
-        <div>
-          <div class="sidebar-label">Machine-local home</div>
-          <h1>Dashboard</h1>
-        </div>
-      </div>
-
       {loading ? <EmptyState>Loading watched workspaces.</EmptyState> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
       {!loading && !error && workspaces.length === 0 ? <EmptyState>No watched workspaces yet.</EmptyState> : null}

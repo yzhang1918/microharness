@@ -35,10 +35,13 @@ thread or by a different agent.
   workflow or plan structure. Do **not** fake one shared slot template and then
   merely light different subsets of the same slots.
 - The axis should stay minimal: no persistent stage labels under the line, no
-  percent-complete bar, and no speculative activity math.
+  percent-complete bar, and no speculative activity math. Raw workflow nodes
+  such as `execution/step-3/implement` belong in node hover/focus text, not as
+  always-visible card copy.
 - The older mockup's `x sessions` text was deliberately rejected. For v1, only
-  show compact metadata backed by stable product meaning, such as `current_node`,
-  step counts, warnings, review state, or similar already-defined signals.
+  show compact metadata backed by stable product meaning, such as warnings,
+  review state, blockers, or similar already-defined signals. Avoid showing
+  raw `current_node` as a permanent metadata chip on each card.
 - Avoid large colorful avatars, hero headers, oversized CTA buttons, and other
   generic SaaS dashboard patterns that drift away from the current workbench
   shell.

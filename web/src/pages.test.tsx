@@ -12,12 +12,13 @@ function dashboardWorkspace(overrides: Partial<DashboardWorkspace> = {}): Dashbo
     workspace_path: "/tmp/alpha",
     last_seen_at: "2026-04-23T15:00:00Z",
     dashboard_state: "active",
+    current_node: "execution/step-2/implement",
     summary: "Alpha summary",
     progress: {
       nodes: [
-        { label: "Plan", state: "done" },
-        { label: "Execute", state: "current" },
-        { label: "Review", state: "pending" },
+        { label: "execution/step-1/implement · Prepare data", state: "done" },
+        { label: "execution/step-1/review · Prepare data", state: "done" },
+        { label: "execution/step-2/implement · Build UI", state: "current" },
       ],
     },
     ...overrides,
@@ -48,8 +49,10 @@ describe("dashboard helpers and pages", () => {
     );
 
     expect(document.querySelectorAll(".dashboard-progress-node")).toHaveLength(3);
+    expect(document.querySelector(".dashboard-progress-node.is-current")?.getAttribute("title")).toBe("execution/step-2/implement · Build UI");
     expect(screen.getByText("alpha")).toBeTruthy();
     expect(screen.getByText("Open")).toBeTruthy();
+    expect(screen.queryByText("execution/step-2/implement")).toBeNull();
   });
 
   test("degraded page keeps the return path and only shows unwatch for watched routes", () => {

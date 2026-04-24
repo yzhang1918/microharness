@@ -351,14 +351,17 @@ func TestReadDerivesWorkspaceNamePlanTitleAndProgressFromPlan(t *testing.T) {
 	if entry.Facts == nil || entry.Facts.CurrentStep == "" {
 		t.Fatalf("expected status facts to be preserved, got %#v", entry)
 	}
-	if entry.Progress == nil || len(entry.Progress.Nodes) != 4 {
-		t.Fatalf("expected 2 step nodes plus finalize and await-merge nodes, got %#v", entry.Progress)
+	if entry.Progress == nil || len(entry.Progress.Nodes) != 9 {
+		t.Fatalf("expected implement/review nodes for 2 steps plus finalize phase nodes, got %#v", entry.Progress)
 	}
-	if entry.Progress.Nodes[0].State != progressStateDone || entry.Progress.Nodes[1].State != progressStateCurrent {
-		t.Fatalf("expected step progress state to reflect current review step, got %#v", entry.Progress.Nodes)
+	if entry.Progress.Nodes[0].State != progressStateDone || entry.Progress.Nodes[3].State != progressStateCurrent {
+		t.Fatalf("expected phase progress state to reflect current review node, got %#v", entry.Progress.Nodes)
 	}
-	if entry.Progress.Nodes[2].Label != "Finalize" || entry.Progress.Nodes[3].Label != "Await merge" {
-		t.Fatalf("unexpected terminal progress labels: %#v", entry.Progress.Nodes)
+	if entry.Progress.Nodes[2].Label != "execution/step-2/implement · Step 2: Replace with second step title" {
+		t.Fatalf("expected raw step phase label for hover text, got %#v", entry.Progress.Nodes[2])
+	}
+	if entry.Progress.Nodes[4].Label != "execution/finalize/review" || entry.Progress.Nodes[8].Label != "execution/finalize/await_merge" {
+		t.Fatalf("unexpected finalize progress labels: %#v", entry.Progress.Nodes)
 	}
 }
 

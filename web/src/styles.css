@@ -234,6 +234,8 @@ code {
 
 .dashboard-stage {
   min-height: calc(100vh - 2.25rem);
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 1rem 1.1rem 1.2rem;
   background: var(--surface-app);
 }
@@ -306,23 +308,6 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-}
-
-.dashboard-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 3rem;
-  padding: 0.2rem 0.12rem 0.35rem;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.dashboard-header h1 {
-  margin: 0.12rem 0 0;
-  font-size: 1.45rem;
-  font-weight: 600;
-  color: var(--text-strong);
 }
 
 .dashboard-list {
@@ -426,31 +411,32 @@ code {
 
 .dashboard-progress {
   position: relative;
-  display: grid;
+  display: flex;
   align-items: center;
-  gap: 0;
+  justify-content: space-between;
   width: min(100%, 46rem);
-  padding: 0 0.15rem;
+  min-height: 1.1rem;
+  padding: 0 0.08rem;
 }
 
 .dashboard-progress-line {
   position: absolute;
-  left: 0.15rem;
-  right: 0.15rem;
+  left: 0.08rem;
+  right: 0.08rem;
   top: 50%;
   height: 1px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.13);
   transform: translateY(-50%);
 }
 
 .dashboard-progress-node {
   position: relative;
   z-index: 1;
-  justify-self: center;
-  width: 0.74rem;
-  height: 0.74rem;
+  flex: 0 0 auto;
+  width: 0.48rem;
+  height: 0.48rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.26);
   background: var(--surface-panel);
 }
 
@@ -461,7 +447,8 @@ code {
 
 .dashboard-progress-node.is-current {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(14, 99, 156, 0.18);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px rgba(14, 99, 156, 0.2);
 }
 
 .dashboard-progress-node.is-invalid,
@@ -792,6 +779,11 @@ body.is-resizing-workbench .workbench-divider::before {
   }
 
   .layout {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-stage {
     height: 100%;
     min-height: 0;
   }

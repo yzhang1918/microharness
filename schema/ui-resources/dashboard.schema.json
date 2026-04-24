@@ -40,7 +40,7 @@
             "$ref": "#/$defs/DashboardProgressNode"
           },
           "type": "array",
-          "description": "Nodes are the ordered progress nodes for this workspace. The node count varies with the underlying tracked plan structure."
+          "description": "Nodes are the ordered progress nodes for this workspace. The node count varies with the underlying tracked plan and workflow phase structure."
         }
       },
       "additionalProperties": false,

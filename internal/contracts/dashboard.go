@@ -96,7 +96,7 @@ type DashboardWorkspace struct {
 // home.
 type DashboardProgress struct {
 	// Nodes are the ordered progress nodes for this workspace. The node count
-	// varies with the underlying tracked plan structure.
+	// varies with the underlying tracked plan and workflow phase structure.
 	Nodes []DashboardProgressNode `json:"nodes,omitempty"`
 }
 

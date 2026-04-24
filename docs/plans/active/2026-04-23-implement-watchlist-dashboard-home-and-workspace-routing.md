@@ -88,7 +88,8 @@ single-workspace workbench.
       accepted design direction captured in the supplements package.
 - [x] Dashboard items use a fixed-width progress axis whose node count varies
       with the underlying workflow data rather than a generic fixed-slot
-      template.
+      template; raw workflow nodes are available from progress-node
+      hover/focus text instead of always-visible card metadata.
 - [x] `/workspace/<workspace_key>` redirects to
       `/workspace/<workspace_key>/status`, and readable watched workspaces load
       the existing workbench under the new route family.
@@ -297,8 +298,9 @@ page. `web/src/pages.tsx`, `web/src/helpers.ts`, `web/src/types.ts`, and
 `web/src/styles.css` now implement the accepted dashboard home: one recency-
 sorted stacked list, no dashboard left rail, folder/workspace name first, plan
 title allowed to occupy the main secondary space, path/meta underneath, a
-fixed-width progress axis whose node count comes from actual workflow data,
-and weak `Open` / `Unwatch` actions. `web/src/workbench.tsx` now supports a
+fixed-width progress axis whose node count comes from actual workflow phase
+data, raw workflow nodes kept to progress-node hover/focus text, and weak
+`Open` / `Unwatch` actions. `web/src/workbench.tsx` now supports a
 `Home` rail icon so workspace detail can return directly to `/dashboard`.
 
 Step-closeout `review-001-full` then requested six repairs across correctness,
@@ -407,6 +409,16 @@ this step.
   - `go test ./internal/ui ./internal/cli -count=1`
   - `pnpm --dir web test`
   - `pnpm --dir web build`
+- Reopen revision 2 validation:
+  - `git diff --check`
+  - `go test ./internal/dashboard ./internal/ui ./internal/cli -count=1`
+  - `pnpm --dir web test`
+  - `pnpm --dir web build`
+  - `scripts/sync-contract-artifacts`
+  - `scripts/sync-contract-artifacts --check`
+  - `harness plan lint docs/plans/active/2026-04-23-implement-watchlist-dashboard-home-and-workspace-routing.md`
+  - `go test ./... -count=1`
+  - Playwright visual/behavior check against `go run ./cmd/harness dashboard --no-open --port 58417`: desktop screenshot at `output/playwright/dashboard-fix-desktop.png`, mobile screenshot at `output/playwright/dashboard-fix-mobile.png`, and a runtime scroll probe confirming `.dashboard-stage` scrolls with `overflow: auto` while desktop `body` remains `overflow: hidden`.
 
 ## Review Summary
 
@@ -436,6 +448,11 @@ this step.
 - Finalize `review-009-full` then requested one last docs-consistency repair
   because the closeout narrative omitted the clean pass from
   `review-008-delta`.
+- After the merge-ready candidate was reopened for revision 2, the current
+  finalize-fix repaired dashboard scroll containment, removed the redundant
+  dashboard page header, moved raw `current_node` details into progress-node
+  hover/focus text, and split the dashboard progress axis into finer workflow
+  phase nodes. A fresh finalize delta review is required before re-archive.
 
 ## Archive Summary
 
@@ -454,6 +471,10 @@ this step.
   branch `codex/issue-167-dashboard-ui`, create the PR, and then record
   publish/CI/sync evidence until `harness status` reaches
   `execution/finalize/await_merge`.
+- Reopen Note: Revision 2 is currently in finalize-fix after human UI feedback
+  on scroll behavior, progress-axis fidelity, and redundant dashboard header
+  copy. Re-archive should replace this archive summary after the fresh
+  finalize review passes.
 
 ## Outcome Summary
 
@@ -474,13 +495,19 @@ this step.
 - Updated specs, README, generated dashboard contract schema, and focused
   frontend/server/CLI validation so the shipped behavior is discoverable from
   repository files alone.
+- In revision 2, tightened the dashboard home after human visual testing:
+  desktop scrolling now belongs to the dashboard stage, the redundant
+  `Machine-local home` / `Dashboard` content header is gone, progress nodes
+  now represent finer workflow phases such as `execution/step-k/implement`,
+  and raw workflow node text is available from node hover/focus affordances
+  instead of always-visible card metadata.
 
 ### Not Delivered
 
 - Search, filtering, or saved dashboard views.
 - Richer degraded-page recovery flows beyond the intentionally minimal page.
-- More expressive progress hover/focus UI or any stable aggregate activity
-  metric such as concurrent sessions.
+- A richer progress inspector beyond minimal hover/focus text, or any stable
+  aggregate activity metric such as concurrent sessions.
 - A future decision on when `harness ui` should begin printing a deprecation
   warning.
 
