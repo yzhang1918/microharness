@@ -452,7 +452,12 @@ this step.
   finalize-fix repaired dashboard scroll containment, removed the redundant
   dashboard page header, moved raw `current_node` details into progress-node
   hover/focus text, and split the dashboard progress axis into finer workflow
-  phase nodes. A fresh finalize delta review is required before re-archive.
+  phase nodes.
+- `review-011-delta` requested one accessibility repair: progress-node raw
+  labels were still hover-only because the dots were non-focusable spans.
+  The follow-up made each progress node keyboard focusable with an accessible
+  label and added frontend coverage for the focusable node contract. A fresh
+  delta review is required before re-archive.
 
 ## Archive Summary
 
@@ -500,7 +505,8 @@ this step.
   `Machine-local home` / `Dashboard` content header is gone, progress nodes
   now represent finer workflow phases such as `execution/step-k/implement`,
   and raw workflow node text is available from node hover/focus affordances
-  instead of always-visible card metadata.
+  instead of always-visible card metadata. The post-review accessibility
+  follow-up also makes those progress nodes keyboard focusable.
 
 ### Not Delivered
 

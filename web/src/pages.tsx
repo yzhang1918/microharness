@@ -1312,6 +1312,8 @@ function DashboardProgressAxis(props: { workspace: DashboardWorkspace }) {
           class={`dashboard-progress-node is-${node.state} is-${props.workspace.dashboard_state}`}
           title={node.label}
           aria-label={node.label}
+          role="img"
+          tabIndex={0}
         />
       ))}
     </div>

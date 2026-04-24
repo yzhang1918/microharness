@@ -49,7 +49,10 @@ describe("dashboard helpers and pages", () => {
     );
 
     expect(document.querySelectorAll(".dashboard-progress-node")).toHaveLength(3);
-    expect(document.querySelector(".dashboard-progress-node.is-current")?.getAttribute("title")).toBe("execution/step-2/implement · Build UI");
+    const currentNode = document.querySelector(".dashboard-progress-node.is-current");
+    expect(currentNode?.getAttribute("title")).toBe("execution/step-2/implement · Build UI");
+    expect(currentNode?.getAttribute("tabindex")).toBe("0");
+    expect(currentNode?.getAttribute("role")).toBe("img");
     expect(screen.getByText("alpha")).toBeTruthy();
     expect(screen.getByText("Open")).toBeTruthy();
     expect(screen.queryByText("execution/step-2/implement")).toBeNull();
