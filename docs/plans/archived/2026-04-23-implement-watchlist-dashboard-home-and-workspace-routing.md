@@ -464,7 +464,7 @@ this step.
 
 ## Archive Summary
 
-- Archived At: pending revision 2 archive after `review-012-delta`.
+- Archived At: 2026-04-24T08:34:55+08:00
 - Revision: 2
 - PR: https://github.com/catu-ai/easyharness/pull/191
 - Ready: Acceptance criteria remain satisfied after the revision 2 UI feedback
