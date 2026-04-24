@@ -504,7 +504,7 @@ this step.
 
 ## Archive Summary
 
-- Archived At: pending revision 4 archive.
+- Archived At: 2026-04-24T21:22:18+08:00
 - Revision: 4
 - PR: https://github.com/catu-ai/easyharness/pull/191
 - Ready: Acceptance criteria remain satisfied after the revision 2 UI feedback
