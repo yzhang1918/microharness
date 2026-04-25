@@ -83,7 +83,10 @@ read-model snapshot when their public contract calls for it. In particular,
 `harness status` may briefly wait for a state mutation lock to settle before
 resolving a snapshot, as defined in [CLI Contract](./cli-contract.md). That
 settle behavior belongs to the CLI checkpoint command, not to the underlying
-status read model.
+status read model. The settle check must be passive and non-destructive: it
+must not create a missing lock file, acquire ownership of the mutation lock as
+a way to prove quiescence, or hold any mutation lock while resolving the
+snapshot.
 
 ### Durable Plan, Disposable Runtime
 

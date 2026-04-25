@@ -133,6 +133,13 @@ resolving and returning the snapshot. If the lock remains held after the
 bounded wait, `harness status` should return a clear contention result instead
 of reading a likely in-flight state.
 
+The status settle check must be passive and non-destructive. It must not create
+`.state-mutation.lock` when the file is absent, must not acquire and hold the
+state mutation lock as its quiescence probe, and must not own any mutation lock
+while resolving the status snapshot. After the bounded settle check completes,
+`harness status` should call the same pure snapshot resolver used by UI/API
+read surfaces.
+
 This wait rule does not apply to ordinary mutation commands. Commands that
 mutate workflow state should continue to fail fast on mutation-lock contention
 unless their own command contract explicitly defines a different behavior.
@@ -463,6 +470,9 @@ Contract:
 - before resolving the status snapshot for a current plan, briefly wait for an
   actively held state mutation lock to settle; if the lock remains held beyond
   the bounded wait, return a clear local-mutation-in-progress result
+- perform that settle wait with a passive, non-destructive advisory-lock check
+  that does not create a missing lock file and does not hold any mutation lock
+  while resolving the snapshot
 - resolve the canonical `state.current_node` from the current plan,
   execute-start milestones, review artifacts, append-only evidence, reopen
   milestones, archive state, and land milestones
