@@ -255,7 +255,8 @@ non-destructive probe boundary. Validation: `git diff --check`; `go test
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-004-delta` passed with correctness and tests slots, both with no
+findings.
 
 ### Step 4: Lock UI/API and watchlist boundaries with tests
 
