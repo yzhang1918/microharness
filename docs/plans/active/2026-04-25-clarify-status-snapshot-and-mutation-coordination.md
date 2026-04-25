@@ -260,7 +260,7 @@ findings.
 
 ### Step 4: Lock UI/API and watchlist boundaries with tests
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -310,7 +310,8 @@ files or create `.state-mutation.lock`. Validation: `go test ./internal/ui
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-005-delta` passed with correctness and tests slots, both with no
+findings.
 
 ## Validation Strategy
 
