@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -726,19 +727,33 @@ func TestStatusCommandWaitsForStateMutationLockRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("acquire state lock: %v", err)
 	}
-	released := make(chan struct{})
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		release()
-		close(released)
-	}()
 
 	stdout.Reset()
 	stderr.Reset()
-	if exitCode := app.Run([]string{"status"}); exitCode != 0 {
+	statusStarted := make(chan struct{})
+	var closeStatusStarted sync.Once
+	app.Getwd = func() (string, error) {
+		closeStatusStarted.Do(func() {
+			close(statusStarted)
+		})
+		return root, nil
+	}
+	done := make(chan int, 1)
+	go func() {
+		done <- app.Run([]string{"status"})
+	}()
+
+	<-statusStarted
+	select {
+	case exitCode := <-done:
+		t.Fatalf("expected status to keep waiting while state lock is held, got exit code %d", exitCode)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	release()
+	if exitCode := <-done; exitCode != 0 {
 		t.Fatalf("expected status to wait for released state lock, got %d: %s", exitCode, stderr.String())
 	}
-	<-released
 
 	var payload struct {
 		OK bool `json:"ok"`
