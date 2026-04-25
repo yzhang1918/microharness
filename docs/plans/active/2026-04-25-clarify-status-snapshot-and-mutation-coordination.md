@@ -197,7 +197,8 @@ aggregation, UI status endpoints, and direct tests/callers. Validation:
 
 #### Review Notes
 
-PENDING_STEP_REVIEW
+`review-003-delta` passed with correctness and tests slots, both with no
+findings.
 
 ### Step 3: Add CLI status settle behavior
 
