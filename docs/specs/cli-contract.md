@@ -134,11 +134,11 @@ bounded wait, `harness status` should return a clear contention result instead
 of reading a likely in-flight state.
 
 The status settle check must be passive and non-destructive. It must not create
-`.state-mutation.lock` when the file is absent, must not acquire and hold the
-state mutation lock as its quiescence probe, and must not own any mutation lock
-while resolving the status snapshot. After the bounded settle check completes,
-`harness status` should call the same pure snapshot resolver used by UI/API
-read surfaces.
+`.state-mutation.lock` when the file is absent, must not use the ordinary
+mutation-lock acquisition helper as its probe, and must not hold any mutation
+lock while resolving the status snapshot. After the bounded settle check
+completes, `harness status` should call the same pure snapshot resolver used by
+UI/API read surfaces.
 
 This wait rule does not apply to ordinary mutation commands. Commands that
 mutate workflow state should continue to fail fast on mutation-lock contention

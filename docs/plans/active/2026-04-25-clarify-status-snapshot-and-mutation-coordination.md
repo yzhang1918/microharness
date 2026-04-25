@@ -202,7 +202,7 @@ findings.
 
 ### Step 3: Add CLI status settle behavior
 
-- Done: [ ]
+- Done: [x]
 
 #### Objective
 
@@ -245,7 +245,13 @@ for checkpoint reads, not for competing workflow mutations.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Added runstate helpers for passive state-mutation lock probing and bounded
+settle waits. `harness status` now waits briefly for a held state mutation
+lock before calling the pure status snapshot resolver, returns a clear busy
+status if the lock remains held, and does not create `.state-mutation.lock`
+when no lock file exists. Adjusted the specs to describe the implementable
+non-destructive probe boundary. Validation: `git diff --check`; `go test
+./internal/runstate ./internal/cli ./internal/status`.
 
 #### Review Notes
 
