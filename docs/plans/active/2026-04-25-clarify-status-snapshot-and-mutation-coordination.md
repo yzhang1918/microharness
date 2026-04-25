@@ -299,7 +299,14 @@ with removing the intentional command-level recency refresh.
 
 #### Execution Notes
 
-PENDING_STEP_EXECUTION
+Added active-plan UI/API regressions for top-level `/api/status` and
+workspace-detail `/api/workspace/<key>/status`. The tests snapshot
+`current-plan.json`, plan-local `state.json`, and the machine-local
+watchlist when present, then assert status polling does not rewrite those
+files or create `.state-mutation.lock`. Validation: `go test ./internal/ui
+-count=1`; `go test ./internal/status ./internal/runstate ./internal/cli
+./internal/ui ./internal/dashboard ./internal/watchlist -count=1`; `git diff
+--check`.
 
 #### Review Notes
 
