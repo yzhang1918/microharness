@@ -350,6 +350,10 @@ findings.
   docs/plans/active/2026-04-25-clarify-status-snapshot-and-mutation-coordination.md`
 - `go test ./internal/status ./internal/runstate ./internal/cli ./internal/ui
   ./internal/dashboard ./internal/watchlist -count=1`
+- `go test ./tests/e2e -run
+  TestArchivedRunstateInterleavingsIgnoreStaleEvidenceAndFailClearlyUnderLock
+  -count=1`
+- `go test ./...`
 - Step-focused validation also covered `./internal/lifecycle` and
   `./internal/review` after the status snapshot API rename.
 
@@ -363,14 +367,20 @@ findings.
   stays blocked while the state mutation lock is held and succeeds after
   release. `review-007-full` passed with correctness and tests slots, both
   with no findings.
+- Post-archive CI for revision `1` failed because an E2E concurrency test still
+  expected the old mutation-command lock contention wording for `harness
+  status`. Revision `2` updates that E2E expectation to the new status busy
+  wording and reruns the full local test suite before the fresh finalize
+  review.
 
 ## Archive Summary
 
 - Archived At: 2026-04-26T00:01:44+08:00
-- Revision: 1
-- PR: To be created after archive from this candidate branch.
-- Ready: The tracked steps are complete, the repair finalize review passed,
-  focused validation is green, and no follow-up issues are required.
+- Revision: 2 after post-archive CI repair.
+- PR: https://github.com/catu-ai/easyharness/pull/196
+- Ready: The tracked steps are complete, the revision `1` post-archive CI
+  failure has been repaired in revision `2`, full local validation is green,
+  and no follow-up issues are required.
 - Merge Handoff: After archive, commit the archive move, push the branch, open
   the PR, record publish/CI/sync evidence, and wait for explicit human merge
   approval.
