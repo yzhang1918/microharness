@@ -139,7 +139,7 @@ const reviewResult: ReviewResult = {
       reviewers: [{ slot: "ui", name: "UI", status: "submitted", summary: "Looks good." }],
       artifacts: [
         { label: "notes", path: ".local/review/notes.md", content_type: "text", content: "notes" },
-        { label: "trace", path: ".local/review/trace.md", content_type: "text", content: "trace" },
+        { label: "trace", path: ".local/review/trace.md", content_type: "text", content: "trace payload" },
       ],
     },
   ],
@@ -186,6 +186,14 @@ function clickPlanTreeLabel(label: string) {
 
 function activeInspectorTabText(): string {
   return document.querySelector(".inspector-tab.is-active")?.textContent ?? "";
+}
+
+function activeArtifactTabText(): string {
+  return Array.from(document.querySelectorAll(".raw-json-overlay .inspector-tab.is-active")).at(-1)?.textContent ?? "";
+}
+
+function activeArtifactBodyText(): string {
+  return document.querySelector(".raw-json-overlay .artifact-panel .inspector-json")?.textContent ?? "";
 }
 
 function activeExplorerTitleText(): string {
@@ -421,7 +429,8 @@ describe("workbench page state continuity", () => {
     fireEvent.click(screen.getByRole("button", { name: "Artifacts" }));
     await waitFor(() => expect(screen.getAllByText("notes").length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole("tab", { name: "trace" }));
-    await waitFor(() => expect(screen.getAllByText("trace").length).toBeGreaterThan(0));
+    await waitFor(() => expect(activeArtifactTabText()).toBe("trace"));
+    await waitFor(() => expect(activeArtifactBodyText()).toBe("trace payload"));
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle Review" }));
     await waitFor(() => expect(document.querySelector(".explorer-list")).toBeNull());
@@ -429,7 +438,8 @@ describe("workbench page state continuity", () => {
 
     await waitFor(() => expect(activeExplorerTitleText()).toBe("First review"));
     expect(activeInspectorTabText()).toBe("UI");
-    expect(screen.getAllByText("trace").length).toBeGreaterThan(0);
+    expect(activeArtifactTabText()).toBe("trace");
+    expect(activeArtifactBodyText()).toBe("trace payload");
   });
 
   test("falls back cleanly when remembered Plan ids are no longer present", async () => {

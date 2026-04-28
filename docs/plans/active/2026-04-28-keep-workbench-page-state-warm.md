@@ -239,7 +239,10 @@ added user-control remount tests for Plan, Timeline, and Review and reran
 successfully. Follow-up review `review-003-full` found that Review artifact
 selection still used default state; the third repair added a second artifact,
 clicked its artifact tab through the UI, and verified that selected artifact
-state survives remount. Full validation passed again.
+state survives remount. Review `review-004-full` tightened that assertion
+because the tab label could satisfy the old text check; the fourth repair now
+asserts both the selected artifact tab and the selected artifact body. Full
+validation passed again.
 
 ## Archive Summary
 
