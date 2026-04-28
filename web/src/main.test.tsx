@@ -1,0 +1,262 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+import { App } from "./main";
+import type { PlanResult, ReviewResult, StatusResult, TimelineResult, WorkspaceRouteResult } from "./types";
+
+const workspaceResult: WorkspaceRouteResult = {
+  ok: true,
+  resource: "workspace",
+  summary: "Workspace is active.",
+  watched: true,
+  workspace: {
+    workspace_key: "wk_alpha",
+    workspace_name: "alpha",
+    workspace_path: "/tmp/alpha",
+    dashboard_state: "active",
+    current_node: "execution/step-1/implement",
+    summary: "Alpha summary",
+  },
+};
+
+const statusResult: StatusResult = {
+  ok: true,
+  command: "status",
+  summary: "Step 1 is active.",
+  state: { current_node: "execution/step-1/implement" },
+  next_actions: [],
+  warnings: [],
+  blockers: [],
+  errors: [],
+};
+
+const planResult: PlanResult = {
+  ok: true,
+  resource: "plan",
+  summary: "Plan loaded.",
+  warnings: [],
+  document: {
+    title: "Warm Plan",
+    path: "docs/plans/active/warm.md",
+    markdown: "# Warm Plan\n\n## Scope\n\nKeep state.\n\n## Validation\n\nTest it.",
+    headings: [
+      { id: "scope", label: "Scope", level: 2, anchor: "scope" },
+      { id: "validation", label: "Validation", level: 2, anchor: "validation" },
+    ],
+  },
+  supplements: null,
+};
+
+const timelineResult: TimelineResult = {
+  ok: true,
+  resource: "timeline",
+  summary: "Timeline loaded.",
+  events: [
+    {
+      event_id: "event-new",
+      sequence: 2,
+      recorded_at: "2026-04-28T10:00:00Z",
+      kind: "execute",
+      command: "new event",
+      summary: "New event",
+      plan_stem: "warm",
+      input: { newer: true },
+    },
+    {
+      event_id: "event-old",
+      sequence: 1,
+      recorded_at: "2026-04-28T09:00:00Z",
+      kind: "plan",
+      command: "old event",
+      summary: "Old event",
+      plan_stem: "warm",
+      input: { older: true },
+    },
+  ],
+};
+
+const reviewResult: ReviewResult = {
+  ok: true,
+  resource: "review",
+  summary: "Review loaded.",
+  warnings: [],
+  artifacts: {},
+  rounds: [
+    {
+      round_id: "review-002-delta",
+      kind: "delta",
+      review_title: "Second review",
+      status: "passed",
+      status_summary: "Passed.",
+      reviewers: [{ slot: "tests", name: "Tests", status: "submitted", summary: "Looks good." }],
+      artifacts: [{ label: "submission", path: ".local/review/submission.json", content_type: "json", content: { ok: true } }],
+    },
+    {
+      round_id: "review-001-full",
+      kind: "full",
+      review_title: "First review",
+      status: "passed",
+      status_summary: "Passed.",
+      reviewers: [{ slot: "ui", name: "UI", status: "submitted", summary: "Looks good." }],
+      artifacts: [{ label: "notes", path: ".local/review/notes.md", content_type: "text", content: "notes" }],
+    },
+  ],
+};
+
+function mockApi() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: RequestInfo | URL) => {
+      const path = String(input);
+      const payloadByPath: Record<string, unknown> = {
+        "/api/workspace/wk_alpha": workspaceResult,
+        "/api/workspace/wk_alpha/status": statusResult,
+        "/api/workspace/wk_alpha/plan": planResult,
+        "/api/workspace/wk_alpha/timeline": timelineResult,
+        "/api/workspace/wk_alpha/review": reviewResult,
+      };
+      const payload = payloadByPath[path];
+      if (!payload) {
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      }
+      return Promise.resolve({ ok: true, json: async () => payload } as Response);
+    }),
+  );
+}
+
+function activePlanTreeText(): string {
+  return document.querySelector(".plan-tree-row.is-active .plan-tree-text")?.textContent ?? "";
+}
+
+function activeInspectorTabText(): string {
+  return document.querySelector(".inspector-tab.is-active")?.textContent ?? "";
+}
+
+function activeExplorerTitleText(): string {
+  return document.querySelector(".explorer-item.is-active .explorer-item-title")?.textContent ?? "";
+}
+
+function explorerHasTitle(title: string): boolean {
+  return Array.from(document.querySelectorAll(".explorer-item-title")).some((nextElement) => nextElement.textContent === title);
+}
+
+describe("workbench page state continuity", () => {
+  beforeEach(() => {
+    mockApi();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    window.history.replaceState({}, "", "/");
+  });
+
+  test("keeps Plan selection warm across tab switches while refetching data", async () => {
+    window.history.pushState({}, "", "/workspace/wk_alpha/plan");
+    render(
+      <App
+        initialPlanWorkspaceState={{
+          selectedNodeId: "heading:scope",
+          expandedNodeIds: ["document:docs/plans/active/warm.md"],
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(document.querySelector(".plan-tree-text")?.textContent).toBe("Warm Plan"));
+    await waitFor(() => expect(activePlanTreeText()).toBe("Scope"));
+
+    fireEvent.click(screen.getByLabelText("Timeline"));
+    await waitFor(() => expect(explorerHasTitle("new event")).toBe(true));
+    fireEvent.click(screen.getByLabelText("Plan"));
+
+    await waitFor(() => expect(document.querySelector(".plan-tree-text")?.textContent).toBe("Warm Plan"));
+    await waitFor(() => expect(activePlanTreeText()).toBe("Scope"));
+    expect(fetch).toHaveBeenCalledWith("/api/workspace/wk_alpha/plan", expect.any(Object));
+  });
+
+  test("keeps Timeline event and detail tab warm across tab switches", async () => {
+    window.history.pushState({}, "", "/workspace/wk_alpha/timeline");
+    render(
+      <App
+        initialTimelineWorkspaceState={{
+          selectedEventId: "event-old",
+          selectedTab: "input",
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(explorerHasTitle("old event")).toBe(true));
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("old event"));
+    await waitFor(() => expect(activeInspectorTabText()).toBe("Input"));
+
+    fireEvent.click(screen.getByLabelText("Plan"));
+    await waitFor(() => expect(document.querySelector(".plan-tree-text")?.textContent).toBe("Warm Plan"));
+    fireEvent.click(screen.getByLabelText("Timeline"));
+
+    await waitFor(() => expect(explorerHasTitle("old event")).toBe(true));
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("old event"));
+    expect(activeInspectorTabText()).toBe("Input");
+  });
+
+  test("keeps Review round, detail tab, and artifacts panel warm across tab switches", async () => {
+    window.history.pushState({}, "", "/workspace/wk_alpha/review");
+    render(
+      <App
+        initialReviewWorkspaceState={{
+          selectedRoundId: "review-001-full",
+          selectedDetailTab: "ui",
+          selectedArtifactKey: ".local/review/notes.md",
+          showArtifacts: true,
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(explorerHasTitle("First review")).toBe(true));
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("First review"));
+    await waitFor(() => expect(screen.getAllByText("notes").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByLabelText("Plan"));
+    await waitFor(() => expect(document.querySelector(".plan-tree-text")?.textContent).toBe("Warm Plan"));
+    fireEvent.click(screen.getByLabelText("Review"));
+
+    await waitFor(() => expect(explorerHasTitle("First review")).toBe(true));
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("First review"));
+    expect(activeInspectorTabText()).toBe("UI");
+    expect(screen.getAllByText("notes").length).toBeGreaterThan(0);
+  });
+
+  test("falls back cleanly when remembered page ids are no longer present", async () => {
+    window.history.pushState({}, "", "/workspace/wk_alpha/review");
+    render(
+      <App
+        initialReviewWorkspaceState={{
+          selectedRoundId: "missing-round",
+          selectedDetailTab: "missing-tab",
+          selectedArtifactKey: "missing-artifact",
+          showArtifacts: true,
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(explorerHasTitle("Second review")).toBe(true));
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("Second review"));
+    await waitFor(() => expect(activeInspectorTabText()).toBe("Tests"));
+  });
+
+  test("falls back cleanly when a remembered review artifact id is no longer present", async () => {
+    window.history.pushState({}, "", "/workspace/wk_alpha/review");
+    render(
+      <App
+        initialReviewWorkspaceState={{
+          selectedRoundId: "review-001-full",
+          selectedDetailTab: "ui",
+          selectedArtifactKey: "missing-artifact",
+          showArtifacts: true,
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(activeExplorerTitleText()).toBe("First review"));
+    await waitFor(() => expect(screen.getAllByText("notes").length).toBeGreaterThan(0));
+  });
+});
